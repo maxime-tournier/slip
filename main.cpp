@@ -50,7 +50,6 @@ static sexpr parse(std::istream& in) {
   static const auto number_parser =
     real_parser >> [](real num) {
                      const long cast = num;
-                     
                      const sexpr value = num == real(cast) ? cast : num;
                      return pure(value);                     
                    };
@@ -72,14 +71,17 @@ static sexpr parse(std::istream& in) {
   static const auto as_expr = parser::cast<sexpr>();
 
   static auto expr_parser = parser::any<sexpr>();
+
+  static const auto separator_parser = +parser::chr<std::isspace>();
   
   static const auto list_parser
     = parser::token("(")
-    >>= *parser::ref(expr_parser)
+    >>= ((parser::ref(expr_parser) % separator_parser)
+         | pure(std::vector<sexpr>()))
+    >> drop(parser::token(")"))
     >> [](std::vector<sexpr>&& es) {
          return pure(make_list(es.begin(), es.end()));
-       }
-    >> drop(parser::token(")"));
+       };
   
   static const auto once =
     (expr_parser
