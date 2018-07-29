@@ -2,5 +2,11 @@
 project('slap', 'cpp',
 		default_options : ['cpp_std=c++11'])
 
-executable('slap', 'main.cpp')
+compiler = meson.get_compiler('cpp')
+readline = compiler.find_library('readline', required: true)
+
+
+executable('slap',
+		   'main.cpp',
+		   dependencies: [readline])
 

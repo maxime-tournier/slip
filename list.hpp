@@ -38,19 +38,27 @@ struct cons {
     return func(self->head) >>= map(self->tail, func);
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const list<T>& self) {
+    out << '(';
+    foldl(true, self, [&](bool first, const T& it) {
+        if(!first) out << ' ';
+        out << it;
+        return false;
+      });
+    return out << ')';
+  }
+
 };
 
 
-template<class T>
-static std::ostream& operator<<(std::ostream& out, const list<T>& self) {
-  out << '(';
-  foldl(true, self, [&](bool first, const T& it) {
-                      if(!first) out << ' ';
-                      out << it;
-                      return false;
-                    });
-  return out << ')';
+template<class Iterator>
+static list<typename Iterator::value_type> make_list(Iterator first, Iterator last) {
+  if(first == last) return nullptr;
+  const auto head = *first;
+  return head >>= make_list(++first, last);
 }
+  
+
 
 
 

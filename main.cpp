@@ -12,39 +12,150 @@
 
 #include <iostream>
 
+#include "symbol.hpp"
+#include "environment.hpp"
+
+#include "../parse.hpp"
+
+#include <sstream>
+
+#include <readline/readline.h>
+#include <readline/history.h>
 
 // base types
 using boolean = bool;
 using integer = long;
 using real = double;
 
-class symbol {
-  const char* name;
-public:
-  
-  explicit symbol(const std::string& name) {
-    static std::set<std::string> table;
-    this->name = table.insert(name).first->c_str();
-  }
-
-  const char* get() const { return name; }
-  bool operator<(const symbol& other) const { return name < other.name; }
-  bool operator==(const symbol& other) const { return name == other.name; }
-
-  friend std::ostream& operator<<(std::ostream& out, const symbol& self) {
-    return out << self.name;
-  }
-  
-};
-
 
 // s-expressions
 struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   using sexpr::variant::variant;
-  using list = list<sexpr>;
 };
 
-struct env;
+
+static sexpr parse(std::istream& in) {
+  using parser::pure;
+  
+  static const auto true_parser =
+    parser::token("true") >> [](const char*) { return pure(true); };
+  
+  static const auto false_parser =
+    parser::token("false") >> [](const char*) { return pure(false); };
+  
+  static const auto boolean_parser = true_parser | false_parser;
+
+  static const auto real_parser = parser::value<double>();  
+
+  static const auto number_parser =
+    real_parser >> [](real num) {
+                     const long cast = num;
+                     
+                     const sexpr value = num == real(cast) ? cast : num;
+                     return pure(value);                     
+                   };
+  
+  static const auto initial_parser = parser::chr<std::isalpha>();
+  static const auto rest_parser = parser::chr<std::isalnum>();  
+  
+  static const auto symbol_parser =
+    initial_parser >>
+    [](char c) {
+      return parser::noskip(*rest_parser >>
+                            [c](std::vector<char>&& rest) {
+                              const std::string tmp = c + std::string(rest.begin(),
+                                                                      rest.end());
+                              return pure(symbol(tmp));
+                            });
+    };
+  
+  static const auto as_expr = parser::cast<sexpr>();
+
+  static auto expr_parser = parser::any<sexpr>();
+  
+  static const auto list_parser
+    = parser::token("(")
+    >>= *parser::ref(expr_parser)
+    >> [](std::vector<sexpr>&& es) {
+         return pure(make_list(es.begin(), es.end()));
+       }
+    >> drop(parser::token(")"));
+  
+  static const auto once =
+    (expr_parser
+     = (boolean_parser >> as_expr)
+     | (symbol_parser >> as_expr)
+     | number_parser
+     | (list_parser >> as_expr)
+     , 0); (void) once;
+  
+  if(auto value = expr_parser(in)) {
+    return value.get();
+  }
+  
+  throw std::runtime_error("parse error");
+};
+
+
+
+namespace ast {
+
+  // expressions
+  template<class T>
+  struct lit {
+    const T value;
+  };
+
+  struct expr;
+
+  struct app {
+    const ref<expr> func;
+    const list<expr> args;
+  };
+
+  struct abs {
+    const list<symbol> args;
+    const list<expr> body;
+  };
+
+  struct var {
+    const symbol name;
+  };
+
+
+  // definitions
+  struct def {
+    const symbol name;
+    const ref<expr> value;
+  };
+
+
+  // sequence
+  struct seq {
+    const ref<expr> items;        
+  };
+
+
+  struct expr : variant< lit<boolean>,
+                         lit<integer>,
+                         lit<real>,
+                         var, abs, app,
+                         def,
+                         seq> {
+    using expr::variant::variant;
+  };
+
+
+  static expr check(const sexpr& e);
+  
+}
+
+
+
+
+struct value;
+using env = environment<value>;
+
 
 // values
 struct lambda {
@@ -57,43 +168,30 @@ struct lambda {
   }
 };
 
+
 struct value : variant<real, integer, boolean, symbol, lambda, list<value> > {
   using value::variant::variant;
   using list = list<value>;
 };
 
 
-// environments
-struct env {
-  std::map<symbol, value> locals;
-  ref<env> parent;
-
-  friend ref<env> augment(const ref<env>& self, const list<symbol>& args,
-                          const value::list& values) {
-    auto res = std::make_shared<env>();
-    res->parent = self;
-    foldl(args, values, [&](const list<symbol>& args, const value& self) {
-        if(!args) throw std::runtime_error("not enough args");
-        res->locals.emplace(args->head, self);
-        return args->tail;
-      });
-
-    return res;
-  };
-};
 
 
 
 using eval_type = value (*)(const ref<env>&, const sexpr& );
+
 static std::map<symbol, eval_type> special;
+
 
 static std::runtime_error unimplemented() {
   return std::runtime_error("unimplemented");
 }
 
+
 static value eval(const ref<env>& e, const sexpr& expr);
 
-static value apply(const ref<env>& e, const sexpr& func, const sexpr::list& args) {
+
+static value apply(const ref<env>& e, const sexpr& func, const list<sexpr>& args) {
   return eval(e, func).match<value>
     ([](value) -> value {
        throw std::runtime_error("invalid type in application");
@@ -104,6 +202,7 @@ static value apply(const ref<env>& e, const sexpr& func, const sexpr::list& args
                                                    })), self.body);
      });
 }
+
 
 static value eval(const ref<env>& e, const sexpr& expr) {
   return expr.match<value>
@@ -116,7 +215,7 @@ static value eval(const ref<env>& e, const sexpr& expr) {
 
        return it->second;
      },
-     [&](const sexpr::list& x) {
+     [&](const list<sexpr>& x) {
        if(!x) throw std::runtime_error("empty list in application");
 
        // special forms
@@ -133,16 +232,32 @@ static value eval(const ref<env>& e, const sexpr& expr) {
 }
 
 
+template<class F>
+static void read_loop(const F& f) {
+  // TODO read history
+  while(const char* line = readline("> ")) {
+    if(!*line) continue;
+    
+    add_history(line);
+	std::stringstream ss(line);
+    
+	f(ss);
+  }
+  
+};
+
+
 
 int main(int, char**) {
 
-  const sexpr e = symbol("michel");
+  read_loop([](std::istream& in) {
+              try {
+                const sexpr s = parse(in);
+                std::cout << s << std::endl;
+              } catch(std::runtime_error& e) {
+                std::cerr << e.what() << std::endl;
+              }
+            });
   
-  auto global = std::make_shared<env>();
-  global->locals.emplace("michel", 14l);
-  
-  std::clog << e << std::endl;
-  
-  std::clog << eval(global, e) << std::endl;
   return 0;
 }
