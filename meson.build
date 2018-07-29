@@ -8,5 +8,7 @@ readline = compiler.find_library('readline', required: true)
 
 executable('slap',
 		   'main.cpp',
+		   'sexpr.cpp',
+		   'symbol.cpp',
 		   dependencies: [readline])
 
