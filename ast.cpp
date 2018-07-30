@@ -21,16 +21,6 @@ namespace ast {
       return [value](const list<sexpr>&) { return value; };
     };
 
-    // matches list head with given type and return it if possible
-    template<class U>
-    static maybe<U> match(const list<sexpr>& self) {
-      if(!self) return {};
-      if(auto value = self->head.template get<U>()) {
-        return *value;
-      }
-      return {};
-    }
-    
     namespace detail {
       template<class T>
       struct maybe_type;
@@ -59,8 +49,9 @@ namespace ast {
       const F f;
     
       maybe<value_type> operator()(const list<sexpr>& self) const {
-        return a(self) >> [&](const source_type& value) {
-          return f(value)(self->tail);
+        return a(self) >> [&](const source_type& value) -> maybe<value_type> {
+          if(self) return f(value)(self->tail);
+          return {};
         };
       }
     };
@@ -100,8 +91,47 @@ namespace ast {
 
     // fail
     template<class T>
-    static maybe<T> fail(const list<sexpr>&) { return {}; }
+    static maybe<T> fail(const sexpr::list&) { return {}; }
 
+    // error
+    template<class T, class Error>
+    static monad<T> error(Error e) {
+      return [e](const sexpr::list&) -> maybe<T> {
+        throw e;
+      };
+    };
+
+    // end of combinators
+
+    struct empty {
+      // only applies monad on empty list
+      template<class F>
+      monad<typename detail::monad_type<F>::type> operator&(F f) const {
+        return [f](const sexpr::list& self) -> maybe<typename detail::monad_type<F>::type> {
+          if(self) return {};
+          return f(self);
+        };
+      }
+
+    };
+    
+    // list head
+    static maybe<sexpr> head(const list<sexpr>& self) {
+      if(!self) return {}; 
+      return self->head;
+    }
+
+    // get list head with given type, if possible
+    template<class U>
+    static maybe<U> head_as(const list<sexpr>& self) {
+      return head(self) >> [](const sexpr& head) -> maybe<U> {
+        if(auto value = head.template get<U>()) {
+          return *value;
+        }
+        return {};
+      };
+    }
+    
     struct unimplemented : std::runtime_error {
       unimplemented(const std::string& what)
         : std::runtime_error("unimplemented: " + what) { }
@@ -110,7 +140,6 @@ namespace ast {
   }
 
   
-
   // check function calls
   static maybe<expr> check_call(const list<sexpr>& args) {
     if(!args) throw syntax_error("empty list in application");
@@ -121,22 +150,47 @@ namespace ast {
   }
 
   // check lambdas
-  static maybe<expr> check_abs(const list<sexpr>& self) {
-    throw unimplemented("abs");
+  using args_type = list<symbol>;
+  
+  static maybe<args_type> check_args(const sexpr::list& self) {
+    maybe<args_type> init(nullptr);
+    return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
+        return rhs >> [&](args_type tail) -> maybe<args_type> {
+          if(auto res = lhs.get<symbol>()) return *res >>= tail;
+          return {};
+        };
+      });
   }
 
-  // special forms table
-  static const std::map<symbol, monad<expr>> special = {
-    {symbol("func"), check_abs},
+  // 
+  static const auto check_abs = head_as<sexpr::list> >> [](const sexpr::list& self) {
+    return head >> [&](const sexpr& body) -> monad<expr> {
+      if(const auto args = check_args(self)) {
+        const expr e = abs{args.get(), make_ref<expr>(check(body))};
+        return empty() & pure(e);
+      } else {
+        return fail<expr>;
+      }
+    };
   };
+  
+  // special forms table
+  static const std::map<symbol, std::pair<monad<expr>, std::string>> special = {
+    {symbol("func"), {check_abs, "(func (symbol...) expr)"}},
+  };
+
+  
 
   // check lists
   static expr check_list(list<sexpr> f) {
 
     static const auto impl =
-      (match<symbol> >> [](const symbol& s) -> monad<expr> {
+      (head_as<symbol> >> [](const symbol& s) -> monad<expr> {
         const auto it = special.find(s);
-        if(it != special.end()) return it->second;
+        if(it != special.end()) {
+          const syntax_error err(it->second.second);
+          return it->second.first | error<expr>(err);
+        }
         return fail<expr>;
       })
       | check_call;

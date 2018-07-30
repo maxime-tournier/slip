@@ -120,6 +120,8 @@ int main(int, char**) {
                 std::cout << "parsed: " << s << std::endl;
                 const ast::expr e = ast::check(s);
                 std::cout << "ast: " << e << std::endl;
+              } catch(ast::syntax_error& e) {
+                std::cerr << "syntax error: " << e.what() << std::endl;
               } catch(std::runtime_error& e) {
                 std::cerr << e.what() << std::endl;
               }
