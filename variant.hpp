@@ -92,7 +92,7 @@ class variant {
 public:
 
   // accessors
-  template<class T, index_type index = helper_type::index( (typename std::decay<T>::type*) 0 )>
+  template<class T, index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   const T* get() const {
     if(this->index == index) { return &cast<T>(); }
     return nullptr;

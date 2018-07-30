@@ -8,6 +8,7 @@
 #include "sexpr.hpp"
 #include "environment.hpp"
 
+#include "../maybe.hpp"
 
 
 namespace ast {
@@ -17,6 +18,9 @@ namespace ast {
   struct lit {
     const T value;
   };
+
+  template<class T>
+  static lit<T> make_lit(T value) { return {value}; }
 
   struct expr;
 
@@ -35,18 +39,21 @@ namespace ast {
   };
 
 
-  // definitions
+  // definition
   struct def {
     const symbol name;
     const ref<expr> value;
   };
-
-
-  // sequence
-  struct seq {
-    const ref<expr> items;        
+  
+  // stateful computations
+  struct io : variant<def, ref<expr> >{
+    using io::variant::variant;
   };
 
+  // computation sequencing
+  struct seq {
+    const list<io> items;
+  };
 
   struct expr : variant< lit<boolean>,
                          lit<integer>,
@@ -58,11 +65,32 @@ namespace ast {
   };
 
 
-  static expr check(const sexpr& e);
+  template<class Ret, class T>
+  static std::function< maybe<Ret>(list<sexpr>) >
+  unpack(std::function<Ret(const T&...)> cont) {
+    return [cont](list<sexpr> e) -> maybe<Ret> {
+      if(!e) return {};
+      if(auto h = e->head.get<T>()) {
+        return cont(*h)(e->tail);
+      }
+      return {};
+    };
+  };
+
+  static expr check_expr(list<sexpr> f);
+  
+  static expr check(const sexpr& e) {
+    return e.match<expr>
+      ([](boolean b) { return make_lit(b); },
+       [](integer i) { return make_lit(i); },
+       [](real r) { return make_lit(r); },
+       [](symbol s) { return var{s}; },
+       [](list<sexpr> f) {
+         return check_expr(f);
+       });
+  }
   
 }
-
-
 
 
 struct value;
