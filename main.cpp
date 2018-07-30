@@ -38,9 +38,7 @@ using eval_type = value (*)(const ref<env>&, const sexpr& );
 
 static std::map<symbol, eval_type> special;
 
-
 static value eval(const ref<env>& e, const sexpr& expr);
-
 
 static value apply(const ref<env>& e, const sexpr& func, const list<sexpr>& args) {
   return eval(e, func).match<value>

@@ -33,9 +33,10 @@ sexpr parse(std::istream& in) {
     initial_parser >>
     [](char c) {
       return noskip(*rest_parser >>
-                    [c](std::vector<char>&& rest) {
-                      const std::string tmp = c + std::string(rest.begin(),
-                                                              rest.end());
+                    [c](std::deque<char>&& rest) {
+                      const std::string tmp =
+                        c + std::string(rest.begin(), rest.end());
+                      
                       return pure(symbol(tmp));
                     });
     };
@@ -55,7 +56,7 @@ sexpr parse(std::istream& in) {
   
   static const auto list_parser = // parser::debug("list") |=
     lparen >>= exprs_parser >> drop(rparen)
-           >> [](std::vector<sexpr>&& es) {
+           >> [](std::deque<sexpr>&& es) {
     return pure(make_list(es.begin(), es.end()));
   };
   
