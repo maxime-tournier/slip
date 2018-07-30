@@ -33,7 +33,7 @@ struct cons {
   
   template<class Func>
   friend list< typename std::result_of<Func(T)>::type > map(const list<T>& self,
-                                                            const Func& func) {
+                                                            Func func) {
     if(!self) return {};
     return func(self->head) >>= map(self->tail, func);
   }

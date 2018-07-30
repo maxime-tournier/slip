@@ -2,6 +2,7 @@
 #define SLAP_VARIANT_HPP
 
 #include <type_traits>
+#include <utility>
 #include <iosfwd>
 
 namespace {
