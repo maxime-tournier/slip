@@ -2,6 +2,18 @@
 
 #include "../parse.hpp"
 
+namespace {
+struct allowed {
+  static int initial(int c) {
+    static const char* data = "@";
+    for(const char* i = data; *i; ++i) {
+      if(*i == c) return true;
+    }
+    return false;
+  }
+};
+}
+
 sexpr parse(std::istream& in) {
   using parser::pure;
   
@@ -25,8 +37,9 @@ sexpr parse(std::istream& in) {
     const sexpr value = num == real(cast) ? cast : num;
     return pure(value);                     
   };
-  
-  static const auto initial_parser = parser::chr<std::isalpha>();
+
+
+  static const auto initial_parser = parser::chr<std::isalpha>() | parser::chr<allowed::initial>();
   static const auto rest_parser = parser::chr<std::isalnum>();  
   
   static const auto symbol_parser =

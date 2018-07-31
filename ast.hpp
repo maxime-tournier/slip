@@ -36,6 +36,10 @@ namespace ast {
     const symbol name;
   };
 
+  // attribute access
+  struct attr {
+    const symbol name;
+  };
 
   struct io;
   
@@ -48,7 +52,8 @@ namespace ast {
                         lit<integer>,
                         lit<real>,
                         var, abs, app,
-                        seq> {
+                        seq,
+                        attr> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);

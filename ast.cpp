@@ -236,10 +236,15 @@ namespace ast {
       ([](boolean b) { return make_lit(b); },
        [](integer i) { return make_lit(i); },
        [](real r) { return make_lit(r); },
-       [](symbol s) {
+       [](symbol s) -> expr {
          if(kw::reserved.find(s) != kw::reserved.end()) {
            throw syntax_error(quote(s.get()) + " is a reserved keyword and cannot be used as a variable name");
          }
+         
+         if(s.get()[0] == '@') {
+           return attr{s};
+         }
+         
          return var{s};
        },
        [](list<sexpr> f) {
@@ -308,6 +313,17 @@ namespace ast {
 
     sexpr operator()(const expr& self) const {
       return self.visit<sexpr>(repr());
+    }
+
+    sexpr operator()(const attr& self) const {
+      return symbol("attr")
+        >>= self.name
+        >>= sexpr::list();        
+    }
+
+    template<class T>
+    sexpr operator()(const T& self) const {
+      throw std::logic_error("derp");
     }
     
   };
