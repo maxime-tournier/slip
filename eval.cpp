@@ -27,7 +27,11 @@ struct eval_visitor {
   }
   
   value operator()(const ast::var& self, const ref<env>& e) const {
-	return e->find(self.name);
+	try {
+	  return e->find(self.name);
+	} catch(std::out_of_range& e) {
+	  throw std::runtime_error(e.what());
+	}
   }
   
   
@@ -56,7 +60,10 @@ struct eval_visitor {
 	// note: the type system will keep us from evaluating side effects if the
 	// variable is already defined
 	auto res = e->locals.emplace(self.name, eval(e, self.value));
-	assert(res.second);
+	if(!res.second) {
+	  throw std::runtime_error("redefined variable " + tool::quote(self.name.get()));
+	}
+							   
 	return unit();
   }
 
