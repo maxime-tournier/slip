@@ -37,17 +37,8 @@ namespace ast {
   };
 
 
-  // definition
-  struct def {
-    const symbol name;
-    const ref<expr> value;
-  };
+  struct io;
   
-  // stateful computations
-  struct io : variant<def, ref<expr> >{
-    using io::variant::variant;
-  };
-
   // computation sequencing
   struct seq {
     const list<io> items;
@@ -57,20 +48,41 @@ namespace ast {
                          lit<integer>,
                          lit<real>,
                          var, abs, app,
-                         def,
                          seq> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
+
+    static expr check(const sexpr& e);
   };
 
+  // definition
+  struct def {
+    const symbol name;
+    const expr value;
+  };
+  
+  // stateful computations
+  struct io : variant<def, expr >{
+    using io::variant::variant;
 
-  expr check(const sexpr& e);
+    static io check(const sexpr& e);
+  };  
 
+
+  struct toplevel : variant<io> {
+    using toplevel::variant::variant;
+    
+    // TODO types, modules etc
+    friend std::ostream& operator<<(std::ostream& out, const expr& self);
+
+    static toplevel check(const sexpr& e);
+  };
+
+  
   struct syntax_error : std::runtime_error {
     using runtime_error::runtime_error;
   };
-  
   
 }
 

@@ -116,7 +116,7 @@ int main(int, char**) {
               try {
                 const sexpr s = parse(in);
                 std::cout << "parsed: " << s << std::endl;
-                const ast::expr e = ast::check(s);
+                const ast::expr e = ast::expr::check(s);
                 std::cout << "ast: " << e << std::endl;
               } catch(ast::syntax_error& e) {
                 std::cerr << "syntax error: " << e.what() << std::endl;
