@@ -89,7 +89,7 @@ struct history {
   }
   
   ~history() {
-    std::clog << write_history(filename.c_str()) << std::endl;
+    write_history(filename.c_str());
   }
 };
 
@@ -102,8 +102,8 @@ static void read_loop(const F& f) {
     
     add_history(line);
 	std::stringstream ss(line);
-    
-	f(ss);
+	
+    f(ss);
   }
   
 };

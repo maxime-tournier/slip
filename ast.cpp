@@ -1,6 +1,8 @@
 #include "ast.hpp"
 
 #include <map>
+#include <set>
+
 #include <functional>
 
 #include "../maybe.hpp"
@@ -205,23 +207,28 @@ namespace ast {
   }
   
   namespace kw {
-    symbol abs("func"),
-      seq("do"),
-      def("def")
-      ;
+    symbol abs("func"), seq("do"), def("def");
+
+    static const std::set<symbol> reserved = {
+      abs, seq, def,
+    };
   }
   
   // special forms table
   static const special_type<expr> special_expr = {
-    {kw::abs, {check_abs, "(func (symbol...) expr)"}},
-    {kw::seq, {check_seq, "(do ((def symbol expr) | expr)...)"}},
+    {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
+    {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {
-    {kw::def, {check_def, "(def symbol expr)"}},
+    {kw::def, {check_def, "(def `symbol` `expr`)"}},
   };
   
 
+  static const std::string quote(const std::string& s, char q='"') {
+    return q + s + q;
+  }
+  
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_call;
     
@@ -229,7 +236,12 @@ namespace ast {
       ([](boolean b) { return make_lit(b); },
        [](integer i) { return make_lit(i); },
        [](real r) { return make_lit(r); },
-       [](symbol s) { return var{s}; },
+       [](symbol s) {
+         if(kw::reserved.find(s) != kw::reserved.end()) {
+           throw syntax_error(quote(s.get()) + " is a reserved keyword and cannot be used as a variable name");
+         }
+         return var{s};
+       },
        [](list<sexpr> f) {
          return impl(f).get();
        });
