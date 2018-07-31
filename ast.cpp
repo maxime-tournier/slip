@@ -8,6 +8,7 @@
 #include "../maybe.hpp"
 
 #include "sexpr.hpp"
+#include "tool.hpp"
 
 namespace ast {
 
@@ -225,10 +226,6 @@ namespace ast {
   };
   
 
-  static const std::string quote(const std::string& s, char q='"') {
-    return q + s + q;
-  }
-  
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_call;
     
@@ -238,7 +235,7 @@ namespace ast {
        [](real r) { return make_lit(r); },
        [](symbol s) -> expr {
          if(kw::reserved.find(s) != kw::reserved.end()) {
-           throw syntax_error(quote(s.get()) + " is a reserved keyword and"
+           throw syntax_error(tool::quote(s.get()) + " is a reserved keyword and"
                               " cannot be used as a variable name");
          }
          
@@ -254,6 +251,7 @@ namespace ast {
          return impl(f).get();
        });
   }
+  
 
   io io::check(const sexpr& e) {
     static const auto impl = check_special(special_io);
@@ -264,6 +262,7 @@ namespace ast {
         return expr::check(self);
       },[](sexpr self) -> io { return expr::check(self); });
   }
+
   
   toplevel toplevel::check(const sexpr& e) {
     return io::check(e);

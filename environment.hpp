@@ -7,6 +7,8 @@
 #include "symbol.hpp"
 #include "list.hpp"
 
+#include "tool.hpp"
+
 // environments
 template<class T>
 struct environment {
@@ -26,6 +28,18 @@ struct environment {
 
     return res;
   };
+
+  T& find(const symbol& s) {
+    auto it = locals.find(s);
+    if(it != locals.end()) return it->second;
+    
+    if(!parent) {
+      throw std::out_of_range("unbound variable " + tool::quote(s.get()));
+    }
+    
+    return parent->find(s);
+  }
+  
 };
 
 

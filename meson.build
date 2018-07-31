@@ -10,6 +10,8 @@ executable('slap',
 		   'main.cpp',
 		   'sexpr.cpp',
 		   'symbol.cpp',
-                   'ast.cpp',
+		   'ast.cpp',
+		   'eval.cpp',
+		   'tool.cpp',
 		   dependencies: [readline])
 
