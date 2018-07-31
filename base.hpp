@@ -3,9 +3,9 @@
 
 // base types
 struct unit {};
+
 using boolean = bool;
 using integer = long;
 using real = double;
-
 
 #endif

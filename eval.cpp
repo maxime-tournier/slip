@@ -20,6 +20,7 @@ value apply(const value& func, const value::list& args) {
 
 
 struct eval_visitor {
+  
   template<class T>
   T operator()(const ast::lit<T>& self, const ref<env>& ) const {
 	return self.value;
@@ -60,22 +61,60 @@ struct eval_visitor {
   }
 
 				   
-	 
+  value operator()(const ast::io& self, const ref<env>& e) const {
+	return self.visit<value>(eval_visitor(), e);
+  }
+
+  value operator()(const ast::expr& self, const ref<env>& e) const {
+	return self.visit<value>(eval_visitor(), e);
+  }
+
 
   
   template<class T>
   value operator()(const T& self, const ref<env>& e) const {
-	throw std::logic_error("unimplemented");
+	throw std::logic_error("unimplemented: " + std::string(typeid(T).name()));
   }
   
 };
 
+
+static value eval(const ref<env>& e, const ast::io& self) {
+  return self.visit<value>(eval_visitor(), e);
+}
 
 value eval(const ref<env>& e, const ast::expr& self) {
   return self.visit<value>(eval_visitor(), e);
 }
 
   
-static value eval(const ref<env>& e, const ast::io& self) {
+value eval(const ref<env>& e, const ast::toplevel& self) {
   return self.visit<value>(eval_visitor(), e);
+}
+
+
+namespace {
+struct ostream {
+  template<class T>
+  void operator()(const T& self, std::ostream& out) const {
+	out << self;
+  }
+
+  void operator()(const lambda& self, std::ostream& out) const {
+	out << "#<lambda>";
+  }
+
+  void operator()(const unit& self, std::ostream& out) const {
+	out << "()";
+  }
+
+  void operator()(const boolean& self, std::ostream& out) const {
+	out << (self ? "true" : "false");
+  }
+};
+}
+
+std::ostream& operator<<(std::ostream& out, const value& self) {
+  self.visit(ostream(), out);
+  return out;
 }

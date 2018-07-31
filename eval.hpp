@@ -9,18 +9,17 @@
 struct value;
 using env = environment<value>;
 
-// values
 struct lambda {
   const list<symbol> args;
   const ref<ast::expr> body;
   const ref<env> scope;
-
-  friend std::ostream& operator<<(std::ostream& out, const lambda& self);
 };
 
 struct value : variant<unit, real, integer, boolean, symbol, lambda, list<value> > {
   using value::variant::variant;
   using list = list<value>;
+
+  friend std::ostream& operator<<(std::ostream& out, const value& self);
 };
 
 value apply(const value& func, const value::list& args);

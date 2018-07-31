@@ -271,7 +271,7 @@ namespace ast {
   
   namespace {
   struct repr {
-    
+
     template<class T>
     sexpr operator()(const lit<T>& self) const {
       return symbol("lit") >>= self.value >>= list<sexpr>();

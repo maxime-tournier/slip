@@ -41,12 +41,16 @@ static void read_loop(const F& f) {
 
 int main(int, char**) {
 
-  read_loop([](std::istream& in) {
+  auto e = make_ref<env>();
+  
+  read_loop([&](std::istream& in) {
               try {
                 const sexpr s = parse(in);
                 std::cout << "parsed: " << s << std::endl;
-                const ast::toplevel e = ast::toplevel::check(s);
-                std::cout << e << std::endl;
+                const ast::toplevel a = ast::toplevel::check(s);
+                std::cout << "ast: " << a << std::endl;
+                const value v = eval(e, a);
+                std::cout << "eval: " << v << std::endl;
               } catch(ast::syntax_error& e) {
                 std::cerr << "syntax error: " << e.what() << std::endl;
               } catch(std::runtime_error& e) {
