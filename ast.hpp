@@ -44,11 +44,11 @@ namespace ast {
     const list<io> items;
   };
 
-  struct expr : variant< lit<boolean>,
-                         lit<integer>,
-                         lit<real>,
-                         var, abs, app,
-                         seq> {
+  struct expr : variant<lit<boolean>,
+                        lit<integer>,
+                        lit<real>,
+                        var, abs, app,
+                        seq> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
@@ -63,18 +63,19 @@ namespace ast {
   };
   
   // stateful computations
-  struct io : variant<def, expr >{
+  struct io : variant<def, expr>{
     using io::variant::variant;
 
     static io check(const sexpr& e);
-  };  
+    friend std::ostream& operator<<(std::ostream& out, const io& self);    
+  };
 
 
   struct toplevel : variant<io> {
     using toplevel::variant::variant;
     
     // TODO types, modules etc
-    friend std::ostream& operator<<(std::ostream& out, const expr& self);
+    friend std::ostream& operator<<(std::ostream& out, const toplevel& self);
 
     static toplevel check(const sexpr& e);
   };

@@ -91,12 +91,12 @@ namespace ast {
 
     // fail
     template<class T>
-    static maybe<T> fail(const sexpr::list&) { return {}; }
-
+    static maybe<T> fail(const list<sexpr>&) { return {}; }
+    
     // error
     template<class T, class Error>
     static monad<T> error(Error e) {
-      return [e](const sexpr::list&) -> maybe<T> {
+      return [e](const list<sexpr>&) -> maybe<T> {
         throw e;
       };
     };
@@ -138,7 +138,7 @@ namespace ast {
       
     template<class U>
     static monad<U> check_special(const special_type<U>& table) {
-      return head_as<symbol> >> [&](const symbol& s) -> monad<U> {
+      return head_as<symbol> >> [&](symbol s) -> monad<U> {
         const auto it = table.find(s);
         if(it != table.end()) {
           const syntax_error err(it->second.second);
@@ -149,7 +149,7 @@ namespace ast {
     }
     
     struct unimplemented : std::runtime_error {
-      unimplemented(const std::string& what)
+      unimplemented(std::string what)
         : std::runtime_error("unimplemented: " + what) { }
     };
     
@@ -157,7 +157,7 @@ namespace ast {
 
   
   // check function calls
-  static maybe<expr> check_call(const list<sexpr>& args) {
+  static maybe<expr> check_call(sexpr::list args) {
     if(!args) throw syntax_error("empty list in application");
     
     const auto func = make_ref<expr>(expr::check(args->head));
@@ -168,7 +168,7 @@ namespace ast {
   // check lambdas
   using args_type = list<symbol>;
   
-  static maybe<args_type> check_args(const sexpr::list& self) {
+  static maybe<args_type> check_args(sexpr::list self) {
     maybe<args_type> init(nullptr);
     return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
         return rhs >> [&](args_type tail) -> maybe<args_type> {
@@ -179,7 +179,7 @@ namespace ast {
   }
 
   // 
-  static const auto check_abs = head_as<sexpr::list> >> [](const sexpr::list& self) {
+  static const auto check_abs = head_as<sexpr::list> >> [](sexpr::list self) {
     return head >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
         const expr e = abs{args.get(), make_ref<expr>(expr::check(body))};
@@ -197,6 +197,12 @@ namespace ast {
       return empty() & pure(res);
     };
   };
+
+
+  static maybe<expr> check_seq(sexpr::list args) {
+    const expr res = seq{map(args, io::check)};
+    return res;
+  }
   
   namespace kw {
     symbol abs("func"),
@@ -208,52 +214,39 @@ namespace ast {
   // special forms table
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(func (symbol...) expr)"}},
-    // {kw::seq, {check_seq, "(do ((def symbol expr) | expr)...)"}},
+    {kw::seq, {check_seq, "(do ((def symbol expr) | expr)...)"}},
   };
 
   static const special_type<io> special_io = {
     {kw::def, {check_def, "(def symbol expr)"}},
   };
   
-  
-
-  // check lists
-  static expr check_list(list<sexpr> f) {
-    static const auto impl = check_special(special_expr) | check_call;
-    
-    if(auto res = impl(f)) {
-      return res.get();
-    }
-
-    throw std::runtime_error("derp");
-  };
-  
 
   expr expr::check(const sexpr& e) {
+    static const auto impl = check_special(special_expr) | check_call;
+    
     return e.match<expr>
       ([](boolean b) { return make_lit(b); },
        [](integer i) { return make_lit(i); },
        [](real r) { return make_lit(r); },
        [](symbol s) { return var{s}; },
        [](list<sexpr> f) {
-         return check_list(f);
+         return impl(f).get();
        });
   }
 
   io io::check(const sexpr& e) {
-    return e.match<io>([](sexpr::list self) -> io {
-        if(auto res = check_def(self)) {
-          return res.get();
-        } else {
-          return expr::check(self);
-        }
-      },
-      [](sexpr self) -> io { return expr::check(self); });
+    static const auto impl = check_special(special_io);
+
+    return e.match<io>
+      ([](sexpr::list self) -> io {
+        if(auto res = impl(self)) return res.get();
+        return expr::check(self);
+      },[](sexpr self) -> io { return expr::check(self); });
   }
   
   toplevel toplevel::check(const sexpr& e) {
-    return e.match<toplevel>
-      ([](sexpr e) -> toplevel { return io::check(e); });
+    return io::check(e);
   }
 
   
@@ -300,6 +293,10 @@ namespace ast {
     sexpr operator()(const io& self) const {
       return self.visit<sexpr>(repr());
     }
+
+    sexpr operator()(const expr& self) const {
+      return self.visit<sexpr>(repr());
+    }
     
   };
   }
@@ -309,6 +306,10 @@ namespace ast {
   }
 
 
+  std::ostream& operator<<(std::ostream& out, const io& self) {
+    return out << self.visit<sexpr>(repr());
+  }
+  
   std::ostream& operator<<(std::ostream& out, const toplevel& self) {
     return out << self.visit<sexpr>(repr());
   }
