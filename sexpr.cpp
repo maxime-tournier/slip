@@ -3,15 +3,11 @@
 #include "../parse.hpp"
 
 namespace {
-struct allowed {
-  static int initial(int c) {
-    static const char* data = "@";
-    for(const char* i = data; *i; ++i) {
-      if(*i == c) return true;
-    }
-    return false;
+
+  template<char c>
+  static int equals(int x) {
+    return x == c;
   }
-};
 }
 
 sexpr parse(std::istream& in) {
@@ -39,7 +35,8 @@ sexpr parse(std::istream& in) {
   };
 
 
-  static const auto initial_parser = parser::chr<std::isalpha>() | parser::chr<allowed::initial>();
+  static const auto initial_parser = parser::chr<std::isalpha>(); 
+  
   static const auto rest_parser = parser::chr<std::isalnum>();  
   
   static const auto symbol_parser =
@@ -53,6 +50,14 @@ sexpr parse(std::istream& in) {
                       return pure(symbol(tmp));
                     });
     };
+
+  static const auto attr_parser = parser::chr<equals<'@'>>()
+    >> [](char c) {
+         return symbol_parser
+           >> [c](symbol s) {
+                return pure(symbol(c + std::string(s.get())));
+              };
+       };
   
   static const auto as_expr = parser::cast<sexpr>();
 
@@ -77,6 +82,7 @@ sexpr parse(std::istream& in) {
     (expr_parser = // parser::debug("expr") |=
      (boolean_parser >> as_expr)
      | (symbol_parser >> as_expr)
+     | (attr_parser >> as_expr)
      | number_parser
      | (list_parser >> as_expr)
      , 0); (void) once;

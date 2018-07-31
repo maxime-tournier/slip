@@ -238,11 +238,14 @@ namespace ast {
        [](real r) { return make_lit(r); },
        [](symbol s) -> expr {
          if(kw::reserved.find(s) != kw::reserved.end()) {
-           throw syntax_error(quote(s.get()) + " is a reserved keyword and cannot be used as a variable name");
+           throw syntax_error(quote(s.get()) + " is a reserved keyword and"
+                              " cannot be used as a variable name");
          }
          
          if(s.get()[0] == '@') {
-           return attr{s};
+           const std::string name = std::string(s.get()).substr(1);
+           if(name.empty()) throw syntax_error("empty attribute name");
+           return attr{symbol(name)};
          }
          
          return var{s};
