@@ -1,21 +1,19 @@
 #include "eval.hpp"
 
-std::ostream& operator<<(std::ostream& out, const lambda& self)  {
-  return out << "#<lambda>";
-}
-
-
 static value eval(const ref<env>& e, const ast::io& self);
 
 
 value apply(const value& func, const value::list& args) {
   return func.match<value>
-	([&](const lambda& self) {
-	   return eval(augment(self.scope, self.args, args), *self.body);
-	 },
+	( [&](const lambda& self) {
+		return eval(augment(self.scope, self.args, args), *self.body);
+	  },
+	  [&](const builtin& self) {
+		return self(args);
+	  },
 	  [&](value) -> value {
 		throw std::runtime_error("type error in application");
-	  });
+	  } );
 }
 
 
@@ -50,9 +48,10 @@ struct eval_visitor {
   
   value operator()(const ast::seq& self, const ref<env>& e) const {
 	const value init = unit();
-	return foldl(init, self.items, [&](const value&, const ast::io& self) -> value {
-									 return eval(e, self);
-								   });
+	return foldl(init, self.items,
+				 [&](const value&, const ast::io& self) -> value {
+				   return eval(e, self);
+				 });
   }
 
 
@@ -111,6 +110,10 @@ struct ostream {
 	out << "#<lambda>";
   }
 
+  void operator()(const builtin& self, std::ostream& out) const {
+	out << "#<builtin>";
+  }
+  
   void operator()(const unit& self, std::ostream& out) const {
 	out << "()";
   }

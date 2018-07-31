@@ -15,7 +15,10 @@ struct lambda {
   const ref<env> scope;
 };
 
-struct value : variant<unit, real, integer, boolean, symbol, lambda, list<value> > {
+using builtin = std::function< value(const list<value>&) >;
+
+struct value : variant<unit, real, integer, boolean, symbol, list<value>,
+                       lambda, builtin > {
   using value::variant::variant;
   using list = list<value>;
 

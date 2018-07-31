@@ -39,6 +39,11 @@ struct environment {
     
     return parent->find(s);
   }
+
+  environment& operator()(symbol s, const T& value) {
+    auto err = locals.emplace(s, value);
+    return *this;
+  }
   
 };
 

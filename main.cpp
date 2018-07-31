@@ -38,11 +38,16 @@ static void read_loop(const F& f) {
 };
 
 
+static ref<env> prelude() {
+  auto res = make_ref<env>();
+  return res;
+};
+
 
 int main(int, char**) {
 
-  auto e = make_ref<env>();
-
+  auto e = prelude();
+  
   const bool debug = false;
   
   read_loop([&](std::istream& in) {

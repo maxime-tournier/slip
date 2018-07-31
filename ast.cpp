@@ -18,10 +18,20 @@ namespace ast {
     // from a list
     template<class U>
     using monad = std::function<maybe<U>(const list<sexpr>& )>;
-  
+
     template<class U>
-    static monad<U> pure(const U& value) {
-      return [value](const list<sexpr>&) { return value; };
+    struct pure_type {
+      const U value;
+
+      template<class T>
+      maybe<U> operator()(const list<T>& ) const {
+        return value;
+      }
+    };
+    
+    template<class U>
+    static pure_type<U> pure(const U& value) {
+      return {value};
     };
 
     namespace detail {
@@ -35,7 +45,9 @@ namespace ast {
       
       template<class Func>
       struct monad_type {
-        using result_type = typename std::result_of<Func(const list<sexpr>&)>::type;
+        using result_type =
+          typename std::result_of<Func(const list<sexpr>&)>::type;
+
         using type = typename maybe_type<result_type>::type;
       };
     }
@@ -50,7 +62,7 @@ namespace ast {
     
       const A a;
       const F f;
-    
+
       maybe<value_type> operator()(const list<sexpr>& self) const {
         return a(self) >> [&](const source_type& value) -> maybe<value_type> {
           if(self) return f(value)(self->tail);
@@ -119,15 +131,15 @@ namespace ast {
     };
     
     // list head
-    static maybe<sexpr> head(const list<sexpr>& self) {
+    static maybe<sexpr> pop(const list<sexpr>& self) {
       if(!self) return {}; 
       return self->head;
     }
 
     // get list head with given type, if possible
     template<class U>
-    static maybe<U> head_as(const list<sexpr>& self) {
-      return head(self) >> [](const sexpr& head) -> maybe<U> {
+    static maybe<U> pop_as(const list<sexpr>& self) {
+      return pop(self) >> [](const sexpr& head) -> maybe<U> {
         if(auto value = head.template get<U>()) {
           return *value;
         }
@@ -141,7 +153,7 @@ namespace ast {
       
     template<class U>
     static monad<U> check_special(const special_type<U>& table) {
-      return head_as<symbol> >> [&](symbol s) -> monad<U> {
+      return pop_as<symbol> >> [&](symbol s) -> monad<U> {
         const auto it = table.find(s);
         if(it != table.end()) {
           const syntax_error err(it->second.second);
@@ -182,8 +194,8 @@ namespace ast {
   }
 
   // 
-  static const auto check_abs = head_as<sexpr::list> >> [](sexpr::list self) {
-    return head >> [&](const sexpr& body) -> monad<expr> {
+  static const auto check_abs = pop_as<sexpr::list> >> [](sexpr::list self) {
+    return pop >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
         const expr e = abs{args.get(), make_ref<expr>(expr::check(body))};
         return empty() & pure(e);
@@ -194,8 +206,8 @@ namespace ast {
   };
 
 
-  static const auto check_def = head_as<symbol> >> [](symbol name) {
-    return head >> [name](sexpr value) {
+  static const auto check_def = pop_as<symbol> >> [](symbol name) {
+    return pop >> [name](sexpr value) {
       const io res = def{name, expr::check(value)};
       return empty() & pure(res);
     };
