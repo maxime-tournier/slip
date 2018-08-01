@@ -5,6 +5,8 @@
 #include <utility>
 #include <iosfwd>
 
+#include <cassert>
+
 namespace {
   template<std::size_t, class ... Args>
   struct helper;
@@ -83,15 +85,22 @@ class variant {
                                     std::forward<Params>(params)...);
   }
 
-  // unsafe casts
-  template<class T>
-  const T& cast() const { return reinterpret_cast<const T&>(storage); }
-
-  template<class T>
-  T& cast() { return reinterpret_cast<T&>(storage); }
-
 public:
 
+  // unsafe casts
+  template<class T, index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
+  const T& cast() const {
+    assert(index == this->index);
+    return reinterpret_cast<const T&>(storage);
+  }
+
+  template<class T, index_type index = helper_type::index( (typename std::decay<T>::type*) 0 )>
+  T& cast() {
+    assert(index == this->index);
+    return reinterpret_cast<T&>(storage);
+  }
+
+  
   // accessors
   template<class T, index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   const T* get() const {

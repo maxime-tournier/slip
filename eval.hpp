@@ -17,7 +17,7 @@ struct lambda {
   const ref<env> scope;
 };
 
-using builtin = std::function< value(const list<value>&) >;
+using builtin = std::function<value(const value* args, std::size_t count)>;
 
 struct value : variant<unit, real, integer, boolean, symbol, list<value>,
                        lambda, builtin > {
@@ -27,7 +27,7 @@ struct value : variant<unit, real, integer, boolean, symbol, list<value>,
   friend std::ostream& operator<<(std::ostream& out, const value& self);
 };
 
-value apply(const value& func, const value::list& args);
+value apply(const value& func, const value* first, const value* last);
 
 value eval(const ref<env>& e, const ast::expr& expr);
 value eval(const ref<env>& e, const ast::toplevel& expr);

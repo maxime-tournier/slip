@@ -36,9 +36,9 @@ namespace unpack {
       using result_type = decltype(f(a(self).get())(self));
 
       return a(self) >> [&](const source_type& value) -> result_type {
-                          if(self) return f(value)(self->tail);
-                          return {};
-                        };
+        if(self) return f(value)(self->tail);
+        return {};
+      };
     }
   };
 
@@ -154,7 +154,7 @@ namespace unpack {
     template<class T>
     auto operator()(const list<T>& self) const -> decltype(value(f(self).get())) {
       return f(self).get();
-  }
+    }
   };
   
   template<class F>

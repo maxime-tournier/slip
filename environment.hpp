@@ -15,17 +15,20 @@ struct environment {
   std::map<symbol, T> locals;
   ref<environment> parent;
 
+  template<class Iterator>
   friend ref<environment> augment(const ref<environment>& self,
                                   const list<symbol>& args,
-                                  const list<T>& values) {
+                                  Iterator first, Iterator last) {
     auto res = std::make_shared<environment>();
     res->parent = self;
-    foldl(args, values, [&](const list<symbol>& args, const T& self) {
-        if(!args) throw std::runtime_error("not enough args");
-        res->locals.emplace(args->head, self);
-        return args->tail;
-      });
-
+    if(last != foldl(first, args, [&](Iterator it, const symbol& name) {
+          if(it == last) throw std::runtime_error("not enough values");
+          res->locals.emplace(name, *it++);
+          return it;
+        })) {
+      throw std::runtime_error("too many values");
+    }
+    
     return res;
   };
 
@@ -40,8 +43,9 @@ struct environment {
     return parent->find(s);
   }
 
-  environment& operator()(symbol s, const T& value) {
-    locals.emplace(s, value);
+  template<class ... Args>
+  environment& operator()(symbol s, Args&& ... args) {
+    locals.emplace(s, std::forward<Args>(args)...);
     return *this;
   }
   

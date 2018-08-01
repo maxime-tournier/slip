@@ -1,15 +1,17 @@
 #include "eval.hpp"
 
+#include <vector>
+
 static value eval(const ref<env>& e, const ast::io& self);
 
 
-value apply(const value& func, const value::list& args) {
+value apply(const value& func, const value* first, const value* last) {
   return func.match<value>
-	( [&](const lambda& self) {
-		return eval(augment(self.scope, self.args, args), *self.body);
-	  },
+	([&](const lambda& self) {
+      return eval(augment(self.scope, self.args, first, last), *self.body);
+    },
 	  [&](const builtin& self) {
-		return self(args);
+		return self(first, last - first);
 	  },
 	  [&](value) -> value {
 		throw std::runtime_error("type error in application");
@@ -32,14 +34,16 @@ struct eval_visitor {
 	}
   }
   
-  
   value operator()(const ast::app& self, const ref<env>& e) const {
 	const value func = eval(e, *self.func);
-    const value::list args = map(self.args,
-								 [&](const ast::expr& self) {
-								   return eval(e, self);
-								 });
-	return apply(func, args);
+
+    std::vector<value> args;
+    foldl(unit(), self.args, [&](unit, const ast::expr& self) {
+        args.emplace_back(eval(e, self));
+        return unit();
+      });
+    
+    return apply(func, args.data(), args.data() + args.size());
   }
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
@@ -123,11 +127,11 @@ struct ostream {
   }
 
   void operator()(const integer& self, std::ostream& out) const {
-    out << self << "i";
+    out << self; //  << "i";
   }
 
   void operator()(const real& self, std::ostream& out) const {
-    out << self << "d";
+    out << self; // << "d";
   }
   
 };
