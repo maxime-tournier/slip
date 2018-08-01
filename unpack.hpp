@@ -140,15 +140,19 @@ namespace unpack {
       };
     }
   };
-  
 
+
+  
   // maybe monad escape (will throw if unsuccessful)
   template<class F>
   struct run_type {
     const F f;
-    
+
     template<class T>
-    auto operator()(const list<T>& self) const -> decltype(f(self).get()){
+    static T value(const T& );
+
+    template<class T>
+    auto operator()(const list<T>& self) const -> decltype(value(f(self).get())) {
       return f(self).get();
   }
   };
