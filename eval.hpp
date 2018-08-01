@@ -1,6 +1,8 @@
 #ifndef SLAP_EVAL_HPP
 #define SLAP_EVAL_HPP
 
+#include <functional>
+
 #include "symbol.hpp"
 #include "environment.hpp"
 #include "list.hpp"
