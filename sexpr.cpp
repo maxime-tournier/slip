@@ -30,7 +30,7 @@ sexpr parse(std::istream& in) {
   static const auto number_parser = // parser::debug("num") |= 
     real_parser >> [](real num) {
     const long cast = num;
-    const sexpr value = num == real(cast) ? cast : num;
+    const sexpr value = num == real(cast) ? sexpr(cast) : sexpr(num);
     return pure(value);                     
   };
 
