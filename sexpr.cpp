@@ -54,9 +54,13 @@ sexpr parse(std::istream& in) {
   };
 
   static const auto op_parser =
-    parser::chr<matches<'+', '-', '*', '/', '='>>() >> [](char c) {
+    parser::chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
     return pure(symbol(std::string(1, c)));
-  };
+  }
+    | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
+                                                     return pure(symbol(s));
+                                                   };
+                                        
   
   static const auto attr_parser = parser::chr<matches<'@'>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
