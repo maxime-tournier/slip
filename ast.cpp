@@ -89,23 +89,41 @@ namespace ast {
     const expr res = seq{map(args, io::check)};
     return res;
   }
-  
-  namespace kw {
-    symbol abs("func"), seq("do"), def("def");
 
-    static const std::set<symbol> reserved = {
-      abs, seq, def,
-    };
+  static const auto check_cond =
+    pop()
+    >> [](sexpr self) {
+         auto test = make_ref<expr>(expr::check(self));
+         return pop()
+           >> [=](sexpr self) {
+                auto conseq = make_ref<expr>(expr::check(self));
+                return pop()
+                  >> [=](sexpr self) {
+                       auto alt = make_ref<expr>(expr::check(self));
+                       const expr res = cond{test, conseq, alt};
+                       return pure(res);
+                     };
+              };
+       };
+  
+
+  namespace kw {
+      symbol abs("func"), seq("do"), def("def"), cond("if");
+      
+      static const std::set<symbol> reserved = {
+          abs, seq, def, cond,
+       };
   }
   
   // special forms table
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
+    {kw::cond, {check_cond, "(if expr expr expr)"}},
   };
   
   static const special_type<io> special_io = {
-    {kw::def, {check_def, "(def `symbol` `expr`)"}},
+      {kw::def, {check_def, "(def `symbol` `expr`)"}},
   };
   
 

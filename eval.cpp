@@ -70,6 +70,15 @@ struct eval_visitor {
 	return unit();
   }
 
+  
+  value operator()(const ast::cond& self, const ref<env>& e) const {
+    const value test = eval(e, *self.test);
+    if(auto b = test.get<boolean>()) {
+      if(*b) return eval(e, *self.conseq);
+      else return eval(e, *self.alt);
+    } else throw std::runtime_error("condition must be boolean");
+  }
+
 				   
   value operator()(const ast::io& self, const ref<env>& e) const {
 	return self.visit<value>(eval_visitor(), e);

@@ -36,6 +36,14 @@ namespace ast {
     const symbol name;
   };
 
+
+  // conditionals
+  struct cond {
+    const ref<expr> test;
+    const ref<expr> conseq;
+    const ref<expr> alt;
+  };
+
   // attribute access
   struct attr {
     const symbol name;
@@ -52,6 +60,7 @@ namespace ast {
                         lit<integer>,
                         lit<real>,
                         var, abs, app,
+                        cond,
                         seq,
                         attr> {
     using expr::variant::variant;
