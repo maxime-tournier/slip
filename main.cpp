@@ -52,7 +52,10 @@ static ref<env> prelude() {
       if(count != 2) throw std::runtime_error("wrong arg count");
       return args[0].cast<integer>() - args[1].cast<integer>();
       }))
-
+    (symbol("="), builtin([](const value* args, std::size_t count) -> value {
+      if(count != 2) throw std::runtime_error("wrong arg count");
+      return args[0].cast<integer>() == args[1].cast<integer>();
+      }))
     
     ;
   
