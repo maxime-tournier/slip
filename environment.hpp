@@ -41,7 +41,7 @@ struct environment {
   }
 
   environment& operator()(symbol s, const T& value) {
-    auto err = locals.emplace(s, value);
+    locals.emplace(s, value);
     return *this;
   }
   

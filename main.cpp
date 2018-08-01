@@ -9,6 +9,7 @@
 #include "ast.hpp"
 #include "eval.hpp"
 
+#include "unpack.hpp"
 
 struct history {
   const std::string filename;
@@ -38,8 +39,30 @@ static void read_loop(const F& f) {
 };
 
 
+template<class F>
+static builtin wrap(F f) {
+  return run(f | unpack::error<value>(std::runtime_error("arg count/type error")));
+}
+
+
 static ref<env> prelude() {
+  using namespace unpack;
   auto res = make_ref<env>();
+
+  const auto impl =
+    pop_as<integer>() 
+    >> [](integer lhs) {
+         return pop_as<integer>() >>
+           [lhs](integer rhs) {
+             const value res = lhs + rhs;
+             return pure(res);
+           };
+       };
+  
+  (*res)
+    (symbol("add"), wrap(impl))
+    ;
+  
   return res;
 };
 

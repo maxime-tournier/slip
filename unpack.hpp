@@ -3,6 +3,8 @@
 
 #include "list.hpp"
 
+#include "../maybe.hpp"
+
 namespace unpack {
 
   // list destructuring monad: functions that try to extract a value of type U
@@ -74,9 +76,15 @@ namespace unpack {
   }
 
   // fail
-  template<class T>
-  static maybe<T> fail(const list<sexpr>&) { return {}; }
-    
+  template<class U>
+  struct fail {
+
+    template<class T>
+    maybe<U> operator()(const list<T>& ) const {
+      return {};
+    }
+  };
+
   // error
   template<class U, class Error>
   struct error_type {
@@ -111,22 +119,43 @@ namespace unpack {
   static empty_type<F> empty(F f) { return {f}; }
     
   // list head
-  static maybe<sexpr> pop(const list<sexpr>& self) {
-    if(!self) return {}; 
-    return self->head;
-  }
-
+  struct pop {
+    template<class T>
+    maybe<T> operator()(const list<T>& self) const {
+      if(!self) return {}; 
+      return self->head;
+    }
+  };
+  
   // get list head with given type, if possible
   template<class U>
-  static maybe<U> pop_as(const list<sexpr>& self) {
-    return pop(self) >> [](const sexpr& head) -> maybe<U> {
-      if(auto value = head.template get<U>()) {
-        return *value;
-      }
-      return {};
-    };
-  }
+  struct pop_as {
+    template<class T>
+    maybe<U> operator()(const list<T>& self) const {
+      return pop()(self) >> [](const T& head) -> maybe<U> {
+        if(auto value = head.template get<U>()) {
+          return *value;
+        }
+        return {};
+      };
+    }
+  };
+  
 
+  // maybe monad escape (will throw if unsuccessful)
+  template<class F>
+  struct run_type {
+    const F f;
+    
+    template<class T>
+    auto operator()(const list<T>& self) const -> decltype(f(self).get()){
+      return f(self).get();
+  }
+  };
+  
+  template<class F>
+  static run_type<F> run(F f) { return {f}; }
+  
 }
 
 #endif

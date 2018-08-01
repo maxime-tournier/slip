@@ -121,6 +121,15 @@ struct ostream {
   void operator()(const boolean& self, std::ostream& out) const {
 	out << (self ? "true" : "false");
   }
+
+  void operator()(const integer& self, std::ostream& out) const {
+    out << self << "i";
+  }
+
+  void operator()(const real& self, std::ostream& out) const {
+    out << self << "d";
+  }
+  
 };
 }
 
