@@ -44,8 +44,15 @@ namespace ast {
     const ref<expr> alt;
   };
 
-  // attribute access
-  struct attr {
+  // records
+  struct record {
+    struct attribute;
+
+    const list<attribute> attrs;
+  };
+  
+  // attribute selection
+  struct sel {
     const symbol name;
   };
 
@@ -62,7 +69,7 @@ namespace ast {
                         var, abs, app,
                         cond,
                         seq,
-                        attr> {
+                        record, sel> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
@@ -70,6 +77,12 @@ namespace ast {
     static expr check(const sexpr& e);
   };
 
+  struct record::attribute {
+    using list = list<attribute>;
+    const symbol name;
+    const expr value;
+  };
+  
   // definition
   struct def {
     const symbol name;

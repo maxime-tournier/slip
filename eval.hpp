@@ -18,7 +18,7 @@ struct lambda {
 };
 
 struct record {
-  const ref<env> attrs;
+  std::map<symbol, value> attrs;
 };
 
 using builtin = std::function<value(const value* args, std::size_t count)>;

@@ -31,7 +31,7 @@ namespace unpack {
     const F f;
 
     template<class T>
-    auto operator()(const list<T>& self) const -> decltype(f(a(self).get())(self)){
+    auto operator()(const list<T>& self) const {
       using source_type = typename std::decay<decltype(a(self).get())>::type;
       using result_type = decltype(f(a(self).get())(self));
 
@@ -104,8 +104,9 @@ namespace unpack {
   template<class T, class U>
   using monad = std::function<maybe<U>(const list<T>&)>;
 
+  // ensures that list is exhausted after apply f
   template<class F>
-  struct empty_type {
+  struct done_type {
     const F f;
 
     template<class T>
@@ -116,7 +117,7 @@ namespace unpack {
   };
 
   template<class F>
-  static empty_type<F> empty(F f) { return {f}; }
+  static done_type<F> empty(F f) { return {f}; }
     
   // list head
   struct pop {
@@ -152,14 +153,15 @@ namespace unpack {
     static T value(const T& );
 
     template<class T>
-    auto operator()(const list<T>& self) const -> decltype(value(f(self).get())) {
+    auto operator()(const list<T>& self) const {
       return f(self).get();
     }
+    
   };
   
   template<class F>
   static run_type<F> run(F f) { return {f}; }
-  
+
 }
 
 #endif

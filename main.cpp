@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
   auto e = prelude();
   
-  const bool debug = false;
+  const bool debug = true;
   // parser::debug::stream = &std::clog;
   
   using parser::operator+;
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
           for(const sexpr& s : exprs.get()) {
             // std::cout << "parsed: " << s << std::endl;
             const ast::toplevel a = ast::toplevel::check(s);
-            // std::cout << "ast: " << a << std::endl;
+            if(debug) std::cout << "ast: " << a << std::endl;
             const value v = eval(e, a);
             std::cout << v << std::endl;
           }

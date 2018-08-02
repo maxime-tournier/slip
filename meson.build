@@ -1,6 +1,6 @@
 
 project('slap', 'cpp',
-		default_options : ['cpp_std=c++11',
+		default_options : ['cpp_std=c++14',
 						   'b_sanitize=address'])
 
 compiler = meson.get_compiler('cpp')

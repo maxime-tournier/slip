@@ -105,14 +105,48 @@ namespace ast {
                      };
               };
        };
+
+static maybe<expr> check_record(sexpr::list args) {
+  const auto init = just(record::attribute::list());
+
+  // build attribute list by folding args
+  return foldl(init, args, [](maybe<record::attribute::list> lhs, sexpr rhs) {
+    return lhs >> [&](record::attribute::list lhs) {
+      // lhs is legit so far, check that rhs is an sexpr list
+      
+      if(auto self = rhs.get<sexpr::list>()) {
+
+        // unpack rhs as symbol/value
+        static const auto impl = pop_as<symbol>() >> [](symbol name) {
+          return pop() >> [name](sexpr value) {
+
+            // build attribute
+            return empty(pure(record::attribute{name, expr::check(value)}));
+          };
+        };
+
+        return impl(*self) >> [&](record::attribute attr) {
+          return just(attr >>= lhs);
+        };
+        
+      } else {
+        return maybe<record::attribute::list>();
+      }
+    };
+  }) >> [](record::attribute::list attrs) {
+    // build record from attribute list, if any
+    const expr res = record{attrs};
+    return just(res);
+  };
   
+}
 
   namespace kw {
-      symbol abs("func"), seq("do"), def("def"), cond("if");
+    symbol abs("func"), seq("do"), def("def"), cond("if"), record("record");
       
       static const std::set<symbol> reserved = {
-          abs, seq, def, cond,
-       };
+        abs, seq, def, cond, record,
+      };
   }
   
   // special forms table
@@ -120,10 +154,11 @@ namespace ast {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if expr expr expr)"}},
+    {kw::record, {check_record, "(record (symbol expr)...)"}},
   };
-  
+
   static const special_type<io> special_io = {
-      {kw::def, {check_def, "(def `symbol` `expr`)"}},
+    {kw::def, {check_def, "(def `symbol` `expr`)"}},
   };
   
 
@@ -143,7 +178,7 @@ namespace ast {
          if(s.get()[0] == '@') {
            const std::string name = std::string(s.get()).substr(1);
            if(name.empty()) throw syntax_error("empty attribute name");
-           return attr{symbol(name)};
+           return sel{symbol(name)};
          }
          
          return var{s};
@@ -220,12 +255,19 @@ namespace ast {
         return self.visit<sexpr>(repr());
       }
 
-      sexpr operator()(const attr& self) const {
-        return symbol("attr")
+      sexpr operator()(const sel& self) const {
+        return symbol("sel")
           >>= self.name
           >>= sexpr::list();        
       }
 
+      sexpr operator()(const record& self) const {
+        return symbol("record")
+          >>= map(self.attrs, [](record::attribute attr) -> sexpr {
+            return attr.name >>= attr.value.visit<sexpr>(repr()) >>= sexpr::list();
+          });
+      }
+      
       template<class T>
       sexpr operator()(const T& self) const {
         throw std::logic_error("derp");

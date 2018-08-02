@@ -91,6 +91,16 @@ struct eval_visitor {
 	return self.visit<value>(eval_visitor(), e);
   }
 
+  value operator()(const ast::record& self, const ref<env>& e) const {
+    record res;
+    foldl(unit(), self.attrs, [&](unit, const ast::record::attribute& attr) {
+      res.attrs.emplace(attr.name, eval(e, attr.value));
+      return unit();
+    });
+    return res;
+  }
+
+  
   template<class T>
   value operator()(const T& self, const ref<env>& e) const {
 	throw std::logic_error("unimplemented: " + std::string(typeid(T).name()));
@@ -147,9 +157,9 @@ struct ostream {
   void operator()(const record& self, std::ostream& out) const {
     out << "{";
     bool first = true;
-    for(const auto& it : self.attrs->locals) {
+    for(const auto& it : self.attrs) {
       if(first) first = false;
-      else out << ", ";
+      else out << "; ";
       out << it.first << ": " << it.second;
     }
     out << "}";
