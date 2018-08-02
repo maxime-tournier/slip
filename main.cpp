@@ -67,24 +67,26 @@ int main(int argc, char** argv) {
   auto e = prelude();
   
   const bool debug = false;
-  parser::debug::stream = &std::clog;
+  // parser::debug::stream = &std::clog;
   
   using parser::operator+;
-  static const auto program = ( (parser::debug("prog") |= +[](std::istream& in) {
-    return just(sexpr::parse(in));
-  }) >> parser::drop(parser::eof())); 
+  static const auto program = parser::debug("prog") |= +[](std::istream& in) {
+    return sexpr::parse(in);
+  } >> parser::drop(parser::eof()) | parser::error<std::deque<sexpr>>("parse error");
   
   static const auto handler =
     [&](std::istream& in) {
       try {
-        for(const sexpr& s : program(in).get()) {
-          // std::cout << "parsed: " << s << std::endl;
-          const ast::toplevel a = ast::toplevel::check(s);
-          // std::cout << "ast: " << a << std::endl;
-          const value v = eval(e, a);
-          std::cout << v << std::endl;
-        }
-        return true;
+        if(auto exprs = program(in)) {
+          for(const sexpr& s : exprs.get()) {
+            // std::cout << "parsed: " << s << std::endl;
+            const ast::toplevel a = ast::toplevel::check(s);
+            // std::cout << "ast: " << a << std::endl;
+            const value v = eval(e, a);
+            std::cout << v << std::endl;
+          }
+          return true;
+        } 
       } catch(ast::syntax_error& e) {
         std::cerr << "syntax error: " << e.what() << std::endl;
       } catch(std::runtime_error& e) {

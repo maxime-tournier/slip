@@ -17,7 +17,7 @@ namespace {
   
 }
 
-sexpr sexpr::parse(std::istream& in) {
+maybe<sexpr> sexpr::parse(std::istream& in) {
   using namespace parser;
   
   static const auto true_parser =
@@ -89,7 +89,7 @@ sexpr sexpr::parse(std::istream& in) {
   
   static const auto once =
     (expr_parser =
-     debug("expr") |= 
+     // debug("expr") |= 
      (boolean_parser >> as_expr)
      | (symbol_parser >> as_expr)
      | (attr_parser >> as_expr)
@@ -98,10 +98,6 @@ sexpr sexpr::parse(std::istream& in) {
      | (list_parser >> as_expr)
      , 0); (void) once;
 
-  debug::stream = &std::clog;
-  
-  if(auto value = expr_parser(in)) {
-    return value.get();
-  }
-  
+  // debug::stream = &std::clog;
+  return expr_parser(in);
 }

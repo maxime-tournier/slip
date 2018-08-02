@@ -513,9 +513,9 @@ std::size_t debug::depth = 0;
 }
 
 
-static std::string istream_slice(std::istream& in,
-                                 std::istream::streampos first,
-                                 std::istream::streampos last) {
+static std::string inline istream_slice(std::istream& in,
+                                        std::istream::streampos first,
+                                        std::istream::streampos last) {
   if(first == -1) return {};
 
   in.seekg(first);
