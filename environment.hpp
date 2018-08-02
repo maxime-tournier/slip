@@ -12,7 +12,8 @@
 // environments
 template<class T>
 struct environment {
-  std::map<symbol, T> locals;
+  using locals_type = std::map<symbol, T>;
+  locals_type locals;
   ref<environment> parent;
 
   template<class Iterator>

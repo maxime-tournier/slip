@@ -2,6 +2,9 @@
 
 #include <vector>
 
+#include "sexpr.hpp"
+
+
 static value eval(const ref<env>& e, const ast::io& self);
 
 
@@ -88,8 +91,6 @@ struct eval_visitor {
 	return self.visit<value>(eval_visitor(), e);
   }
 
-
-  
   template<class T>
   value operator()(const T& self, const ref<env>& e) const {
 	throw std::logic_error("unimplemented: " + std::string(typeid(T).name()));
@@ -141,6 +142,17 @@ struct ostream {
 
   void operator()(const real& self, std::ostream& out) const {
     out << self; // << "d";
+  }
+
+  void operator()(const record& self, std::ostream& out) const {
+    out << "{";
+    bool first = true;
+    for(const auto& it : self.attrs->locals) {
+      if(first) first = false;
+      else out << ", ";
+      out << it.first << ": " << it.second;
+    }
+    out << "}";
   }
   
 };

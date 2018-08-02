@@ -17,10 +17,15 @@ struct lambda {
   const ref<env> scope;
 };
 
+struct record {
+  const ref<env> attrs;
+};
+
 using builtin = std::function<value(const value* args, std::size_t count)>;
 
 struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                       lambda, builtin > {
+                       lambda, builtin,
+                       record> {
   using value::variant::variant;
   using list = list<value>;
 
