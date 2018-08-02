@@ -11,9 +11,11 @@
 struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   using sexpr::variant::variant;
   using list = list<sexpr>;
+
+  static sexpr parse(std::istream& in);
 };
 
-sexpr parse(std::istream& in);
+
 
 struct parse_error : std::runtime_error {
   using std::runtime_error::runtime_error;

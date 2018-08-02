@@ -10,6 +10,7 @@
 #include "ast.hpp"
 #include "eval.hpp"
 
+#include "../parse.hpp"
 #include "unpack.hpp"
 
 struct history {
@@ -44,18 +45,17 @@ static ref<env> prelude() {
 
   (*res)
     (symbol("+"), builtin([](const value* args, std::size_t count) -> value {
-      if(count != 2) throw std::runtime_error("wrong arg count");
+      assert(count == 2);
       return args[0].cast<integer>() + args[1].cast<integer>();
     }))
     (symbol("-"), builtin([](const value* args, std::size_t count) -> value {
-      if(count != 2) throw std::runtime_error("wrong arg count");
+      assert(count == 2);
       return args[0].cast<integer>() - args[1].cast<integer>();
     }))
     (symbol("="), builtin([](const value* args, std::size_t count) -> value {
-      if(count != 2) throw std::runtime_error("wrong arg count");
+      assert(count == 2);      
       return args[0].cast<integer>() == args[1].cast<integer>();
     }))
-        
     ;
   
   return res;
@@ -68,15 +68,21 @@ int main(int argc, char** argv) {
   
   const bool debug = false;
 
+  using parser::operator+;
+  static const auto program = (+[](std::istream& in) {
+    return just(sexpr::parse(in));
+  } >> parser::drop(parser::eof())); 
+  
   static const auto handler =
     [&](std::istream& in) {
       try {
-        const sexpr s = parse(in);
-        // std::cout << "parsed: " << s << std::endl;
-        const ast::toplevel a = ast::toplevel::check(s);
-        // std::cout << "ast: " << a << std::endl;
-        const value v = eval(e, a);
-        std::cout << v << std::endl;
+        for(const sexpr& s : program(in).get()) {
+          // std::cout << "parsed: " << s << std::endl;
+          const ast::toplevel a = ast::toplevel::check(s);
+          // std::cout << "ast: " << a << std::endl;
+          const value v = eval(e, a);
+          std::cout << v << std::endl;
+        }
         return true;
       } catch(ast::syntax_error& e) {
         std::cerr << "syntax error: " << e.what() << std::endl;
@@ -85,13 +91,6 @@ int main(int argc, char** argv) {
       }
       return false;
     };
-
-  static const auto program =
-    [](std::istream& in) -> maybe<sexpr> {
-      
-  };
-  
-                                
 
   
   if(argc > 1) {

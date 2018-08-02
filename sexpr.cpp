@@ -17,7 +17,7 @@ namespace {
   
 }
 
-sexpr parse(std::istream& in) {
+sexpr sexpr::parse(std::istream& in) {
   using namespace parser;
   
   static const auto true_parser =
@@ -34,7 +34,7 @@ sexpr parse(std::istream& in) {
   static const auto real_parser = // parser::debug("real") |=
     value<double>();
   
-  static const auto number_parser = // parser::debug("num") |= 
+  static const auto number_parser = // debug("num") |= 
     real_parser >> [](real num) {
     const long cast = num;
     const sexpr value = num == real(cast) ? sexpr(cast) : sexpr(num);
@@ -44,7 +44,7 @@ sexpr parse(std::istream& in) {
 
   static const auto initial_parser = chr<std::isalpha>(); 
   
-  static const auto rest_parser = parser::chr<std::isalnum>();  
+  static const auto rest_parser = chr<std::isalnum>();  
 
   static const auto symbol_parser = initial_parser >> [](char c) {
     return noskip(*rest_parser >> [c](std::deque<char>&& rest) {
@@ -54,7 +54,7 @@ sexpr parse(std::istream& in) {
   };
 
   static const auto op_parser =
-    parser::chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
+    chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
     return pure(symbol(std::string(1, c)));
   }
     | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
@@ -62,7 +62,7 @@ sexpr parse(std::istream& in) {
                                                    };
                                         
   
-  static const auto attr_parser = parser::chr<matches<'@'>>() >> [](char c) { 
+  static const auto attr_parser = chr<matches<'@'>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
       return pure(symbol(c + std::string(s.get())));
     };
@@ -70,26 +70,27 @@ sexpr parse(std::istream& in) {
   
   static const auto as_expr = parser::cast<sexpr>();
 
-  static auto expr_parser = parser::any<sexpr>();
+  static auto expr_parser = any<sexpr>();
 
-  static const auto lparen = // parser::debug("lparen") |=
-    parser::token("(");
+  static const auto lparen = // debug("lparen") |=
+    token("(");
   
-  static const auto rparen = // parser::debug("rparen") |=
-    parser::token(")");
+  static const auto rparen = // debug("rparen") |=
+    token(")");
 
-  static const auto exprs_parser = // parser::debug("exprs") |=
+  static const auto exprs_parser = // debug("exprs") |=
     parser::ref(expr_parser) % separator_parser;
   
-  static const auto list_parser = // parser::debug("list") |=
+  static const auto list_parser = // debug("list") |=
     lparen >>= exprs_parser >> drop(rparen) 
            >> [](std::deque<sexpr>&& es) {
     return pure(make_list(es.begin(), es.end()));
   };
   
   static const auto once =
-    (expr_parser
-     = (boolean_parser >> as_expr)
+    (expr_parser =
+     debug("expr") |= 
+     (boolean_parser >> as_expr)
      | (symbol_parser >> as_expr)
      | (attr_parser >> as_expr)
      | (op_parser >> as_expr)
@@ -97,7 +98,7 @@ sexpr parse(std::istream& in) {
      | (list_parser >> as_expr)
      , 0); (void) once;
 
-  parser::debug::stream = &std::clog;
+  debug::stream = &std::clog;
   
   if(auto value = expr_parser(in)) {
     return value.get();
