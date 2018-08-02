@@ -12,7 +12,7 @@ struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   using sexpr::variant::variant;
   using list = list<sexpr>;
 
-  static sexpr parse(std::istream& in);
+  static maybe<sexpr> parse(std::istream& in);
 };
 
 

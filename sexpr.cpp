@@ -1,6 +1,6 @@
 #include "sexpr.hpp"
 
-#include "../parse.hpp"
+#include "parse.hpp"
 
 namespace {
 
@@ -104,5 +104,4 @@ sexpr sexpr::parse(std::istream& in) {
     return value.get();
   }
   
-  throw parse_error("parse error");
 }

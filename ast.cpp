@@ -5,7 +5,7 @@
 
 #include <functional>
 
-#include "../maybe.hpp"
+#include "maybe.hpp"
 
 #include "sexpr.hpp"
 #include "tool.hpp"

@@ -10,7 +10,7 @@
 #include "ast.hpp"
 #include "eval.hpp"
 
-#include "../parse.hpp"
+#include "parse.hpp"
 #include "unpack.hpp"
 
 struct history {
@@ -67,11 +67,12 @@ int main(int argc, char** argv) {
   auto e = prelude();
   
   const bool debug = false;
-
+  parser::debug::stream = &std::clog;
+  
   using parser::operator+;
-  static const auto program = (+[](std::istream& in) {
+  static const auto program = ( (parser::debug("prog") |= +[](std::istream& in) {
     return just(sexpr::parse(in));
-  } >> parser::drop(parser::eof())); 
+  }) >> parser::drop(parser::eof())); 
   
   static const auto handler =
     [&](std::istream& in) {

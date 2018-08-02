@@ -1,9 +1,9 @@
-#ifndef UNPACK_HPP
-#define UNPACK_HPP
+#ifndef SLAP_UNPACK_HPP
+#define SLAP_UNPACK_HPP
 
 #include "list.hpp"
 
-#include "../maybe.hpp"
+#include "maybe.hpp"
 
 namespace unpack {
 
