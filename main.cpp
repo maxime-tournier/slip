@@ -13,6 +13,8 @@
 #include "parse.hpp"
 #include "unpack.hpp"
 
+#include "type.hpp"
+
 struct history {
   const std::string filename;
   history(const std::string& filename="/tmp/slap.history")
@@ -42,7 +44,7 @@ static void read_loop(const F& f) {
 static ref<env> prelude() {
   using namespace unpack;
   auto res = make_ref<env>();
-
+  
   (*res)
     (symbol("+"), builtin([](const value* args, std::size_t count) -> value {
       assert(count == 2);
@@ -64,7 +66,8 @@ static ref<env> prelude() {
 
 int main(int argc, char** argv) {
 
-  auto e = prelude();
+  auto re = prelude();
+  auto te = make_ref<type::env>();
   
   const bool debug = true;
   // parser::debug::stream = &std::clog;
@@ -82,8 +85,13 @@ int main(int argc, char** argv) {
             // std::cout << "parsed: " << s << std::endl;
             const ast::toplevel a = ast::toplevel::check(s);
             if(debug) std::cout << "ast: " << a << std::endl;
-            const value v = eval(e, a);
-            std::cout << v << std::endl;
+            if(auto e = a.get<ast::io>()->get<ast::expr>()) {
+              const type::mono t = type::mono::infer(te, *e);
+              std::cout << " : " << t;
+
+              const value v = eval(re, *e);
+              std::cout << " = " << v << std::endl;
+            }
           }
           return true;
         } 

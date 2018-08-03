@@ -113,7 +113,7 @@ struct eval_visitor {
   
   template<class T>
   value operator()(const T& self, const ref<env>& e) const {
-	throw std::logic_error("unimplemented: " + std::string(typeid(T).name()));
+	throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
   }
   
 };
