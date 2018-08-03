@@ -52,6 +52,14 @@ namespace {
   };
 
 
+  struct equals {
+    template<class T, class Variant>
+    bool operator()(const T& self, const Variant& other) const {
+      return self == other.template cast<T>();
+    }
+  };
+
+
   template<class ... Func>
   struct overload : Func... {
     overload(const Func& ... func) : Func(func)... { }
@@ -88,13 +96,15 @@ class variant {
 public:
 
   // unsafe casts
-  template<class T, index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
+  template<class T,
+           index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   const T& cast() const {
     assert(index == this->index);
     return reinterpret_cast<const T&>(storage);
   }
 
-  template<class T, index_type index = helper_type::index( (typename std::decay<T>::type*) 0 )>
+  template<class T,
+           index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   T& cast() {
     assert(index == this->index);
     return reinterpret_cast<T&>(storage);
@@ -102,20 +112,23 @@ public:
 
   
   // accessors
-  template<class T, index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
+  template<class T,
+           index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   const T* get() const {
     if(this->index == index) { return &cast<T>(); }
     return nullptr;
   }
 
-  template<class T, index_type index = helper_type::index( (typename std::decay<T>::type*) 0 )>
+  template<class T,
+           index_type index = helper_type::index((typename std::decay<T>::type*)0)>
   T* get() {
     if(this->index == index) { return &cast<T>(); }
     return nullptr;
   }
 
   // constructors/destructors
-  template<class T, index_type index = helper_type::index( (typename std::decay<T>::type*) 0 )>
+  template<class T,
+           index_type index = helper_type::index((typename std::decay<T>::type*) 0)>
   variant(T&& value) : index(index) {
     helper_type::construct(&storage, std::forward<T>(value));
   }
@@ -150,6 +163,16 @@ public:
   friend std::ostream& operator<<(std::ostream& out, const variant& self) {
     self.visit(write(), out);
     return out;
+  }
+
+
+  bool operator==(const variant& other) const {
+    if(other.index != index) return false;
+    return visit<bool>(equals(), other);
+  }
+
+  bool operator!=(const variant& other) const {
+    return !operator==(other);
   }
   
 };

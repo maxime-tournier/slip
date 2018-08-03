@@ -16,11 +16,13 @@ struct environment {
   locals_type locals;
   ref<environment> parent;
 
-  template<class Iterator>
-  friend ref<environment> augment(const ref<environment>& self,
+  environment(const ref<environment>& parent={}) : parent(parent) { }
+  
+  template<class Derived, class Iterator>
+  friend ref<Derived> augment(const ref<Derived>& self,
                                   const list<symbol>& args,
                                   Iterator first, Iterator last) {
-    auto res = std::make_shared<environment>();
+    auto res = std::make_shared<Derived>(self);
     res->parent = self;
     if(last != foldl(first, args, [&](Iterator it, const symbol& name) {
           if(it == last) throw std::runtime_error("not enough values");

@@ -67,7 +67,7 @@ static ref<env> prelude() {
 int main(int argc, char** argv) {
 
   auto re = prelude();
-  auto te = make_ref<type::env>();
+  auto ts = make_ref<type::state>();
   
   const bool debug = true;
   // parser::debug::stream = &std::clog;
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
             const ast::toplevel a = ast::toplevel::check(s);
             if(debug) std::cout << "ast: " << a << std::endl;
             if(auto e = a.get<ast::io>()->get<ast::expr>()) {
-              const type::mono t = type::mono::infer(te, *e);
+              const type::mono t = type::mono::infer(ts, *e);
               std::cout << " : " << t;
 
               const value v = eval(re, *e);
