@@ -1,6 +1,8 @@
 #ifndef SLAP_TYPE_HPP
 #define SLAP_TYPE_HPP
 
+#include <set>
+
 #include "variant.hpp"
 #include "list.hpp"
 #include "symbol.hpp"
@@ -116,7 +118,8 @@ struct application {
 
 // polytypes
 struct poly {
-  const list<ref<variable>> forall;
+  using forall_type = std::set<ref<variable>>;
+  const forall_type forall;
   const mono type;
 
   // note: must be properly substituted first

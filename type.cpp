@@ -20,6 +20,9 @@ any operator>>=(any from, any to) {
 
 namespace type {
 
+static mono instantiate(poly self, std::size_t depth);
+
+
 static const auto make_constant = [](const char* name, kind::any k=kind::term) {
   return make_ref<constant>(constant{symbol(name), k});
 };
@@ -42,8 +45,9 @@ mono operator>>=(mono from, mono to) {
 application::application(mono ctor, mono arg)
   : ctor(ctor),
     arg(arg) {
-  if(auto k = ctor.kind().get<ref<kind::constructor>>()) {
-    if((*k)->from != arg.kind()) {
+  const kind::any k = ctor.kind();
+  if(auto c = k.get<ref<kind::constructor>>()) {
+    if((*c)->from != arg.kind()) {
       throw kind::error("argument has not the expected kind");
     }
   } else {
@@ -61,7 +65,7 @@ const ref<constant> func =
   make_constant("->", kind::term >>= kind::term >>= kind::term);
 
 
-static mono instantiate(poly self, std::size_t depth);
+
 
 struct kind_visitor {
 
@@ -74,13 +78,13 @@ struct kind_visitor {
   }
 
   kind::any operator()(const ref<application>& self) const {
-    if(auto k = self->ctor.kind().get<ref<kind::constructor>>()) {
-      return (*k)->to;
+    const kind::any k = self->ctor.kind();
+    if(auto c = k.get<ref<kind::constructor>>()) {
+      return (*c)->to;
     } else {
       throw std::logic_error("derp");
     }
   }
-  
       
 };
 
@@ -149,11 +153,33 @@ struct infer_visitor {
 
 
 // polytype instantiation
-static mono instantiate(poly self, std::size_t depth) {
-  throw std::logic_error("unimplemented: " + std::string(__func__));
+struct instantiate_visitor {
+  const poly::forall_type& forall;
+  const std::size_t level;
+  
+  mono operator()(const ref<constant>& self) const {
+    return self;
+  }
+
+  mono operator()(const ref<variable>& self) const {
+    auto it = forall.find(self);
+    if(it != forall.end()) {
+      return make_variable(level, self->kind);
+    } else {
+      return self;
+    }
+  }
+
+  mono operator()(const ref<application>& self) const {
+    return apply(self->ctor.visit<mono>(*this),
+                 self->arg.visit<mono>(*this));
+  }
+  
+};
+
+static mono instantiate(poly self, std::size_t level) {
+  return self.type.visit<mono>(instantiate_visitor{self.forall, level});
 }
-
-
 
 
 mono mono::infer(const ref<state>& s, const ast::expr& self) {
@@ -162,8 +188,11 @@ mono mono::infer(const ref<state>& s, const ast::expr& self) {
 
 std::ostream& operator<<(std::ostream& out, const mono& self) {
   self.match([&](ref<constant> self) { out << self->name; },
-             [&](ref<variable> self) { out << "#" << self; },
-             [&](ref<application> self) { out << "#<app>"; });
+             [&](ref<variable> self) { out << "#" << std::hex
+                                           << (long(self.get()) & 0xffff); },
+             [&](ref<application> self) {
+               out << self->ctor << " " << self->arg;
+             });
   return out;
 }
 
@@ -220,10 +249,12 @@ struct generalize_visitor {
 
 
 poly poly::generalize(const mono& self, std::size_t level) {
-  std::vector<ref<variable>> forall;
-  self.visit(generalize_visitor{level}, std::back_inserter(forall));
-  return poly{make_list(forall.begin(), forall.end()), self};
+  forall_type forall;
+  self.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
+  return poly{forall, self};
 }
+
+
 
 
 };
