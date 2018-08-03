@@ -27,8 +27,8 @@ namespace ast {
     return pop_as<symbol>() >> [&](symbol s) -> monad<U> {
       const auto it = table.find(s);
       if(it != table.end()) {
-        const syntax_error err(it->second.second);
-        return it->second.first | error<U>(err);
+        const error err(it->second.second);
+        return it->second.first | unpack::error<U>(err);
       }
       return fail<U>();
     };
@@ -42,7 +42,7 @@ namespace ast {
   
   // check function calls
   static maybe<expr> check_call(sexpr::list args) {
-    if(!args) throw syntax_error("empty list in application");
+    if(!args) throw error("empty list in application");
     
     const auto func = make_ref<expr>(expr::check(args->head));
     const expr res = app{func, map(args->tail, expr::check)};
@@ -172,14 +172,14 @@ static maybe<expr> check_record(sexpr::list args) {
        [](symbol s) -> expr {
          // forbid reserved keywords
          if(kw::reserved.find(s) != kw::reserved.end()) {
-           throw syntax_error(tool::quote(s.get()) + " is a reserved keyword and"
+           throw error(tool::quote(s.get()) + " is a reserved keyword and"
                               " cannot be used as a variable name");
          }
 
          // attributes
          if(s.get()[0] == '@') {
            const std::string name = std::string(s.get()).substr(1);
-           if(name.empty()) throw syntax_error("empty attribute name");
+           if(name.empty()) throw error("empty attribute name");
            return sel{symbol(name)};
          }
 

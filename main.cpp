@@ -95,8 +95,10 @@ int main(int argc, char** argv) {
           }
           return true;
         } 
-      } catch(ast::syntax_error& e) {
+      } catch(ast::error& e) {
         std::cerr << "syntax error: " << e.what() << std::endl;
+      } catch(type::error& e) {
+        std::cerr << "type error: " << e.what() << std::endl;
       } catch(std::runtime_error& e) {
         std::cerr << "runtime error: " << e.what() << std::endl;
       }
