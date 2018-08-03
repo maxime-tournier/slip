@@ -20,14 +20,6 @@ namespace {
 maybe<sexpr> sexpr::parse(std::istream& in) {
   using namespace parser;
   
-  static const auto true_parser =
-    token("true") >> [](const char*) { return pure(true); };
-  
-  static const auto false_parser =
-    token("false") >> [](const char*) { return pure(false); };
-  
-  static const auto boolean_parser = true_parser | false_parser;
-
   static const auto separator_parser = // parser::debug("sep") |=
     noskip(chr<std::isspace>());
   
@@ -90,8 +82,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto once =
     (expr_parser =
      // debug("expr") |= 
-     (boolean_parser >> as_expr)
-     | (symbol_parser >> as_expr)
+     (symbol_parser >> as_expr)
      | (attr_parser >> as_expr)
      | (op_parser >> as_expr)
      | number_parser

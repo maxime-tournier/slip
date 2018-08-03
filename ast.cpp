@@ -170,16 +170,22 @@ static maybe<expr> check_record(sexpr::list args) {
        [](integer i) { return make_lit(i); },
        [](real r) { return make_lit(r); },
        [](symbol s) -> expr {
+         // forbid reserved keywords
          if(kw::reserved.find(s) != kw::reserved.end()) {
            throw syntax_error(tool::quote(s.get()) + " is a reserved keyword and"
                               " cannot be used as a variable name");
          }
-         
+
+         // attributes
          if(s.get()[0] == '@') {
            const std::string name = std::string(s.get()).substr(1);
            if(name.empty()) throw syntax_error("empty attribute name");
            return sel{symbol(name)};
          }
+
+         // special cases
+         if(s == symbol("true")) { return lit<boolean>{true}; }
+         if(s == symbol("false")) { return lit<boolean>{false}; }
          
          return var{s};
        },
