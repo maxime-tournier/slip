@@ -100,6 +100,16 @@ struct eval_visitor {
     return res;
   }
 
+
+  value operator()(const ast::sel& self, const ref<env>& e) const {
+    const symbol name = self.name;
+    return builtin([name](const value* args, std::size_t count) -> value {
+      assert(count == 1);
+      return args[0].cast<record>().attrs.at(name);      
+      // return args[0].cast<record>().attrs.find(name)->second;
+    });
+  }
+  
   
   template<class T>
   value operator()(const T& self, const ref<env>& e) const {
