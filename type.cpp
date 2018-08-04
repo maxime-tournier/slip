@@ -1,9 +1,10 @@
 #include "type.hpp"
 
+#include <vector>
+#include <sstream>
+
 #include "ast.hpp"
 #include "tool.hpp"
-
-#include <vector>
 
 namespace kind {
 
@@ -126,7 +127,7 @@ struct infer_visitor {
     
     // infer lambda body with augmented environment
     auto scope = augment(s, self.args, vars.rbegin(), vars.rend());
-    scope->sub->emplace(result, mono::infer(scope, *self.body));
+    s->unify(result, mono::infer(scope, *self.body));
     
     return func;
   }
@@ -177,6 +178,7 @@ struct instantiate_visitor {
   
 };
 
+
 static mono instantiate(poly self, std::size_t level) {
   return self.type.visit<mono>(instantiate_visitor{self.forall, level});
 }
@@ -184,16 +186,6 @@ static mono instantiate(poly self, std::size_t level) {
 
 mono mono::infer(const ref<state>& s, const ast::expr& self) {
   return self.visit<mono>(infer_visitor(), s);
-}
-
-std::ostream& operator<<(std::ostream& out, const mono& self) {
-  self.match([&](ref<constant> self) { out << self->name; },
-             [&](ref<variable> self) { out << "#" << std::hex
-                                           << (long(self.get()) & 0xffff); },
-             [&](ref<application> self) {
-               out << self->ctor << " " << self->arg;
-             });
-  return out;
 }
 
 
@@ -204,12 +196,14 @@ state::state()
 
 }
 
+
 state::state(const ref<state>& parent)
   : environment<poly>(parent),
     level(parent->level + 1),
     sub(parent->sub) {
 
 }
+
 
 ref<variable> state::fresh(kind::any k) const {
   return make_variable(level, k);
@@ -249,6 +243,7 @@ poly state::generalize(const mono& t) const {
   s.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
   return poly{forall, s};
 }
+
 
 struct stream_visitor {
   using map_type = std::map<ref<variable>, std::size_t>;
@@ -309,7 +304,42 @@ mono state::substitute(const mono& t) const {
 
 
 void state::unify(const mono& from, const mono& to) {
+  using var = ref<variable>;
+  using app = ref<application>;
+
+  // var -> var
+  if(from.get<var>() && to.get<var>()) {
+    // var <- var
+    if(from.cast<var>()->level < to.cast<var>()->level) {
+      sub->emplace(from.cast<var>(), to);
+      return;
+    }
+  }
   
+  // var -> mono
+  if(auto v = from.get<var>()) {
+    sub->emplace(*v, to);
+    return;
+  }
+
+  // mono <- var
+  if(auto v = to.get<var>()) {
+    sub->emplace(*v, from);
+    return;
+  }
+
+  // app -> app
+  if(from.get<app>() && to.get<app>()) {
+    unify(from.cast<app>()->ctor, to.cast<app>()->ctor);
+    unify(from.cast<app>()->arg, to.cast<app>()->arg);
+    return;
+  }
+  
+  if(from != to) {
+    std::stringstream ss;
+    ss << "cannot unify: " << generalize(from) << " with: " << generalize(to);
+    throw error(ss.str());
+  }
 }
 
 

@@ -88,8 +88,6 @@ struct mono : variant<ref<constant>,
   
   static mono infer(const ref<state>& s, const ast::expr& self);
   
-  friend std::ostream& operator<<(std::ostream& out, const mono& self);
-
   friend ref<application> apply(mono ctor, mono arg);
 };
 
