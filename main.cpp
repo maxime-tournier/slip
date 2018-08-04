@@ -87,7 +87,8 @@ int main(int argc, char** argv) {
             if(debug) std::cout << "ast: " << a << std::endl;
             if(auto e = a.get<ast::io>()->get<ast::expr>()) {
               const type::mono t = type::mono::infer(ts, *e);
-              std::cout << " : " << t;
+              const type::poly p = ts->generalize(t);
+              std::cout << " : " << p;
 
               const value v = eval(re, *e);
               std::cout << " = " << v << std::endl;

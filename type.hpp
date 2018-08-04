@@ -54,30 +54,25 @@ struct constant;
 struct variable;
 struct application;
 
-// substitutions
-class substitution {
-  using key_type = ref<variable>;
-  using map_type = std::map<key_type, mono>;
-  map_type map;
-public:
-  
-  // substitute to all type variables in t
-  mono operator()(mono t) const;
-
-  // add from -> to
-  void link(key_type from, mono to);
-};
 
 
 // type state
 struct state : environment<poly> {
+
+  using substitution = std::map<ref<variable>, mono>;
+  
   const std::size_t level;
-  const ref<substitution> subst;
+  const ref<substitution> sub;
 
   state();
   state(const ref<state>& parent);
 
   ref<variable> fresh(kind::any k=kind::term) const;
+  
+  mono substitute(const mono& t) const; 
+  poly generalize(const mono& t) const;
+  
+  void unify(const mono& from, const mono& to);
 };
 
 
@@ -98,15 +93,18 @@ struct mono : variant<ref<constant>,
   friend ref<application> apply(mono ctor, mono arg);
 };
 
+
 struct constant {
   const symbol name;
   const ::kind::any kind;
 };
 
+
 struct variable {
   const std::size_t level;
   const ::kind::any kind;
 };
+
 
 struct application {
   const mono ctor;
@@ -122,8 +120,7 @@ struct poly {
   const forall_type forall;
   const mono type;
 
-  // note: must be properly substituted first
-  static poly generalize(const mono& self, std::size_t depth=0);
+  friend std::ostream& operator<<(std::ostream& out, const poly& self);
 };
 
 

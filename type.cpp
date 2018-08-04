@@ -120,14 +120,14 @@ struct infer_visitor {
     // construct function type
     const mono func = foldr(mono(result), self.args, [&](symbol name, mono t) {
       const mono alpha = s->fresh();
-      vars.emplace_back(poly::generalize(alpha, s->level));
+      vars.emplace_back(s->generalize(alpha));
       return alpha >>= t;
     });
     
     // infer lambda body with augmented environment
-    auto sub = augment(s, self.args, vars.rbegin(), vars.rend());
-    s->subst->link(result, mono::infer(sub, *self.body));
-
+    auto scope = augment(s, self.args, vars.rbegin(), vars.rend());
+    scope->sub->emplace(result, mono::infer(scope, *self.body));
+    
     return func;
   }
   
@@ -200,14 +200,14 @@ std::ostream& operator<<(std::ostream& out, const mono& self) {
 // type state
 state::state()
   : level(0),
-    subst(make_ref<substitution>()) {
+    sub(make_ref<substitution>()) {
 
 }
 
 state::state(const ref<state>& parent)
   : environment<poly>(parent),
     level(parent->level + 1),
-    subst(parent->subst) {
+    sub(parent->sub) {
 
 }
 
@@ -216,11 +216,6 @@ ref<variable> state::fresh(kind::any k) const {
 }
 
 
-// substitutions
-void substitution::link(key_type from, mono to) {
-  auto err = map.emplace(from, to);
-  assert(err.second);
-}
 
 
 
@@ -248,10 +243,73 @@ struct generalize_visitor {
 };
 
 
-poly poly::generalize(const mono& self, std::size_t level) {
-  forall_type forall;
-  self.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
-  return poly{forall, self};
+poly state::generalize(const mono& t) const {
+  poly::forall_type forall;
+  const mono s = substitute(t);
+  s.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
+  return poly{forall, s};
+}
+
+struct stream_visitor {
+  using map_type = std::map<ref<variable>, std::size_t>;
+  map_type& map;
+
+  void operator()(const ref<constant>& self, std::ostream& out,
+                  const poly::forall_type& forall) const {
+    out << self->name;
+  }
+
+  void operator()(const ref<variable>& self, std::ostream& out,
+                  const poly::forall_type& forall) const {
+    auto it = map.emplace(self, map.size()).first;
+    // TODO quantified/bound
+    out << char('a' + it->second);
+  }
+
+  void operator()(const ref<application>& self, std::ostream& out,
+                  const poly::forall_type& forall) const {
+    // TODO parens
+    self->ctor.visit(*this, out, forall);
+    out << " ";
+    self->arg.visit(*this, out, forall);    
+  }
+  
+};
+
+
+std::ostream& operator<<(std::ostream& out, const poly& self) {
+  stream_visitor::map_type map;
+  self.type.visit(stream_visitor{map}, out, self.forall);
+  return out;
+}
+
+
+struct substitute_visitor {
+
+  mono operator()(const ref<variable>& self, const state& s) const {
+    auto it = s.sub->find(self);
+    if(it == s.sub->end()) return self;
+    assert(it->second != self);
+    return s.substitute(it->second);
+  }
+
+  mono operator()(const ref<application>& self, const state& s) const {
+    return apply(s.substitute(self->ctor), s.substitute(self->arg));
+  }
+
+  mono operator()(const ref<constant>& self, const state&) const {
+    return self;
+  }
+  
+};
+
+mono state::substitute(const mono& t) const {
+  return t.visit<mono>(substitute_visitor(), *this);
+}
+
+
+void state::unify(const mono& from, const mono& to) {
+  
 }
 
 
