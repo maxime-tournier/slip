@@ -121,7 +121,9 @@ struct infer_visitor {
     // construct function type
     const mono func = foldr(mono(result), self.args, [&](symbol name, mono t) {
       const mono alpha = s->fresh();
-      vars.emplace_back(s->generalize(alpha));
+      // note: alpha is monomorphic in sigma
+      const poly sigma = {{}, alpha}; 
+      vars.emplace_back(sigma);
       return alpha >>= t;
     });
     
@@ -257,16 +259,28 @@ struct stream_visitor {
   void operator()(const ref<variable>& self, std::ostream& out,
                   const poly::forall_type& forall) const {
     auto it = map.emplace(self, map.size()).first;
-    // TODO quantified/bound
+    if(forall.find(self) != forall.end()) {
+      out << "'";
+    } else {
+      out << "!";
+    }
+    
     out << char('a' + it->second);
+    // out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
   }
 
   void operator()(const ref<application>& self, std::ostream& out,
                   const poly::forall_type& forall) const {
-    // TODO parens
-    self->ctor.visit(*this, out, forall);
-    out << " ";
-    self->arg.visit(*this, out, forall);    
+    if(self->ctor == func) {
+      self->arg.visit(*this, out, forall);
+      out << " ";
+      self->ctor.visit(*this, out, forall);
+    } else { 
+      // TODO parens
+      self->ctor.visit(*this, out, forall);
+      out << " ";
+      self->arg.visit(*this, out, forall);
+    }
   }
   
 };
@@ -307,6 +321,9 @@ void state::unify(const mono& from, const mono& to) {
   using var = ref<variable>;
   using app = ref<application>;
 
+  std::clog << "unifying: " << generalize(from)
+            << " with: " << generalize(to) << std::endl;
+  
   // var -> var
   if(from.get<var>() && to.get<var>()) {
     // var <- var
