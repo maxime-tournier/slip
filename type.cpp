@@ -114,12 +114,11 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
-    const auto result = s->fresh();
-    
     std::vector<poly> vars;
     
     // construct function type
-    const mono func = foldr(mono(result), self.args, [&](symbol name, mono t) {
+    const mono result = s->fresh();
+    const mono sig = foldr(result, self.args, [&](symbol name, mono t) {
       const mono alpha = s->fresh();
       // note: alpha is monomorphic in sigma
       const poly sigma = {{}, alpha}; 
@@ -131,10 +130,23 @@ struct infer_visitor {
     auto scope = augment(s, self.args, vars.rbegin(), vars.rend());
     s->unify(result, mono::infer(scope, *self.body));
     
-    return func;
+    return sig;
   }
-  
 
+  // app
+  mono operator()(const ast::app& self, const ref<state>& s) const {
+    const mono func = mono::infer(s, *self.func);
+    const mono result = s->fresh();
+
+    const mono sig = foldr(result, self.args, [&](ast::expr e, mono t) {
+        return mono::infer(s, e) >>= t;
+      });
+
+    s->unify(sig, func);
+    return result;
+  }
+
+  
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
     return unit;
