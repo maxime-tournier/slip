@@ -16,12 +16,36 @@ builtin::builtin(builtin&&) = default;
 static value eval(const ref<env>& e, const ast::io& self);
 
 value apply(const value& func, const value* first, const value* last) {
+  const std::size_t argc = last - first;
+
   return func.match<value>
 	([&](const lambda& self) {
+      if(argc < self.args.size()) {
+        // unsaturated call: build lambda/builtin
+        throw std::runtime_error("unimplemented: un-saturated calls");
+      }
+
+      if(argc > self.args.size()) {
+        // over-saturated call: call result with args
+        throw std::runtime_error("unimplemented: over-saturated calls");
+      }
+
+      // saturated call
       return eval(augment(self.scope, self.args, first, last), *self.body);
     },
 	  [&](const builtin& self) {
-		return self.func(first);
+        if(argc < self.argc) {        
+          // unsaturated call: build lambda/builtin
+          throw std::runtime_error("unimplemented: un-saturated calls");
+        }
+        
+        if(argc > self.argc) {
+          // over-saturated call: call result with args
+          throw std::runtime_error("unimplemented: over-saturated calls");
+        }
+        
+        // saturated call
+        return self.func(first);
 	  },
 	  [&](value) -> value {
 		throw std::runtime_error("type error in application");
