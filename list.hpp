@@ -48,6 +48,17 @@ struct cons {
     return out << ')';
   }
 
+  struct iterator {
+    cons* ptr;
+
+    bool operator!=(const iterator& other) const { return ptr != other.ptr; }
+    iterator& operator++() { ptr = ptr->tail.get(); return *this; };
+    const T& operator*() const { return ptr->head; }
+  };
+
+  friend iterator begin(const list<T>& self) { return {self.get()}; }
+  friend iterator end(const list<T>& self) { return {nullptr}; }  
+
 };
 
 
