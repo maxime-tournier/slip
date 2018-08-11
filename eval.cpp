@@ -84,9 +84,10 @@ struct eval_visitor {
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
     const list<symbol> args = self.args;
+    const std::size_t argc = size(args);
+    
     const ast::expr body = *self.body;
     const ref<env> scope = e;
-    const std::size_t argc = size(args);
     
 	return closure(argc, [argc, args, scope, body](const value* values) -> value {
       return eval(augment(scope, args, values, values + argc), body);
