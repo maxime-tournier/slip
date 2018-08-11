@@ -46,13 +46,13 @@ static ref<env> prelude() {
   auto res = make_ref<env>();
   
   (*res)
-    ("+", builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+    ("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
       return lhs + rhs;
     }))
-    ("-", builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+    ("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
       return lhs - rhs;
     }))
-    ("=", builtin(+[](const integer& lhs, const integer& rhs) -> boolean {
+    ("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
       return lhs == rhs;
     }))
     ;

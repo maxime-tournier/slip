@@ -37,14 +37,14 @@ namespace {
     void operator()(const T& self) const { self.~T(); }
   };
 
-  struct move {
+  struct move_construct {
     template<class T>
     void operator()(T& source, void* target) const {
       new (target) T(std::move(source));
     }
   };
 
-  struct copy {
+  struct copy_construct {
     template<class T>
     void operator()(T& source, void* target) const {
       new (target) T(source);
@@ -133,15 +133,16 @@ public:
     helper_type::construct(&storage, std::forward<T>(value));
   }
 
+  // TODO check whether this one actually works (visit is const)
   variant(variant&& other) : index(other.index) {
-    other.visit<void>(move(), &storage);
+    other.visit(move_construct(), &storage);
   }
   
   variant(const variant& other) : index(other.index) {
-    other.visit<void>(copy(), &storage);
+    other.visit(copy_construct(), &storage);
   }
 
-  ~variant() { visit<void>(destruct()); }
+  ~variant() { visit(destruct()); }
 
   // visitors
   template<class Ret = void, class Func, class ... Params>
@@ -150,9 +151,11 @@ public:
     using self_type = const variant&;
     using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
     
-    static const thunk_type table[] = {thunk<Args, ret_type, self_type, Func, Params...>...};
+    static const thunk_type table[] =
+      {thunk<Args, ret_type, self_type, Func, Params...>...};
     
-    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
+    return table[index](*this, std::forward<Func>(func),
+                        std::forward<Params>(params)...);
   }
 
   template<class Ret = void, class ... Func>
@@ -174,7 +177,19 @@ public:
   bool operator!=(const variant& other) const {
     return !operator==(other);
   }
-  
+
+
+  // assignment
+  variant& operator=(const variant& other) {
+    if(this != &other) {
+      // TODO optimize when types match
+      this->~variant();
+      index = other.index;
+      other.visit(copy_construct(), &storage);
+    }
+    return *this;
+  }
+
 };
 
 

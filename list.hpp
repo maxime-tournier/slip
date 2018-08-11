@@ -61,6 +61,10 @@ struct cons {
   friend iterator begin(const list<T>& self) { return {self.get()}; }
   friend iterator end(const list<T>& self) { return {nullptr}; }  
 
+  friend std::size_t size(const list<T>& self) {
+    return foldr(0, self, [](const T&, std::size_t s) { return s + 1; });
+  }
+  
 };
 
 

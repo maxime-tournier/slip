@@ -72,7 +72,7 @@ struct state : environment<poly> {
   mono substitute(const mono& t) const; 
   poly generalize(const mono& t) const;
   
-  void unify(const mono& from, const mono& to);
+  void unify(mono from, mono to);
 
   // convenience
   using environment<poly>::operator();

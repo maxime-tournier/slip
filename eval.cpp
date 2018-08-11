@@ -4,52 +4,54 @@
 
 #include "sexpr.hpp"
 
-builtin::builtin(std::size_t argc, func_type func)
+closure::closure(std::size_t argc, func_type func)
   : func(func),
     argc(argc) {
 
 }
 
-builtin::builtin(const builtin&) = default;
-builtin::builtin(builtin&&) = default;
+closure::closure(const closure&) = default;
+closure::closure(closure&&) = default;
 
 static value eval(const ref<env>& e, const ast::io& self);
 
-value apply(const value& func, const value* first, const value* last) {
+value apply(const value& self, const value* first, const value* last) {
   const std::size_t argc = last - first;
+  const std::size_t expected = self.match<std::size_t>
+    ([](const closure& self) { return self.argc; },
+     [](const value& self) -> std::size_t {
+       throw std::runtime_error("type error in application");
+     });
 
-  return func.match<value>
-	([&](const lambda& self) {
-      if(argc < self.args.size()) {
-        // unsaturated call: build lambda/builtin
-        throw std::runtime_error("unimplemented: un-saturated calls");
+  if(argc < expected) {
+    // unsaturated call: build wrapper
+    const std::size_t remaining = expected - argc;        
+    const std::vector<value> saved(first, last);
+    
+    return closure(remaining, [self, saved, remaining](const value* args) {
+      std::vector<value> tmp = saved;
+      for(auto it = args, last = args + remaining; it != last; ++it) {
+        tmp.emplace_back(*it);
       }
+      return apply(self, tmp.data(), tmp.data() + tmp.size());
+    });
+  }
 
-      if(argc > self.args.size()) {
-        // over-saturated call: call result with args
-        throw std::runtime_error("unimplemented: over-saturated calls");
-      }
+  if(argc > expected) {
+    // over-saturated call: call result with remaining args
+    const value* mid = first + expected;
+    const value result = apply(self, first, mid);
+    return apply(result, mid, last);
+  }
 
-      // saturated call
-      return eval(augment(self.scope, self.args, first, last), *self.body);
+  // saturated calls
+  return self.match<value>
+	([first](const closure& self) {
+      return self.func(first);      
     },
-	  [&](const builtin& self) {
-        if(argc < self.argc) {        
-          // unsaturated call: build lambda/builtin
-          throw std::runtime_error("unimplemented: un-saturated calls");
-        }
-        
-        if(argc > self.argc) {
-          // over-saturated call: call result with args
-          throw std::runtime_error("unimplemented: over-saturated calls");
-        }
-        
-        // saturated call
-        return self.func(first);
-	  },
-	  [&](value) -> value {
-		throw std::runtime_error("type error in application");
-	  } );
+	 [](value) -> value {
+       throw std::runtime_error("type error in application");
+     });
 }
 
 
@@ -81,12 +83,14 @@ struct eval_visitor {
   }
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
-    std::vector<symbol> args;
-    for(symbol s : self.args) {
-      args.push_back(s);
-    }
+    const list<symbol> args = self.args;
+    const ast::expr body = *self.body;
+    const ref<env> scope = e;
+    const std::size_t argc = size(args);
     
-	return lambda{args, self.body, e};
+	return closure(argc, [argc, args, scope, body](const value* values) -> value {
+      return eval(augment(scope, args, values, values + argc), body);
+    });
   }
   
   value operator()(const ast::seq& self, const ref<env>& e) const {
@@ -139,7 +143,7 @@ struct eval_visitor {
 
   value operator()(const ast::sel& self, const ref<env>& e) const {
     const symbol name = self.name;
-    return builtin(1, [name](const value* args) -> value {
+    return closure(1, [name](const value* args) -> value {
       return args[0].cast<record>().attrs.at(name);      
       // return args[0].cast<record>().attrs.find(name)->second;
     });
@@ -175,12 +179,8 @@ struct ostream {
 	out << self;
   }
 
-  void operator()(const lambda& self, std::ostream& out) const {
-	out << "#<lambda>";
-  }
-
-  void operator()(const builtin& self, std::ostream& out) const {
-	out << "#<builtin>";
+  void operator()(const closure& self, std::ostream& out) const {
+	out << "#<closure>";
   }
   
   void operator()(const unit& self, std::ostream& out) const {

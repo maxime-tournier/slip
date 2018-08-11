@@ -12,34 +12,27 @@
 struct value;
 using env = environment<value>;
 
-struct lambda {
-  const std::vector<symbol> args;
-  const ref<ast::expr> body;
-  const ref<env> scope;
-};
-
 struct record {
   std::map<symbol, value> attrs;
 };
 
-struct builtin {
+struct closure {
   using func_type = std::function<value (const value* args)>;
   const func_type func;
   
   const std::size_t argc;
 
-  builtin(std::size_t argc, func_type func);
+  closure(std::size_t argc, func_type func);
 
-  builtin(builtin&& other);
-  builtin(const builtin&);
+  closure(closure&& other);
+  closure(const closure&);
   
   template<class Ret, class ... Args>
-  builtin(Ret (*impl) (const Args&...) );
+  closure(Ret (*impl) (const Args&...) );
 };
 
 struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                       lambda, builtin,
-                       record> {
+                       closure, record> {
   using value::variant::variant;
   using list = list<value>;
 
@@ -47,7 +40,7 @@ struct value : variant<unit, real, integer, boolean, symbol, list<value>,
 };
 
 template<class Ret, class ... Args>
-builtin::builtin(Ret (*impl) (const Args&...) )
+closure::closure(Ret (*impl) (const Args&...) )
   : func( [impl](const value* args) -> value {
             const std::tuple<const Args&...> pack =
               { *(args++)->template get<Args>()... };

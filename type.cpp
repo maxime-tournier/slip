@@ -321,6 +321,7 @@ struct substitute_visitor {
   }
 
   mono operator()(const ref<application>& self, const state& s) const {
+    
     return apply(s.substitute(self->ctor), s.substitute(self->arg));
   }
 
@@ -334,14 +335,26 @@ mono state::substitute(const mono& t) const {
   return t.visit<mono>(substitute_visitor(), *this);
 }
 
+static std::size_t indent = 0;
+struct lock {
+  lock() { ++indent; }
+  ~lock() { --indent; }
+};
 
-void state::unify(const mono& from, const mono& to) {
+void state::unify(mono from, mono to) {
+  const lock instance;
+
   using var = ref<variable>;
   using app = ref<application>;
 
-  std::clog << "unifying: " << generalize(from)
+  std::clog << std::string(2 * indent, '.') << "unifying: " << generalize(from)
             << " with: " << generalize(to) << std::endl;
+
   
+  // resolve
+  from = substitute(from);
+  to = substitute(to);
+
   // var -> var
   if(from.get<var>() && to.get<var>()) {
     // var <- var
@@ -363,7 +376,7 @@ void state::unify(const mono& from, const mono& to) {
     return;
   }
 
-  // app -> app
+  // app <-> app
   if(from.get<app>() && to.get<app>()) {
     unify(from.cast<app>()->ctor, to.cast<app>()->ctor);
     unify(from.cast<app>()->arg, to.cast<app>()->arg);
@@ -375,6 +388,7 @@ void state::unify(const mono& from, const mono& to) {
     ss << "cannot unify: " << generalize(from) << " with: " << generalize(to);
     throw error(ss.str());
   }
+
 }
 
 
