@@ -21,6 +21,12 @@ any operator>>=(any from, any to) {
 
 namespace type {
 
+state& state::operator()(std::string s, mono t) {
+  locals.emplace(s, generalize(t));
+  return *this;
+}
+  
+
 static mono instantiate(poly self, std::size_t depth);
 
 

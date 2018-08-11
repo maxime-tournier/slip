@@ -4,9 +4,16 @@
 
 #include "sexpr.hpp"
 
+builtin::builtin(std::size_t argc, func_type func)
+  : func(func),
+    argc(argc) {
+
+}
+
+builtin::builtin(const builtin&) = default;
+builtin::builtin(builtin&&) = default;
 
 static value eval(const ref<env>& e, const ast::io& self);
-
 
 value apply(const value& func, const value* first, const value* last) {
   return func.match<value>
@@ -14,7 +21,7 @@ value apply(const value& func, const value* first, const value* last) {
       return eval(augment(self.scope, self.args, first, last), *self.body);
     },
 	  [&](const builtin& self) {
-		return self(first, last - first);
+		return self.func(first);
 	  },
 	  [&](value) -> value {
 		throw std::runtime_error("type error in application");
@@ -50,7 +57,12 @@ struct eval_visitor {
   }
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
-	return lambda{self.args, self.body, e};
+    std::vector<symbol> args;
+    for(symbol s : self.args) {
+      args.push_back(s);
+    }
+    
+	return lambda{args, self.body, e};
   }
   
   value operator()(const ast::seq& self, const ref<env>& e) const {
@@ -103,8 +115,7 @@ struct eval_visitor {
 
   value operator()(const ast::sel& self, const ref<env>& e) const {
     const symbol name = self.name;
-    return builtin([name](const value* args, std::size_t count) -> value {
-      assert(count == 1);
+    return builtin(1, [name](const value* args) -> value {
       return args[0].cast<record>().attrs.at(name);      
       // return args[0].cast<record>().attrs.find(name)->second;
     });

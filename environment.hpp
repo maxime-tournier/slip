@@ -50,9 +50,8 @@ struct environment {
   }
 
   // convenience
-  template<class ... Args>
-  environment& operator()(symbol s, Args&& ... args) {
-    locals.emplace(s, std::forward<Args>(args)...);
+  environment& operator()(std::string s, const T& value) {
+    locals.emplace(s, value);
     return *this;
   }
   

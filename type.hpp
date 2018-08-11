@@ -73,6 +73,12 @@ struct state : environment<poly> {
   poly generalize(const mono& t) const;
   
   void unify(const mono& from, const mono& to);
+
+  // convenience
+  using environment<poly>::operator();
+
+  // generalize t at current depth before inserting
+  state& operator()(std::string, mono t);
 };
 
 

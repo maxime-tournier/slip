@@ -46,17 +46,14 @@ static ref<env> prelude() {
   auto res = make_ref<env>();
   
   (*res)
-    (symbol("+"), builtin([](const value* args, std::size_t count) -> value {
-      assert(count == 2);
-      return args[0].cast<integer>() + args[1].cast<integer>();
+    ("+", builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+      return lhs + rhs;
     }))
-    (symbol("-"), builtin([](const value* args, std::size_t count) -> value {
-      assert(count == 2);
-      return args[0].cast<integer>() - args[1].cast<integer>();
+    ("-", builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+      return lhs - rhs;
     }))
-    (symbol("="), builtin([](const value* args, std::size_t count) -> value {
-      assert(count == 2);      
-      return args[0].cast<integer>() == args[1].cast<integer>();
+    ("=", builtin(+[](const integer& lhs, const integer& rhs) -> boolean {
+      return lhs == rhs;
     }))
     ;
   
@@ -68,6 +65,17 @@ int main(int argc, char** argv) {
 
   auto re = prelude();
   auto ts = make_ref<type::state>();
+
+  {
+    using type::integer;
+    using type::boolean;
+    (*ts)
+      ("+", integer >>= integer >>= integer)
+      ("-", integer >>= integer >>= integer)
+      ("=", integer >>= integer >>= boolean)            
+      ;
+  }
+
   
   const bool debug = true;
   // parser::debug::stream = &std::clog;
@@ -85,9 +93,14 @@ int main(int argc, char** argv) {
             // std::cout << "parsed: " << s << std::endl;
             const ast::toplevel a = ast::toplevel::check(s);
             if(debug) std::cout << "ast: " << a << std::endl;
+
+            // toplevel expression?
             if(auto e = a.get<ast::io>()->get<ast::expr>()) {
               const type::mono t = type::mono::infer(ts, *e);
               const type::poly p = ts->generalize(t);
+
+              // TODO: cleanup variables with depth greater than current in
+              // substitution
               std::cout << " : " << p;
 
               const value v = eval(re, *e);
