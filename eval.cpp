@@ -61,6 +61,7 @@ struct eval_visitor {
   T operator()(const ast::lit<T>& self, const ref<env>& ) const {
 	return self.value;
   }
+
   
   value operator()(const ast::var& self, const ref<env>& e) const {
 	try {
@@ -69,6 +70,7 @@ struct eval_visitor {
 	  throw std::runtime_error(e.what());
 	}
   }
+
   
   value operator()(const ast::app& self, const ref<env>& e) const {
 	const value func = eval(e, *self.func);
@@ -93,6 +95,7 @@ struct eval_visitor {
       return eval(augment(scope, args, values, values + argc), body);
     });
   }
+
   
   value operator()(const ast::seq& self, const ref<env>& e) const {
 	const value init = unit();
@@ -112,6 +115,16 @@ struct eval_visitor {
 	}
 							   
 	return unit();
+  }
+
+  
+  value operator()(const ast::let& self, const ref<env>& e) const {
+    auto sub = scope(e);
+    for(const ast::def& def : self.defs) {
+      sub->locals.emplace(def.name, eval(e, def.value));
+    }
+
+    return eval(sub, *self.body);
   }
 
   

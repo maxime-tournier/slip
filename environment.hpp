@@ -17,12 +17,17 @@ struct environment {
   ref<environment> parent;
 
   environment(const ref<environment>& parent={}) : parent(parent) { }
+
+  template<class Derived>
+  friend ref<Derived> scope(const ref<Derived>& self) {
+    return make_ref<Derived>(self);
+  }
   
   template<class Derived, class Symbols, class Iterator>
   friend ref<Derived> augment(const ref<Derived>& self,
                               const Symbols& symbols,
                               Iterator first, Iterator last) {
-    auto res = std::make_shared<Derived>(self);
+    auto res = scope(self);
     res->parent = self;
 
     Iterator it = first;

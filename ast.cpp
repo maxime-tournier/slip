@@ -183,7 +183,7 @@ static maybe<expr> check_record(sexpr::list args) {
       record("record");
       
       static const std::set<symbol> reserved = {
-        abs, seq, def, cond, record,
+        abs, let, seq, def, cond, record,
       };
   }
   
@@ -262,7 +262,6 @@ static maybe<expr> check_record(sexpr::list args) {
       sexpr operator()(const var& self) const {
         return symbol("var") >>= self.name >>= list<sexpr>();
       }
-
 
       sexpr operator()(const abs& self) const {
         return symbol("abs")

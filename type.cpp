@@ -131,6 +131,7 @@ struct infer_visitor {
     return sig;
   }
 
+
   // app
   mono operator()(const ast::app& self, const ref<state>& s) const {
     const mono func = mono::infer(s, *self.func);
@@ -142,6 +143,17 @@ struct infer_visitor {
 
     s->unify(sig, func);
     return result;
+  }
+
+
+  // let
+  mono operator()(const ast::let& self, const ref<state>& s) const {
+    auto sub = scope(s);
+    for(ast::def def : self.defs) {
+      sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value)));
+    }
+
+    return mono::infer(sub, *self.body);
   }
 
   
