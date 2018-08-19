@@ -78,7 +78,7 @@ namespace ast {
 // check a binding (`symbol`, `expr`)
 static const auto check_binding =
   pop_as<symbol>() >> [](symbol id) {
-    return pop() >> [&](sexpr e) {
+    return pop() >> [id](sexpr e) {
       return done(pure(def{id, expr::check(e)}));
     };
   };
@@ -102,7 +102,7 @@ static const auto check_bindings = [](sexpr::list self) {
 static const auto check_let = pop_as<sexpr::list>()
   >> [](sexpr::list bindings) -> monad<expr> {
     if(const auto defs = check_bindings(bindings)) {
-      return pop() >> [&](sexpr body) {
+      return pop() >> [defs](sexpr body) {
         const expr res = let{defs.get(), make_ref<expr>(expr::check(body))};
         return done(pure(res));
       };
@@ -190,7 +190,7 @@ static maybe<expr> check_record(sexpr::list args) {
   // special forms table
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
-    {kw::let, {check_let, "(let (`symbol` `expr`)... `expr`)"}},    
+    {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if expr expr expr)"}},
     {kw::record, {check_record, "(record (symbol expr)...)"}},
