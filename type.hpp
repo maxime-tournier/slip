@@ -40,7 +40,7 @@ struct state : environment<poly> {
   state();
   state(const ref<state>& parent);
 
-  ref<variable> fresh(kind::any k=kind::term) const;
+  ref<variable> fresh(kind::any k=kind::term()) const;
   
   mono substitute(const mono& t) const; 
   poly generalize(const mono& t) const;

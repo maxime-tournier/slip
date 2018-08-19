@@ -4,14 +4,16 @@
 
 namespace kind {
 
-// constants
-const ref<constant> term = make_ref<constant>(constant{symbol{"*"}});
-const ref<constant> row = make_ref<constant>(constant{symbol{"row"}});
+  // constants
+  ref<constant> term() {
+    static const auto res = make_ref<constant>(constant{symbol{"*"}});
+    return res;
+  }
 
-any operator>>=(any from, any to) {
-  return make_ref<constructor>(constructor{from, to});
-}
-
+  any operator>>=(any from, any to) {
+    return make_ref<constructor>(constructor{from, to});
+  }
+  
 
   namespace {
     struct ostream_visitor {

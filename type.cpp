@@ -10,6 +10,27 @@
 
 namespace type {
 
+static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
+  return make_ref<constant>(constant{symbol(name), k});
+};
+
+static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
+  return make_ref<variable>(variable{level, k});
+};
+
+// constants
+const ref<constant> unit = make_constant("unit");
+const ref<constant> boolean = make_constant("boolean");
+const ref<constant> integer = make_constant("integer");
+const ref<constant> real = make_constant("real");
+
+const ref<constant> func =
+  make_constant("->", kind::term() >>= kind::term() >>= kind::term());
+
+const ref<constant> io =
+  make_constant("io", kind::term() >>= kind::term());
+
+  
 state& state::operator()(std::string s, mono t) {
   locals.emplace(s, generalize(t));
   return *this;
@@ -17,15 +38,6 @@ state& state::operator()(std::string s, mono t) {
   
 
 static mono instantiate(poly self, std::size_t depth);
-
-
-static const auto make_constant = [](const char* name, kind::any k=kind::term) {
-  return make_ref<constant>(constant{symbol(name), k});
-};
-
-static const auto make_variable = [](std::size_t level, kind::any k=kind::term) {
-  return make_ref<variable>(variable{level, k});
-};
 
 
 ref<application> apply(mono ctor, mono arg) {
@@ -44,26 +56,15 @@ application::application(mono ctor, mono arg)
   const kind::any k = ctor.kind();
   if(auto c = k.get<ref<kind::constructor>>()) {
     if((*c)->from != arg.kind()) {
+      std::clog << poly{{}, ctor} << " :: " << ctor.kind()
+                << " " << poly{{}, arg} << " :: " << arg.kind()
+                << std::endl;
       throw kind::error("argument has not the expected kind");
     }
   } else {
     throw kind::error("type constructor must have constructor kind");
   }
 }
-
-// constants
-const ref<constant> unit = make_constant("unit");
-const ref<constant> boolean = make_constant("boolean");
-const ref<constant> integer = make_constant("integer");
-const ref<constant> real = make_constant("real");
-
-const ref<constant> func =
-  make_constant("->", kind::term >>= kind::term >>= kind::term);
-
-const ref<constant> io =
-  make_constant("io", kind::term >>= kind::term);
-
-
 
 
 struct kind_visitor {
@@ -117,12 +118,12 @@ struct infer_visitor {
     // construct function type
     const mono result = s->fresh();
     const mono sig = foldr(result, self.args, [&](symbol name, mono t) {
-      const mono alpha = s->fresh();
-      // note: alpha is monomorphic in sigma
-      const poly sigma = {{}, alpha}; 
-      vars.emplace_back(sigma);
-      return alpha >>= t;
-    });
+        const mono alpha = s->fresh();
+        // note: alpha is monomorphic in sigma
+        const poly sigma = {{}, alpha}; 
+        vars.emplace_back(sigma);
+        return alpha >>= t;
+      });
     
     // infer lambda body with augmented environment
     auto scope = augment(s, self.args, vars.rbegin(), vars.rend());
@@ -150,7 +151,8 @@ struct infer_visitor {
   mono operator()(const ast::let& self, const ref<state>& s) const {
     auto sub = scope(s);
     for(ast::def def : self.defs) {
-      sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value)));
+      auto it = sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value))).first;
+      std::clog << it->first << " : " << it->second << std::endl;
     }
 
     return mono::infer(sub, *self.body);
@@ -179,17 +181,17 @@ struct infer_visitor {
 
 // polytype instantiation
 struct instantiate_visitor {
-  const poly::forall_type& forall;
-  const std::size_t level;
+  using map_type = std::map<ref<variable>, ref<variable>>;
+  const map_type& map;
   
   mono operator()(const ref<constant>& self) const {
     return self;
   }
 
   mono operator()(const ref<variable>& self) const {
-    auto it = forall.find(self);
-    if(it != forall.end()) {
-      return make_variable(level, self->kind);
+    auto it = map.find(self);
+    if(it != map.end()) {
+      return it->second;
     } else {
       return self;
     }
@@ -204,7 +206,15 @@ struct instantiate_visitor {
 
 
 static mono instantiate(poly self, std::size_t level) {
-  return self.type.visit<mono>(instantiate_visitor{self.forall, level});
+  // associate quantified variables with fresh variables
+  instantiate_visitor::map_type map;
+  for(const ref<variable>& it : self.forall) {
+    assert(it->level <= level);
+    map.emplace(it, make_ref<variable>( variable{level, it->kind} ));
+  }
+
+  // instantiate
+  return self.type.visit<mono>(instantiate_visitor{map});
 }
 
 
@@ -223,8 +233,8 @@ state::state()
 
 state::state(const ref<state>& parent)
   : environment<poly>(parent),
-    level(parent->level + 1),
-    sub(parent->sub) {
+  level(parent->level + 1),
+  sub(parent->sub) {
 
 }
 
@@ -269,7 +279,7 @@ poly state::generalize(const mono& t) const {
 }
 
 
-struct stream_visitor {
+struct ostream_visitor {
   using map_type = std::map<ref<variable>, std::size_t>;
   map_type& map;
 
@@ -288,7 +298,7 @@ struct stream_visitor {
     }
     
     out << char('a' + it->second);
-    // out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
+    out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
   }
 
   void operator()(const ref<application>& self, std::ostream& out,
@@ -309,8 +319,8 @@ struct stream_visitor {
 
 
 std::ostream& operator<<(std::ostream& out, const poly& self) {
-  stream_visitor::map_type map;
-  self.type.visit(stream_visitor{map}, out, self.forall);
+  ostream_visitor::map_type map;
+  self.type.visit(ostream_visitor{map}, out, self.forall);
   return out;
 }
 
@@ -325,7 +335,6 @@ struct substitute_visitor {
   }
 
   mono operator()(const ref<application>& self, const state& s) const {
-    
     return apply(s.substitute(self->ctor), s.substitute(self->arg));
   }
 
@@ -339,11 +348,24 @@ mono state::substitute(const mono& t) const {
   return t.visit<mono>(substitute_visitor(), *this);
 }
 
+
 static std::size_t indent = 0;
 struct lock {
   lock() { ++indent; }
   ~lock() { --indent; }
 };
+
+struct show {
+  ostream_visitor::map_type& map;
+  const poly& p;
+  
+  friend std::ostream& operator<<(std::ostream& out, const show& self) {
+    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall);
+    return out;
+  }
+};
+
+
 
 void state::unify(mono from, mono to) {
   const lock instance;
@@ -351,9 +373,11 @@ void state::unify(mono from, mono to) {
   using var = ref<variable>;
   using app = ref<application>;
 
-  std::clog << std::string(2 * indent, '.') << "unifying: " << generalize(from)
-            << " with: " << generalize(to) << std::endl;
-
+  ostream_visitor::map_type map;
+  std::clog << std::string(2 * indent, '.')
+            << "unifying: " << show{map, generalize(from)}
+            << " with: " << show{map, generalize(to)}
+  << std::endl;
   
   // resolve
   from = substitute(from);
