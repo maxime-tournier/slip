@@ -10,6 +10,8 @@
 
 namespace type {
 
+static const bool debug = false;
+
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{symbol(name), k});
 };
@@ -152,7 +154,8 @@ struct infer_visitor {
     auto sub = scope(s);
     for(ast::def def : self.defs) {
       auto it = sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value))).first;
-      std::clog << it->first << " : " << it->second << std::endl;
+      (void) it;
+      // std::clog << it->first << " : " << it->second << std::endl;
     }
 
     return mono::infer(sub, *self.body);
@@ -298,7 +301,10 @@ struct ostream_visitor {
     }
     
     out << char('a' + it->second);
-    out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
+
+    if(debug) {
+      out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
+    }
   }
 
   void operator()(const ref<application>& self, std::ostream& out,
@@ -373,11 +379,13 @@ void state::unify(mono from, mono to) {
   using var = ref<variable>;
   using app = ref<application>;
 
-  ostream_visitor::map_type map;
-  std::clog << std::string(2 * indent, '.')
-            << "unifying: " << show{map, generalize(from)}
-            << " with: " << show{map, generalize(to)}
-  << std::endl;
+  if( debug ) {
+    ostream_visitor::map_type map;
+    std::clog << std::string(2 * indent, '.')
+              << "unifying: " << show{map, generalize(from)}
+    << " with: " << show{map, generalize(to)}
+    << std::endl;
+  }
   
   // resolve
   from = substitute(from);
@@ -413,7 +421,7 @@ void state::unify(mono from, mono to) {
   
   if(from != to) {
     std::stringstream ss;
-    ss << "cannot unify: " << generalize(from) << " with: " << generalize(to);
+    ss << "cannot unify types \"" << generalize(from) << "\" and \"" << generalize(to) << "\"";
     throw error(ss.str());
   }
 
