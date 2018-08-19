@@ -17,8 +17,10 @@ namespace ast {
     const T value;
   };
 
+
   template<class T>
   static lit<T> make_lit(T value) { return {value}; }
+
 
   struct expr;
 
@@ -27,8 +29,16 @@ namespace ast {
     const list<expr> args;
   };
 
+
   struct abs {
     const list<symbol> args;
+    const ref<expr> body;
+  };
+
+  struct def;
+
+  struct let {
+    const list<def> defs;
     const ref<expr> body;
   };
 
@@ -44,29 +54,34 @@ namespace ast {
     const ref<expr> alt;
   };
 
+
   // records
   struct record {
     struct attribute;
 
     const list<attribute> attrs;
   };
-  
+
+
   // attribute selection
   struct sel {
     const symbol name;
   };
 
+
   struct io;
-  
+
+
   // computation sequencing
   struct seq {
     const list<io> items;
   };
 
+
   struct expr : variant<lit<boolean>,
                         lit<integer>,
                         lit<real>,
-                        var, abs, app,
+                        var, abs, app, let,
                         cond,
                         seq,
                         record, sel> {
@@ -77,18 +92,21 @@ namespace ast {
     static expr check(const sexpr& e);
   };
 
+
   struct record::attribute {
     using list = list<attribute>;
     const symbol name;
     const expr value;
   };
-  
+
+
   // definition
   struct def {
     const symbol name;
     const expr value;
   };
-  
+
+
   // stateful computations
   struct io : variant<def, expr>{
     using io::variant::variant;
@@ -111,7 +129,8 @@ namespace ast {
   struct error : std::runtime_error {
     using runtime_error::runtime_error;
   };
-  
+
+
 }
 
 

@@ -29,7 +29,6 @@ struct variable;
 struct application;
 
 
-
 // type state
 struct state : environment<poly> {
 
@@ -105,7 +104,8 @@ struct poly {
 // constants
 const extern ref<constant> unit, boolean, integer, real;
 
-const extern ref<constant> func, list;
+// constructors
+const extern ref<constant> func, io, list;
 
 // convenience: build function types
 mono operator>>=(mono lhs, mono rhs);

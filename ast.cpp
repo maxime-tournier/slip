@@ -68,22 +68,53 @@ namespace ast {
     return pop() >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
         const expr e = abs{args.get(), make_ref<expr>(expr::check(body))};
-        return empty(pure(e));
+        return done(pure(e));
       } else {
         return fail<expr>();
       }
     };
   };
 
-
-  static const auto check_def = pop_as<symbol>()
-    >> [](symbol name) {
-    return pop() >> [name](sexpr value) {
-      const io res = def{name, expr::check(value)};
-      return empty(pure(res));
+// check a binding (`symbol`, `expr`)
+static const auto check_binding =
+  pop_as<symbol>() >> [](symbol id) {
+    return pop() >> [&](sexpr e) {
+      return done(pure(def{id, expr::check(e)}));
     };
   };
+
+// check a binding sequence (`binding`...)
+static const auto check_bindings = [](sexpr::list self) {
+  list<def> defs;
+  return foldr(just(defs), self, [](sexpr lhs, maybe<list<def>> rhs) {
+      return rhs >> [&](list<def> tail) -> maybe<list<def>> {
+        if(auto binding = lhs.get<sexpr::list>()) {
+          return check_binding(*binding) >> [&](def self) {
+            return just(self >>= tail);
+          };
+        }
+        return {};
+    };
+  });
+};
   
+
+static const auto check_let = pop_as<sexpr::list>()
+  >> [](sexpr::list bindings) -> monad<expr> {
+    if(const auto defs = check_bindings(bindings)) {
+      return pop() >> [&](sexpr body) {
+        const expr res = let{defs.get(), make_ref<expr>(expr::check(body))};
+        return done(pure(res));
+      };
+    } else return fail<expr>();
+};
+
+
+static const auto check_def = check_binding >> [](def self) {
+  const io res = self;
+  return pure(res);
+};
+
 
   static maybe<expr> check_seq(sexpr::list args) {
     const expr res = seq{map(args, io::check)};
@@ -106,6 +137,7 @@ namespace ast {
               };
        };
 
+
 static maybe<expr> check_record(sexpr::list args) {
   const auto init = just(record::attribute::list());
 
@@ -121,7 +153,7 @@ static maybe<expr> check_record(sexpr::list args) {
           return pop() >> [name](sexpr value) {
 
             // build attribute
-            return empty(pure(record::attribute{name, expr::check(value)}));
+            return done(pure(record::attribute{name, expr::check(value)}));
           };
         };
 
@@ -142,7 +174,13 @@ static maybe<expr> check_record(sexpr::list args) {
 }
 
   namespace kw {
-    symbol abs("func"), seq("do"), def("def"), cond("if"), record("record");
+    symbol
+      abs("func"),
+      let("let"),
+      seq("do"),
+      def("def"),
+      cond("if"),
+      record("record");
       
       static const std::set<symbol> reserved = {
         abs, seq, def, cond, record,
@@ -152,6 +190,7 @@ static maybe<expr> check_record(sexpr::list args) {
   // special forms table
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
+    {kw::let, {check_let, "(let (`symbol` `expr`)... `expr`)"}},    
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if expr expr expr)"}},
     {kw::record, {check_record, "(record (symbol expr)...)"}},
@@ -173,7 +212,7 @@ static maybe<expr> check_record(sexpr::list args) {
          // forbid reserved keywords
          if(kw::reserved.find(s) != kw::reserved.end()) {
            throw error(tool::quote(s.get()) + " is a reserved keyword and"
-                              " cannot be used as a variable name");
+                       " cannot be used as a variable name");
          }
 
          // attributes
@@ -219,9 +258,11 @@ static maybe<expr> check_record(sexpr::list args) {
         return symbol("lit") >>= self.value >>= list<sexpr>();
       }
 
+
       sexpr operator()(const var& self) const {
         return symbol("var") >>= self.name >>= list<sexpr>();
       }
+
 
       sexpr operator()(const abs& self) const {
         return symbol("abs")
@@ -229,6 +270,7 @@ static maybe<expr> check_record(sexpr::list args) {
           >>= self.body->visit<sexpr>(repr())
           >>= list<sexpr>();
       }
+
 
       sexpr operator()(const app& self) const {
         return symbol("app")
@@ -238,6 +280,17 @@ static maybe<expr> check_record(sexpr::list args) {
             })
           >>= list<sexpr>();
       }
+
+
+      sexpr operator()(const let& self) const {
+        return symbol("let")
+          >>= map(self.defs, [](const def& self) -> sexpr {
+            return self.name >>= self.value.visit<sexpr>(repr()) >>= sexpr::list();
+          })
+          >>= self.body->visit<sexpr>(repr())
+          >>= list<sexpr>();
+      }
+
 
       sexpr operator()(const seq& self) const {
         return symbol("seq")
@@ -252,20 +305,24 @@ static maybe<expr> check_record(sexpr::list args) {
           >>= self.value.visit<sexpr>(repr())
           >>= list<sexpr>();
       }
+
     
       sexpr operator()(const io& self) const {
         return self.visit<sexpr>(repr());
       }
 
+
       sexpr operator()(const expr& self) const {
         return self.visit<sexpr>(repr());
       }
+
 
       sexpr operator()(const sel& self) const {
         return symbol("sel")
           >>= self.name
           >>= sexpr::list();        
       }
+
 
       sexpr operator()(const record& self) const {
         return symbol("record")
@@ -276,7 +333,7 @@ static maybe<expr> check_record(sexpr::list args) {
       
       template<class T>
       sexpr operator()(const T& self) const {
-        throw std::logic_error("derp");
+        throw std::logic_error("unimplemented repr: " + tool::type_name(typeid(T)));
       }
     
     };

@@ -79,10 +79,9 @@ public:
 
 // convenience constructors
 template<class T>
-static maybe<T> just(const T& value) { return {value}; }
-
-template<class T>
-static maybe<T> just(T&& value) { return {std::move(value)}; }
+static maybe<typename std::decay<T>::type> just(T&& value) {
+  return {std::forward<T>(value)};
+}
 
 
 // functor map

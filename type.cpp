@@ -60,6 +60,9 @@ const ref<constant> real = make_constant("real");
 const ref<constant> func =
   make_constant("->", kind::term >>= kind::term >>= kind::term);
 
+const ref<constant> io =
+  make_constant("io", kind::term >>= kind::term);
+
 
 
 

@@ -14,15 +14,12 @@ namespace unpack {
     const U value;
 
     template<class T>
-    maybe<U> operator()(const list<T>& ) const {
-      return value;
-    }
+    maybe<U> operator()(const list<T>& ) const { return value; }
+    
   };
     
   template<class U>
-  static pure_type<U> pure(const U& value) {
-    return {value};
-  };
+  static pure_type<U> pure(const U& value) { return {value}; };
 
   // monadic bind
   template<class A, class F>
@@ -100,9 +97,11 @@ namespace unpack {
   template<class U, class Error>
   static error_type<U, Error> error(Error e) { return {e}; };
 
+
   // type erasure
   template<class T, class U>
   using monad = std::function<maybe<U>(const list<T>&)>;
+
 
   // ensures that list is exhausted after apply f
   template<class F>
@@ -117,7 +116,7 @@ namespace unpack {
   };
 
   template<class F>
-  static done_type<F> empty(F f) { return {f}; }
+  static done_type<F> done(F f) { return {f}; }
     
   // list head
   struct pop {
@@ -142,6 +141,27 @@ namespace unpack {
     }
   };
 
+
+template<class F>
+struct map_type {
+  const F f;
+
+  template<class T>
+  maybe<list<typename std::result_of<F(T)>::type>>
+  operator()(const list<T>& self) const {
+    list<typename std::result_of<F(T)>::type> init;
+    return foldr(just(init), self, [&](auto lhs, const T& head) {
+      return lhs >> [&](auto tail) {
+        return just(f(head) >>= tail);
+      };
+    });
+  }
+  
+};
+
+
+template<class F>
+static map_type<F> map(F f) { return {f}; }
 
   
   // maybe monad escape (will throw if unsuccessful)
