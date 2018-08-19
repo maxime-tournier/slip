@@ -12,6 +12,8 @@ struct constructor;
 
 struct any : variant<ref<constant>, ref<constructor>> {
   using any::variant::variant;
+
+  friend std::ostream& operator<<(std::ostream& out, const any& self);
 };
 
 extern const ref<constant> term;
