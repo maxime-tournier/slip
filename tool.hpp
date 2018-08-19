@@ -2,6 +2,7 @@
 #define SLAP_TOOL_HPP
 
 #include <string>
+#include <utility>
 
 namespace tool {
 
