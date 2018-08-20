@@ -31,7 +31,6 @@ struct application;
 
 // type state
 struct state : environment<poly> {
-
   using substitution = std::map<ref<variable>, mono>;
   
   const std::size_t level;
@@ -66,8 +65,9 @@ struct mono : variant<ref<constant>,
   ::kind::any kind() const;
   
   static mono infer(const ref<state>& s, const ast::expr& self);
-  
-  friend ref<application> apply(mono ctor, mono arg);
+
+  // convenience constructor for applications
+  mono operator()(mono arg) const;
 };
 
 
@@ -102,13 +102,13 @@ struct poly {
 
 
 // constants
-const extern ref<constant> unit, boolean, integer, real;
+const extern mono unit, boolean, integer, real;
 
 // constructors
-const extern ref<constant> func, io, list;
-const extern ref<constant> rec, empty;
+const extern mono func, io, list;
+const extern mono rec, empty;
 
-ref<constant> ext(symbol attr);
+mono ext(symbol attr);
 
 // convenience: build function types
 mono operator>>=(mono lhs, mono rhs);

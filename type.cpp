@@ -21,27 +21,27 @@ static const auto make_variable = [](std::size_t level, kind::any k=kind::term()
 };
 
 // constants
-const ref<constant> unit = make_constant("unit");
-const ref<constant> boolean = make_constant("boolean");
-const ref<constant> integer = make_constant("integer");
-const ref<constant> real = make_constant("real");
+const mono unit = make_constant("unit");
+const mono boolean = make_constant("boolean");
+const mono integer = make_constant("integer");
+const mono real = make_constant("real");
 
 
-const ref<constant> func =
+const mono func =
   make_constant("->", kind::term() >>= kind::term() >>= kind::term());
 
 
-const ref<constant> io =
+const mono io =
   make_constant("io", kind::term() >>= kind::term());
 
 
-const ref<constant> rec =
+const mono rec =
   make_constant("record", kind::row() >>= kind::term());
 
-const ref<constant> empty = make_constant("{}", kind::row());
+const mono empty = make_constant("{}", kind::row());
 
 
-ref<constant> ext(symbol attr) {
+mono ext(symbol attr) {
   static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
   static std::map<symbol, ref<constant>> table;
   const std::string name = std::string("@") + attr.get();
@@ -60,12 +60,12 @@ state& state::operator()(std::string s, mono t) {
 static mono instantiate(poly self, std::size_t depth);
 
 
-ref<application> apply(mono ctor, mono arg) {
-  return make_ref<application>(ctor, arg);
+mono mono::operator()(mono arg) const {
+  return make_ref<application>(*this, arg);
 }
 
 mono operator>>=(mono from, mono to) {
-  return apply(apply(func, from), to);
+  return mono(func)(from)(to);
 }
 
 
@@ -186,8 +186,8 @@ struct infer_visitor {
     const mono tail = s->fresh(kind::row());
     const mono head = s->fresh(kind::term());
     
-    const mono row = apply(apply(ext(self.name), head), tail);
-    return apply(rec, row);
+    const mono row = ext(self.name)(head)(tail);
+    return rec(row);
   }
   
   
@@ -230,8 +230,7 @@ struct instantiate_visitor {
   }
 
   mono operator()(const ref<application>& self) const {
-    return apply(self->ctor.visit<mono>(*this),
-                 self->arg.visit<mono>(*this));
+    return self->ctor.visit<mono>(*this)(self->arg.visit<mono>(*this));
   }
   
 };
@@ -370,7 +369,7 @@ struct substitute_visitor {
   }
 
   mono operator()(const ref<application>& self, const state& s) const {
-    return apply(s.substitute(self->ctor), s.substitute(self->arg));
+    return s.substitute(self->ctor)(s.substitute(self->arg));
   }
 
   mono operator()(const ref<constant>& self, const state&) const {
@@ -389,6 +388,7 @@ struct lock {
   lock() { ++indent; }
   ~lock() { --indent; }
 };
+
 
 struct show {
   ostream_visitor::map_type& map;
