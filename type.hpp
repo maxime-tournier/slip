@@ -106,6 +106,9 @@ const extern ref<constant> unit, boolean, integer, real;
 
 // constructors
 const extern ref<constant> func, io, list;
+const extern ref<constant> rec, empty;
+
+ref<constant> ext(symbol attr);
 
 // convenience: build function types
 mono operator>>=(mono lhs, mono rhs);

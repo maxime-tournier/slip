@@ -26,13 +26,29 @@ const ref<constant> boolean = make_constant("boolean");
 const ref<constant> integer = make_constant("integer");
 const ref<constant> real = make_constant("real");
 
+
 const ref<constant> func =
   make_constant("->", kind::term() >>= kind::term() >>= kind::term());
+
 
 const ref<constant> io =
   make_constant("io", kind::term() >>= kind::term());
 
+
+const ref<constant> rec =
+  make_constant("record", kind::row() >>= kind::term());
+
+
+ref<constant> ext(symbol attr) {
+  static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
+  static std::map<symbol, ref<constant>> table;
+  const std::string name = std::string("@") + attr.get();
   
+  auto it = table.emplace(attr, make_constant(name.c_str(), k));
+  return it.first->second;
+}
+
+
 state& state::operator()(std::string s, mono t) {
   locals.emplace(s, generalize(t));
   return *this;
@@ -153,7 +169,8 @@ struct infer_visitor {
   mono operator()(const ast::let& self, const ref<state>& s) const {
     auto sub = scope(s);
     for(ast::def def : self.defs) {
-      auto it = sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value))).first;
+      auto it = sub->locals.emplace(def.name,
+                                    s->generalize(mono::infer(s, def.value))).first;
       (void) it;
       // std::clog << it->first << " : " << it->second << std::endl;
     }
@@ -161,6 +178,16 @@ struct infer_visitor {
     return mono::infer(sub, *self.body);
   }
 
+
+  // sel
+  mono operator()(const ast::sel& self, const ref<state>& s) const {
+    const mono tail = s->fresh(kind::row());
+    const mono head = s->fresh(kind::term());
+    
+    const mono row = apply(apply(ext(self.name), head), tail);
+    return apply(rec, row);
+  }
+  
   
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
