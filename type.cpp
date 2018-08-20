@@ -38,6 +38,8 @@ const ref<constant> io =
 const ref<constant> rec =
   make_constant("record", kind::row() >>= kind::term());
 
+const ref<constant> empty = make_constant("{}", kind::row());
+
 
 ref<constant> ext(symbol attr) {
   static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
@@ -400,6 +402,14 @@ struct show {
 
 
 
+static void link(state* self, const ref<variable>& from, const mono& to) {
+  assert(from->kind == to.kind());
+  if(!self->sub->emplace(from, to).second) {
+    assert(false);
+  }
+}
+
+
 void state::unify(mono from, mono to) {
   const lock instance;
 
@@ -422,20 +432,20 @@ void state::unify(mono from, mono to) {
   if(from.get<var>() && to.get<var>()) {
     // var <- var
     if(from.cast<var>()->level < to.cast<var>()->level) {
-      sub->emplace(from.cast<var>(), to);
+      link(this, from.cast<var>(), to);
       return;
     }
   }
   
   // var -> mono
   if(auto v = from.get<var>()) {
-    sub->emplace(*v, to);
+    link(this, *v, to);
     return;
   }
 
   // mono <- var
   if(auto v = to.get<var>()) {
-    sub->emplace(*v, from);
+    link(this, *v, from);
     return;
   }
 
