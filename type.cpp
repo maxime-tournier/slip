@@ -10,7 +10,7 @@
 
 namespace type {
 
-static const bool debug = false;
+static const bool debug = true;
 
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{symbol(name), k});
@@ -187,6 +187,16 @@ struct infer_visitor {
     const mono head = s->fresh(kind::term());
     
     const mono row = ext(self.name)(head)(tail);
+    return rec(row);
+  }
+
+  // rec
+  mono operator()(const ast::rec& self, const ref<state>& s) const {
+    const mono init = empty;
+    const mono row = foldr(init, self.attrs, [&](ast::rec::attr attr, mono tail) {
+        return ext(attr.name)(mono::infer(s, attr.value))(tail);
+      });
+
     return rec(row);
   }
   
@@ -468,6 +478,8 @@ static void unify_rows(state* self, const app& from, const app& to) {
   if(auto rw = rewrite(self, e.attr, to)) {
     // rewriting succeeded, unify rewritten terms
     self->unify(e.head, rw.get().head);
+
+    // TODO switch tail order so that we don't always rewrite the same side
     self->unify(e.tail, rw.get().tail);
     return;
   }

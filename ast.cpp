@@ -139,11 +139,11 @@ static const auto check_def = check_binding >> [](def self) {
 
 
 static maybe<expr> check_record(sexpr::list args) {
-  const auto init = just(record::attribute::list());
+  const auto init = just(rec::attr::list());
 
   // build attribute list by folding args
-  return foldl(init, args, [](maybe<record::attribute::list> lhs, sexpr rhs) {
-    return lhs >> [&](record::attribute::list lhs) {
+  return foldl(init, args, [](maybe<rec::attr::list> lhs, sexpr rhs) {
+    return lhs >> [&](rec::attr::list lhs) {
       // lhs is legit so far, check that rhs is an sexpr list
       
       if(auto self = rhs.get<sexpr::list>()) {
@@ -153,21 +153,21 @@ static maybe<expr> check_record(sexpr::list args) {
           return pop() >> [name](sexpr value) {
 
             // build attribute
-            return done(pure(record::attribute{name, expr::check(value)}));
+            return done(pure(rec::attr{name, expr::check(value)}));
           };
         };
 
-        return impl(*self) >> [&](record::attribute attr) {
+        return impl(*self) >> [&](rec::attr attr) {
           return just(attr >>= lhs);
         };
         
       } else {
-        return maybe<record::attribute::list>();
+        return maybe<rec::attr::list>();
       }
     };
-  }) >> [](record::attribute::list attrs) {
+  }) >> [](rec::attr::list attrs) {
     // build record from attribute list, if any
-    const expr res = record{attrs};
+    const expr res = rec{attrs};
     return just(res);
   };
   
@@ -323,9 +323,9 @@ static maybe<expr> check_record(sexpr::list args) {
       }
 
 
-      sexpr operator()(const record& self) const {
+      sexpr operator()(const rec& self) const {
         return symbol("record")
-          >>= map(self.attrs, [](record::attribute attr) -> sexpr {
+          >>= map(self.attrs, [](rec::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit<sexpr>(repr()) >>= sexpr::list();
           });
       }

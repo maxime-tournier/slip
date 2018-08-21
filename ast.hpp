@@ -56,10 +56,10 @@ namespace ast {
 
 
   // records
-  struct record {
-    struct attribute;
+  struct rec {
+    struct attr;
 
-    const list<attribute> attrs;
+    const list<attr> attrs;
   };
 
 
@@ -84,7 +84,7 @@ namespace ast {
                         var, abs, app, let,
                         cond,
                         seq,
-                        record, sel> {
+                        rec, sel> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
@@ -93,8 +93,8 @@ namespace ast {
   };
 
 
-  struct record::attribute {
-    using list = list<attribute>;
+  struct rec::attr {
+    using list = list<attr>;
     const symbol name;
     const expr value;
   };
