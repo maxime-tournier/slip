@@ -461,6 +461,25 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 };
 
 
+static void unify_rows(state* self, const app& from, const app& to) {
+  const extension e = extension::unpack(from);
+
+  // try rewriting 'to' like 'from'
+  if(auto rw = rewrite(self, e.attr, to)) {
+    // rewriting succeeded, unify rewritten terms
+    self->unify(e.head, rw.get().head);
+    self->unify(e.tail, rw.get().tail);
+    return;
+  }
+
+  // rewriting failed: attribute error
+  std::stringstream ss;
+  ss << "attribute " << tool::quote(e.attr.get()) << "not found in record type \""
+     << self->generalize(to) << "\"";
+  throw error(ss.str());
+}
+
+
 void state::unify(mono from, mono to) {
   const lock instance;
 
@@ -479,6 +498,12 @@ void state::unify(mono from, mono to) {
   from = substitute(from);
   to = substitute(to);
 
+  if(from.kind() != to.kind()) {
+    throw kind::error("cannot unify types of different kinds");
+  }
+
+  const kind::any k = from.kind();
+  
   // var -> var
   if(from.get<var>() && to.get<var>()) {
     // var <- var
@@ -502,6 +527,13 @@ void state::unify(mono from, mono to) {
 
   // app <-> app
   if(from.get<app>() && to.get<app>()) {
+
+    // row polymorphism
+    if(k == kind::row()) {
+      unify_rows(this, from.cast<app>(), to.cast<app>());
+      return;
+    }
+    
     unify(from.cast<app>()->ctor, to.cast<app>()->ctor);
     unify(from.cast<app>()->arg, to.cast<app>()->arg);
     return;
@@ -509,7 +541,9 @@ void state::unify(mono from, mono to) {
   
   if(from != to) {
     std::stringstream ss;
-    ss << "cannot unify types \"" << generalize(from) << "\" and \"" << generalize(to) << "\"";
+    ostream_visitor::map_type map;
+    ss << "cannot unify types \"" << show{map, generalize(from)}
+    << "\" and \"" << show{map, generalize(to)} << "\"";
     throw error(ss.str());
   }
 
