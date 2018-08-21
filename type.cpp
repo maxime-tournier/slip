@@ -187,7 +187,7 @@ struct infer_visitor {
     const mono head = s->fresh(kind::term());
     
     const mono row = ext(self.name)(head)(tail);
-    return rec(row);
+    return rec(row) >>= head;
   }
 
   // rec
@@ -403,6 +403,9 @@ struct lock {
 struct show {
   ostream_visitor::map_type& map;
   const poly& p;
+
+  show(ostream_visitor::map_type& map, const poly& p)
+    : map(map), p(p) { }
   
   friend std::ostream& operator<<(std::ostream& out, const show& self) {
     self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall);
@@ -476,6 +479,16 @@ static void unify_rows(state* self, const app& from, const app& to) {
 
   // try rewriting 'to' like 'from'
   if(auto rw = rewrite(self, e.attr, to)) {
+
+    if(debug) {
+      ostream_visitor::map_type map;
+      
+      std::clog << "rewrote: " << show(map, self->generalize(to))
+                << " as: " << show(map, self->generalize(rw.get().head)) << "; "
+                << show(map, self->generalize(rw.get().tail))
+                << std::endl;
+    }
+    
     // rewriting succeeded, unify rewritten terms
     self->unify(e.head, rw.get().head);
 
