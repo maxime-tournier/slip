@@ -366,6 +366,7 @@ struct ostream_visitor {
     const kind::any k = mono(self).kind();
     
     if(self->ctor == rec) {
+      // skip record constructor altogether since row types have {} around
       self->arg.visit(*this, out, forall, true);
       return;
     }
@@ -376,19 +377,24 @@ struct ostream_visitor {
     }
     
     if(self->ctor == func) {
+      // print function types in infix style
       self->arg.visit(*this, out, forall, true);
       out << " ";
       self->ctor.visit(*this, out, forall, false);
     } else if(mono(self).kind() == kind::row()) {
+      // print row types: ctor is (attr: type) so we want parens
       self->ctor.visit(*this, out, forall, true);
+
+      // skip trailing empty record type
       if(self->arg != empty) {
         out << " ";
         self->arg.visit(*this, out, forall, false);
       }
-    } else { 
+    } else {
+      // regular types
       self->ctor.visit(*this, out, forall, false);
       out << " ";
-      self->arg.visit(*this, out, forall, true);
+      self->arg.visit(*this, out, forall, false);
     }
 
     if(parens) {
