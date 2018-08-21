@@ -54,7 +54,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
                                                    };
                                         
   
-  static const auto attr_parser = chr<matches<'@'>>() >> [](char c) { 
+  static const auto attr_parser = chr<matches<':'>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
       return pure(symbol(c + std::string(s.get())));
     };

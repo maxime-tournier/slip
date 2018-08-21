@@ -10,7 +10,7 @@
 
 namespace type {
 
-static const bool debug = true;
+static const bool debug = false;
 
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{symbol(name), k});
@@ -44,7 +44,7 @@ const mono empty = make_constant("{}", kind::row());
 mono ext(symbol attr) {
   static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
   static std::map<symbol, ref<constant>> table;
-  const std::string name = std::string("@") + attr.get();
+  const std::string name = attr.get() + std::string(":");
   
   auto it = table.emplace(attr, make_constant(name.c_str(), k));
   return it.first->second;
@@ -193,13 +193,28 @@ struct infer_visitor {
   // rec
   mono operator()(const ast::rec& self, const ref<state>& s) const {
     const mono init = empty;
-    const mono row = foldr(init, self.attrs, [&](ast::rec::attr attr, mono tail) {
+    const mono row = foldl(init, self.attrs, [&](mono tail, ast::rec::attr attr) {
         return ext(attr.name)(mono::infer(s, attr.value))(tail);
       });
 
     return rec(row);
   }
-  
+
+
+  // cond
+  mono operator()(const ast::cond& self, const ref<state>& s) const {
+    const mono test = mono::infer(s, *self.test);
+    s->unify(test, boolean);
+
+    const mono conseq = mono::infer(s, *self.conseq);
+    const mono alt = mono::infer(s, *self.alt);    
+
+    const mono result = s->fresh();
+    s->unify(result, conseq);
+    s->unify(result, alt);
+
+    return result;    
+  }
   
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
@@ -321,16 +336,17 @@ poly state::generalize(const mono& t) const {
 
 
 struct ostream_visitor {
+  
   using map_type = std::map<ref<variable>, std::size_t>;
   map_type& map;
 
   void operator()(const ref<constant>& self, std::ostream& out,
-                  const poly::forall_type& forall) const {
+                  const poly::forall_type& forall, bool parens) const {
     out << self->name;
   }
 
   void operator()(const ref<variable>& self, std::ostream& out,
-                  const poly::forall_type& forall) const {
+                  const poly::forall_type& forall, bool parens) const {
     auto it = map.emplace(self, map.size()).first;
     if(forall.find(self) != forall.end()) {
       out << "'";
@@ -346,16 +362,38 @@ struct ostream_visitor {
   }
 
   void operator()(const ref<application>& self, std::ostream& out,
-                  const poly::forall_type& forall) const {
+                  const poly::forall_type& forall, bool parens) const {
+    const kind::any k = mono(self).kind();
+    
+    if(self->ctor == rec) {
+      self->arg.visit(*this, out, forall, true);
+      return;
+    }
+
+    if(parens) {
+      if(k == kind::row()) out << "{";
+      else out << "(";
+    }
+    
     if(self->ctor == func) {
-      self->arg.visit(*this, out, forall);
+      self->arg.visit(*this, out, forall, true);
       out << " ";
-      self->ctor.visit(*this, out, forall);
+      self->ctor.visit(*this, out, forall, false);
+    } else if(mono(self).kind() == kind::row()) {
+      self->ctor.visit(*this, out, forall, true);
+      if(self->arg != empty) {
+        out << " ";
+        self->arg.visit(*this, out, forall, false);
+      }
     } else { 
-      // TODO parens
-      self->ctor.visit(*this, out, forall);
+      self->ctor.visit(*this, out, forall, false);
       out << " ";
-      self->arg.visit(*this, out, forall);
+      self->arg.visit(*this, out, forall, true);
+    }
+
+    if(parens) {
+      if(k == kind::row()) out << "}";
+      else out << ")";
     }
   }
   
@@ -364,7 +402,7 @@ struct ostream_visitor {
 
 std::ostream& operator<<(std::ostream& out, const poly& self) {
   ostream_visitor::map_type map;
-  self.type.visit(ostream_visitor{map}, out, self.forall);
+  self.type.visit(ostream_visitor{map}, out, self.forall, false);
   return out;
 }
 
@@ -408,7 +446,7 @@ struct show {
     : map(map), p(p) { }
   
   friend std::ostream& operator<<(std::ostream& out, const show& self) {
-    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall);
+    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall, false);
     return out;
   }
 };
@@ -449,7 +487,6 @@ struct rewrite_visitor {
   }
 
   maybe<extension> operator()(const var& self, symbol attr, state* s) const {
-    assert(mono(self) == empty);
     // TODO unify self / ext(attr)(alpha)(rho) here?
     return extension{attr, s->fresh(kind::term()), s->fresh(kind::row())};
   }
@@ -483,7 +520,8 @@ static void unify_rows(state* self, const app& from, const app& to) {
     if(debug) {
       ostream_visitor::map_type map;
       
-      std::clog << "rewrote: " << show(map, self->generalize(to))
+      std::clog << std::string(2 * indent, '.')
+                << "rewrote: " << show(map, self->generalize(to))
                 << " as: " << show(map, self->generalize(rw.get().head)) << "; "
                 << show(map, self->generalize(rw.get().tail))
                 << std::endl;

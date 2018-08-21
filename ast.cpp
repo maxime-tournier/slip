@@ -192,8 +192,8 @@ static maybe<expr> check_record(sexpr::list args) {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
-    {kw::cond, {check_cond, "(if expr expr expr)"}},
-    {kw::record, {check_record, "(record (symbol expr)...)"}},
+    {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
+    {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {
@@ -216,7 +216,7 @@ static maybe<expr> check_record(sexpr::list args) {
          }
 
          // attributes
-         if(s.get()[0] == '@') {
+         if(s.get()[0] == ':') {
            const std::string name = std::string(s.get()).substr(1);
            if(name.empty()) throw error("empty attribute name");
            return sel{symbol(name)};
@@ -328,6 +328,15 @@ static maybe<expr> check_record(sexpr::list args) {
           >>= map(self.attrs, [](rec::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit<sexpr>(repr()) >>= sexpr::list();
           });
+      }
+
+
+      sexpr operator()(const cond& self) const {
+        return symbol("if")
+          >>= self.test->visit<sexpr>(repr())
+          >>= self.conseq->visit<sexpr>(repr())
+          >>= self.alt->visit<sexpr>(repr())
+          >>= sexpr::list();
       }
       
       template<class T>
