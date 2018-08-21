@@ -478,7 +478,9 @@ struct extension {
     const app ctor = self->ctor.cast<app>();
     const mono head = ctor->arg;
     const cst row = ctor->ctor.cast<cst>();
-    const symbol attr = row->name;
+    const std::string name = std::string(row->name.get());
+    
+    const symbol attr(name.substr(0, name.size() - 1));
     return {attr, head, tail};
   }
 };
