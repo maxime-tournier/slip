@@ -56,10 +56,11 @@ struct state : environment<poly> {
 
 
 // monotypes
-struct mono : variant<ref<constant>,
-                      ref<variable>,
-                      ref<application>> {
-  
+using cst = ref<constant>;
+using var = ref<variable>;
+using app = ref<application>;
+
+struct mono : variant<cst, var, app> {
   using mono::variant::variant;
 
   ::kind::any kind() const;

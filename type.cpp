@@ -6,7 +6,7 @@
 #include "ast.hpp"
 #include "tool.hpp"
 
-
+#include "maybe.hpp"
 
 namespace type {
 
@@ -408,6 +408,57 @@ static void link(state* self, const ref<variable>& from, const mono& to) {
     assert(false);
   }
 }
+
+// helper structure for destructuring row extensions
+struct extension {
+  const symbol attr;
+  const mono head;
+  const mono tail;
+  
+  static extension unpack(const app& self) {
+    // peel application of the form: ext(name)(head)(tail)
+    const mono tail = self->arg;
+    const app ctor = self->ctor.cast<app>();
+    const mono head = ctor->arg;
+    const cst row = ctor->ctor.cast<cst>();
+    const symbol attr = row->name;
+    return {attr, head, tail};
+  }
+};
+
+
+static maybe<extension> rewrite(state* s, symbol attr, mono row);
+
+struct rewrite_visitor {
+  maybe<extension> operator()(const cst& self, symbol attr, state* s) const {
+    assert(mono(self) == empty);
+    return {};
+  }
+
+  maybe<extension> operator()(const var& self, symbol attr, state* s) const {
+    assert(mono(self) == empty);
+    // TODO unify self / ext(attr)(alpha)(rho) here?
+    return extension{attr, s->fresh(kind::term()), s->fresh(kind::row())};
+  }
+
+  maybe<extension> operator()(const app& self, symbol attr, state* s) const {
+    const extension e = extension::unpack(self);
+    
+    // attribute check
+    if(e.attr == attr) return e;
+
+    // try rewriting tail and proceed
+    return rewrite(s, attr, e.tail) >> [&](extension sub) -> maybe<extension> {
+      assert(sub.attr == attr);
+      return extension{attr, sub.head, ext(e.attr)(e.head)(sub.tail)};
+    };
+  }
+};
+
+
+static maybe<extension> rewrite(state* s, symbol attr, mono row) {
+  return row.visit< maybe<extension> >(rewrite_visitor(), attr, s);
+};
 
 
 void state::unify(mono from, mono to) {
