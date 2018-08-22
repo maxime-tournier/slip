@@ -77,13 +77,20 @@ namespace ast {
   };
 
 
+// module packing
+struct make {
+  const symbol type;
+  const list<rec::attr> attrs;
+};
+
   struct expr : variant<lit<boolean>,
                         lit<integer>,
                         lit<real>,
                         var, abs, app, let,
                         cond,
                         seq,
-                        rec, sel> {
+                        rec, sel,
+                        make> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);

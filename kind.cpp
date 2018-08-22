@@ -23,7 +23,8 @@ any operator>>=(any from, any to) {
 
 namespace {
 struct ostream_visitor {
-
+  using type = void;
+  
   void operator()(const ref<constant>& self, std::ostream& out) const {
     out << self->name;
   }

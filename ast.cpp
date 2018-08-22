@@ -81,15 +81,19 @@ static maybe<args_type> check_args(sexpr::list self) {
 }
 
 struct argument_name {
+  using type = symbol;
   symbol operator()(symbol self) const { return self; }
   symbol operator()(typed_argument self) const { return self.name; }
 };
 
 struct extract_typed {
-  list<typed_argument> operator()(symbol self, list<typed_argument> tail) const {
+  using type = list<typed_argument>;
+  
+  type operator()(symbol self, type tail) const {
     return tail;
   }
-  list<typed_argument> operator()(typed_argument self, list<typed_argument> tail) const {
+
+  type operator()(typed_argument self, type tail) const {
     return self >>= tail;
   }
 };
@@ -109,13 +113,13 @@ static expr rewrite(const list<typed_argument>& args, const expr& body) {
       if(const auto args = check_args(self)) {
 
         const list<symbol> names = map(args.get(), [](argument arg) {
-          return arg.visit<symbol>(argument_name());
+          return arg.visit(argument_name());
         });
 
         const expr rewritten_body =
           rewrite(foldr(list<typed_argument>(), args.get(),
                         [](argument arg, list<typed_argument> tail) {
-                          return arg.visit<list<typed_argument>>(extract_typed(), tail);
+                          return arg.visit(extract_typed(), tail);
                         }), expr::check(body));
         
         const expr e = abs{names, make_ref<expr>(rewritten_body)};
@@ -303,7 +307,8 @@ static maybe<expr> check_record(sexpr::list args) {
   
   namespace {
     struct repr {
-
+      using type = sexpr;
+      
       template<class T>
       sexpr operator()(const lit<T>& self) const {
         return symbol("lit") >>= self.value >>= list<sexpr>();
@@ -319,16 +324,16 @@ static maybe<expr> check_record(sexpr::list args) {
           >>= map(self.args, [](symbol arg) -> sexpr {
             return arg;
           })
-          >>= self.body->visit<sexpr>(repr())
+          >>= self.body->visit(repr())
           >>= list<sexpr>();
       }
 
 
       sexpr operator()(const app& self) const {
         return symbol("app")
-          >>= self.func->visit<sexpr>(repr())
+          >>= self.func->visit(repr())
           >>= map(self.args, [](const expr& e) {
-              return e.visit<sexpr>(repr());
+              return e.visit(repr());
             })
           >>= list<sexpr>();
       }
@@ -337,9 +342,9 @@ static maybe<expr> check_record(sexpr::list args) {
       sexpr operator()(const let& self) const {
         return symbol("let")
           >>= map(self.defs, [](const def& self) -> sexpr {
-            return self.name >>= self.value.visit<sexpr>(repr()) >>= sexpr::list();
+            return self.name >>= self.value.visit(repr()) >>= sexpr::list();
           })
-          >>= self.body->visit<sexpr>(repr())
+          >>= self.body->visit(repr())
           >>= list<sexpr>();
       }
 
@@ -354,18 +359,18 @@ static maybe<expr> check_record(sexpr::list args) {
       sexpr operator()(const def& self) const {
         return symbol("def")
           >>= self.name
-          >>= self.value.visit<sexpr>(repr())
+          >>= self.value.visit(repr())
           >>= list<sexpr>();
       }
 
     
       sexpr operator()(const io& self) const {
-        return self.visit<sexpr>(repr());
+        return self.visit(repr());
       }
 
 
       sexpr operator()(const expr& self) const {
-        return self.visit<sexpr>(repr());
+        return self.visit(repr());
       }
 
 
@@ -379,16 +384,16 @@ static maybe<expr> check_record(sexpr::list args) {
       sexpr operator()(const rec& self) const {
         return symbol("record")
           >>= map(self.attrs, [](rec::attr attr) -> sexpr {
-            return attr.name >>= attr.value.visit<sexpr>(repr()) >>= sexpr::list();
+            return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
       }
 
 
       sexpr operator()(const cond& self) const {
         return symbol("if")
-          >>= self.test->visit<sexpr>(repr())
-          >>= self.conseq->visit<sexpr>(repr())
-          >>= self.alt->visit<sexpr>(repr())
+          >>= self.test->visit(repr())
+          >>= self.conseq->visit(repr())
+          >>= self.alt->visit(repr())
           >>= sexpr::list();
       }
       
@@ -401,16 +406,16 @@ static maybe<expr> check_record(sexpr::list args) {
   }
 
   std::ostream& operator<<(std::ostream& out, const expr& self) {
-    return out << self.visit<sexpr>(repr());
+    return out << self.visit(repr());
   }
 
 
   std::ostream& operator<<(std::ostream& out, const io& self) {
-    return out << self.visit<sexpr>(repr());
+    return out << self.visit(repr());
   }
   
   std::ostream& operator<<(std::ostream& out, const toplevel& self) {
-    return out << self.visit<sexpr>(repr());
+    return out << self.visit(repr());
   }
 
   

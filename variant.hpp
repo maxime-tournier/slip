@@ -33,11 +33,13 @@ namespace {
   };
   
   struct destruct {
+    using type = void;
     template<class T>
     void operator()(const T& self) const { self.~T(); }
   };
 
   struct move_construct {
+    using type = void;
     template<class T>
     void operator()(T& source, void* target) const {
       new (target) T(std::move(source));
@@ -45,6 +47,8 @@ namespace {
   };
 
   struct copy_construct {
+    using type = void;
+    
     template<class T>
     void operator()(T& source, void* target) const {
       new (target) T(source);
@@ -53,6 +57,8 @@ namespace {
 
 
   struct equals {
+    using type = bool;
+    
     template<class T, class Variant>
     bool operator()(const T& self, const Variant& other) const {
       return self == other.template cast<T>();
@@ -60,14 +66,16 @@ namespace {
   };
 
 
-  template<class ... Func>
-  struct overload : Func... {
-    overload(const Func& ... func) : Func(func)... { }
-  };
+template<class Ret, class ... Func>
+struct overload : Func... {
+  using type = Ret;
+  overload(const Func& ... func) : Func(func)... { }
+};
 
 
   // helpers
   struct write {
+    using type = void;
     template<class T>
     void operator()(const T& self, std::ostream& out) const {
       out << self;
@@ -145,9 +153,9 @@ public:
   ~variant() { visit(destruct()); }
 
   // visitors
-  template<class Ret = void, class Func, class ... Params>
-  Ret visit(Func&& func, Params&& ... params) const {
-    using ret_type = Ret;
+  template<class Func, class ... Params>
+  typename std::decay<Func>::type::type visit(Func&& func, Params&& ... params) const {
+    using ret_type = typename std::decay<Func>::type::type;
     using self_type = const variant&;
     using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
     
@@ -160,7 +168,7 @@ public:
 
   template<class Ret = void, class ... Func>
   Ret match(const Func& ... func) const {
-    return visit<Ret>(overload<Func...>(func...));
+    return visit(overload<Ret, Func...>(func...));
   }
 
   friend std::ostream& operator<<(std::ostream& out, const variant& self) {
@@ -171,7 +179,7 @@ public:
 
   bool operator==(const variant& other) const {
     if(other.index != index) return false;
-    return visit<bool>(equals(), other);
+    return visit(equals(), other);
   }
 
   bool operator!=(const variant& other) const {

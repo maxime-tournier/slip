@@ -95,7 +95,8 @@ application::application(mono ctor, mono arg)
 
 
 struct kind_visitor {
-
+  using type = kind::any;
+  
   kind::any operator()(const ref<constant>& self) const {
     return self->kind;
   }
@@ -116,12 +117,14 @@ struct kind_visitor {
 };
 
 kind::any mono::kind() const {
-  return visit<kind::any>(kind_visitor());
+  return visit(kind_visitor());
 }
 
 
 
 struct infer_visitor {
+  using type = mono;
+  
   template<class T>
   mono operator()(const T& self, const ref<state>&) const {
     throw std::logic_error("infer unimplemented: " + tool::type_name(typeid(T)));
@@ -243,6 +246,8 @@ struct infer_visitor {
 
 // polytype instantiation
 struct instantiate_visitor {
+  using type = mono;
+  
   using map_type = std::map<ref<variable>, ref<variable>>;
   const map_type& map;
   
@@ -260,7 +265,7 @@ struct instantiate_visitor {
   }
 
   mono operator()(const ref<application>& self) const {
-    return self->ctor.visit<mono>(*this)(self->arg.visit<mono>(*this));
+    return self->ctor.visit(*this)(self->arg.visit(*this));
   }
   
 };
@@ -275,12 +280,12 @@ static mono instantiate(poly self, std::size_t level) {
   }
 
   // instantiate
-  return self.type.visit<mono>(instantiate_visitor{map});
+  return self.type.visit(instantiate_visitor{map});
 }
 
 
 mono mono::infer(const ref<state>& s, const ast::expr& self) {
-  return self.visit<mono>(infer_visitor(), s);
+  return self.visit(infer_visitor(), s);
 }
 
 
@@ -310,6 +315,8 @@ ref<variable> state::fresh(kind::any k) const {
 
 // generalize
 struct generalize_visitor {
+  using type = void;
+  
   const std::size_t level;
   
   template<class OutputIterator>
@@ -341,6 +348,7 @@ poly state::generalize(const mono& t) const {
 
 
 struct ostream_visitor {
+  using type = void;
   
   using map_type = std::map<ref<variable>, std::size_t>;
   map_type& map;
@@ -419,7 +427,8 @@ std::ostream& operator<<(std::ostream& out, const poly& self) {
 
 
 struct substitute_visitor {
-
+  using type = mono;
+  
   mono operator()(const ref<variable>& self, const state& s) const {
     auto it = s.sub->find(self);
     if(it == s.sub->end()) return self;
@@ -438,7 +447,7 @@ struct substitute_visitor {
 };
 
 mono state::substitute(const mono& t) const {
-  return t.visit<mono>(substitute_visitor(), *this);
+  return t.visit(substitute_visitor(), *this);
 }
 
 
@@ -494,17 +503,19 @@ struct extension {
 static maybe<extension> rewrite(state* s, symbol attr, mono row);
 
 struct rewrite_visitor {
-  maybe<extension> operator()(const cst& self, symbol attr, state* s) const {
+  using type = maybe<extension>;
+  
+  type operator()(const cst& self, symbol attr, state* s) const {
     assert(mono(self) == empty);
     return {};
   }
 
-  maybe<extension> operator()(const var& self, symbol attr, state* s) const {
+  type operator()(const var& self, symbol attr, state* s) const {
     // TODO unify self / ext(attr)(alpha)(rho) here?
     return extension{attr, s->fresh(kind::term()), s->fresh(kind::row())};
   }
 
-  maybe<extension> operator()(const app& self, symbol attr, state* s) const {
+  type operator()(const app& self, symbol attr, state* s) const {
     const extension e = extension::unpack(self);
     
     // attribute check
@@ -520,7 +531,7 @@ struct rewrite_visitor {
 
 
 static maybe<extension> rewrite(state* s, symbol attr, mono row) {
-  return row.visit< maybe<extension> >(rewrite_visitor(), attr, s);
+  return row.visit(rewrite_visitor(), attr, s);
 };
 
 
@@ -556,7 +567,8 @@ static void unify_rows(state* self, const app& from, const app& to) {
 
 
   struct upgrade_visitor {
-
+    using type = void;
+    
     void operator()(const cst& self, std::size_t level, state* s) const { }
     void operator()(const var& self, std::size_t level, state* s) const {
       const auto sub = s->substitute(self);

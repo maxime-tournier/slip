@@ -56,6 +56,7 @@ value apply(const value& self, const value* first, const value* last) {
 
 
 struct eval_visitor {
+  using type = value;
   
   template<class T>
   T operator()(const ast::lit<T>& self, const ref<env>& ) const {
@@ -138,11 +139,11 @@ struct eval_visitor {
 
 				   
   value operator()(const ast::io& self, const ref<env>& e) const {
-	return self.visit<value>(eval_visitor(), e);
+	return self.visit(eval_visitor(), e);
   }
 
   value operator()(const ast::expr& self, const ref<env>& e) const {
-	return self.visit<value>(eval_visitor(), e);
+	return self.visit(eval_visitor(), e);
   }
 
   value operator()(const ast::rec& self, const ref<env>& e) const {
@@ -173,21 +174,23 @@ struct eval_visitor {
 
 
 static value eval(const ref<env>& e, const ast::io& self) {
-  return self.visit<value>(eval_visitor(), e);
+  return self.visit(eval_visitor(), e);
 }
 
 value eval(const ref<env>& e, const ast::expr& self) {
-  return self.visit<value>(eval_visitor(), e);
+  return self.visit(eval_visitor(), e);
 }
 
   
 value eval(const ref<env>& e, const ast::toplevel& self) {
-  return self.visit<value>(eval_visitor(), e);
+  return self.visit(eval_visitor(), e);
 }
 
 
 namespace {
 struct ostream {
+  using type = void;
+  
   template<class T>
   void operator()(const T& self, std::ostream& out) const {
 	out << self;
