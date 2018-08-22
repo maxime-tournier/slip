@@ -193,47 +193,54 @@ static const auto check_cond =
   };
 
 
-static maybe<expr> check_record(sexpr::list args) {
-  const auto init = just(rec::attr::list());
+  static maybe<expr> check_record(sexpr::list args) {
+    const auto init = just(rec::attr::list());
 
-  // build attribute list by folding args
-  return foldr(init, args, [](sexpr e, maybe<rec::attr::list> tail) {
-    return tail >> [&](rec::attr::list tail) {
-      // lhs is legit so far, check that rhs is an sexpr list
-      
-      if(auto self = e.get<sexpr::list>()) {
-        return check_binding(*self) >> [&](def d) {
-          const rec::attr head{d.name, d.value};
-          return just(head >>= tail);
-        };
-      } else {
-        return maybe<rec::attr::list>();
-      }
+    // build attribute list by folding args
+    return foldr(init, args, [](sexpr e, maybe<rec::attr::list> tail) {
+      return tail >> [&](rec::attr::list tail) {
+        if(auto self = e.get<sexpr::list>()) {
+          return check_binding(*self) >> [&](def d) {
+            const rec::attr head{d.name, d.value};
+            return just(head >>= tail);
+          };
+        } else {
+          return maybe<rec::attr::list>();
+        }
+      };
+    }) >> [](rec::attr::list attrs) {
+      // build record from attribute list, if any
+      const expr res = rec{attrs};
+      return just(res);
     };
-  }) >> [](rec::attr::list attrs) {
-    // build record from attribute list, if any
-    const expr res = rec{attrs};
-    return just(res);
-  };
   
-}
+  }
 
-namespace kw {
 
-symbol abs("func"),
-  let("let"),
-  seq("do"),
-  def("def"),
-  cond("if"),
-  rec("record"),
-  make("new");
+  static const auto check_make =
+    pop_as<symbol>() >> [](symbol type) {
+      return check_record >> [type](expr self) {
+        const expr res = make{type, self.cast<rec>().attrs};
+        return pure(res);
+      };
+    };
+  
+  namespace kw {
+
+    symbol abs("func"),
+      let("let"),
+      seq("do"),
+      def("def"),
+      cond("if"),
+      rec("record"),
+      make("new");
    
 
-static const std::set<symbol> reserved = {
-  abs, let, seq, def, cond, rec, make,
-};
+    static const std::set<symbol> reserved = {
+      abs, let, seq, def, cond, rec, make,
+    };
 
-}
+  }
   
   // special forms table
   static const special_type<expr> special_expr = {
@@ -242,7 +249,7 @@ static const std::set<symbol> reserved = {
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::rec, {check_record, "(record (`symbol` `expr`)...)"}},
-    // {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
+    {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {
@@ -314,7 +321,7 @@ static const std::set<symbol> reserved = {
       }
 
       sexpr operator()(const abs& self) const {
-        return symbol("abs")
+        return kw::abs
           >>= map(self.args, [](symbol arg) -> sexpr {
             return arg;
           })
@@ -334,7 +341,7 @@ static const std::set<symbol> reserved = {
 
 
       sexpr operator()(const let& self) const {
-        return symbol("let")
+        return kw::let
           >>= map(self.defs, [](const def& self) -> sexpr {
             return self.name >>= self.value.visit(repr()) >>= sexpr::list();
           })
@@ -344,14 +351,14 @@ static const std::set<symbol> reserved = {
 
 
       sexpr operator()(const seq& self) const {
-        return symbol("seq")
+        return kw::seq
           >>= map(self.items, repr())
           >>= list<sexpr>();
       }
 
 
       sexpr operator()(const def& self) const {
-        return symbol("def")
+        return kw::def
           >>= self.name
           >>= self.value.visit(repr())
           >>= list<sexpr>();
@@ -376,7 +383,7 @@ static const std::set<symbol> reserved = {
 
 
       sexpr operator()(const rec& self) const {
-        return symbol("record")
+        return kw::rec
           >>= map(self.attrs, [](rec::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
@@ -384,12 +391,22 @@ static const std::set<symbol> reserved = {
 
 
       sexpr operator()(const cond& self) const {
-        return symbol("if")
+        return kw::cond
           >>= self.test->visit(repr())
           >>= self.conseq->visit(repr())
           >>= self.alt->visit(repr())
           >>= sexpr::list();
       }
+
+
+      sexpr operator()(const make& self) const {
+        return kw::make
+          >>= self.type
+          >>= map(self.attrs, [](rec::attr attr) -> sexpr {
+            return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
+          });
+      }
+      
       
       template<class T>
       sexpr operator()(const T& self) const {

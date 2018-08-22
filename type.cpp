@@ -223,6 +223,7 @@ struct infer_visitor {
 
     return result;    
   }
+
   
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
