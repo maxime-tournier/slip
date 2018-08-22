@@ -50,13 +50,22 @@ namespace ast {
   }
 
   // check lambdas
-  using args_type = list<symbol>;
-  
+  using args_type = list<abs::argument>;
+
   static maybe<args_type> check_args(sexpr::list self) {
     maybe<args_type> init(nullptr);
     return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
         return rhs >> [&](args_type tail) -> maybe<args_type> {
+          
           if(auto res = lhs.get<symbol>()) return *res >>= tail;
+          if(auto res = lhs.get<sexpr::list>()) {
+            return (pop_as<symbol>() >> [tail](symbol type) {
+                return pop_as<symbol>() >> [type, tail](symbol name) {
+                  const abs::typed head{type, name};
+                  return done(pure(head >>= tail));
+                };
+              })(*res);
+          }
           return {};
         };
       });
@@ -263,9 +272,17 @@ static maybe<expr> check_record(sexpr::list args) {
         return symbol("var") >>= self.name >>= list<sexpr>();
       }
 
+      sexpr operator()(const symbol& self) const { return self; }
+      
+      sexpr operator()(const abs::typed& self) const {
+        return self.type >>= self.name >>= sexpr::list();
+      }
+      
       sexpr operator()(const abs& self) const {
         return symbol("abs")
-          >>= map(self.args, [](symbol s) -> sexpr { return s;})
+          >>= map(self.args, [](abs::argument arg) -> sexpr {
+              return arg.visit<sexpr>(repr());
+            })
           >>= self.body->visit<sexpr>(repr())
           >>= list<sexpr>();
       }

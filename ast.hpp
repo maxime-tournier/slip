@@ -31,7 +31,16 @@ namespace ast {
 
 
   struct abs {
-    const list<symbol> args;
+    struct typed {
+      const symbol type;
+      const symbol name;
+    };
+
+    struct argument : variant<symbol, typed> {
+      using argument::variant::variant;
+    };
+    
+    const list<argument> args;
     const ref<expr> body;
   };
 
@@ -70,7 +79,6 @@ namespace ast {
 
 
   struct io;
-
 
   // computation sequencing
   struct seq {
@@ -130,7 +138,7 @@ namespace ast {
     using runtime_error::runtime_error;
   };
 
-
+  
 }
 
 

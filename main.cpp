@@ -27,6 +27,7 @@ struct history {
   }
 };
 
+
 template<class F>
 static void read_loop(const F& f) {
   const history lock;
@@ -55,6 +56,10 @@ static ref<env> prelude() {
     ("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
       return lhs == rhs;
     }))
+    ("nil", value::list())
+    ("cons", closure(2, [](const value* args) -> value {
+        return args[0] >>= args[1].cast<value::list>();
+      }))
     ;
   
   return res;
@@ -69,11 +74,53 @@ int main(int argc, char** argv) {
   {
     using type::integer;
     using type::boolean;
+    using type::list;
+    
     (*ts)
       ("+", integer >>= integer >>= integer)
       ("-", integer >>= integer >>= integer)
-      ("=", integer >>= integer >>= boolean)            
-      ;
+      ("=", integer >>= integer >>= boolean);
+
+    {
+      const auto a = ts->fresh();
+      (*ts)("nil", list(a));
+    }
+
+    {
+      const auto a = ts->fresh();
+      (*ts)("cons", a >>= list(a) >>= list(a));
+    }
+
+    (*ts)
+      ("integer", integer >>= integer)
+      ("boolean", boolean >>= boolean)
+      ;    
+
+    {
+      using namespace type;
+      
+      const auto a = ts->fresh();
+      const auto b = ts->fresh();
+
+      const mono pair = make_ref<constant>(symbol("pair"), kind::term() >>= kind::term() >>= kind::term());
+      (*ts)
+        ("pair", pair(a)(b) >>= rec(ext(symbol("first"))(a)(ext(symbol("second"))(b)(empty))));
+    }
+
+
+    {
+      using namespace type;
+      
+      const auto a = ts->fresh();
+      const auto b = ts->fresh();
+
+      const mono foldable = make_ref<constant>(symbol("foldable"), kind::term() >>= kind::term());
+      (*ts)
+        ("foldable",
+         foldable(a) >>= rec(ext(symbol("foldl"))(a >>= list(b) >>= (a >>= b >>= a) >>= a)(empty)));
+    }
+
+    
   }
 
   

@@ -75,6 +75,7 @@ struct mono : variant<cst, var, app> {
 struct constant {
   const symbol name;
   const ::kind::any kind;
+  constant(symbol name, ::kind::any k) : name(name), kind(k) { }
 };
 
 
@@ -106,8 +107,8 @@ struct poly {
 const extern mono unit, boolean, integer, real;
 
 // constructors
-const extern mono func, io, list;
-const extern mono rec, empty;
+  const extern mono func, list; // , io
+  const extern mono rec, empty;
 
 mono ext(symbol attr);
 

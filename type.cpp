@@ -12,13 +12,16 @@ namespace type {
 
 static const bool debug = false;
 
+  
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{symbol(name), k});
 };
 
+  
 static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
   return make_ref<variable>(variable{level, k});
 };
+  
 
 // constants
 const mono unit = make_constant("unit");
@@ -30,6 +33,9 @@ const mono real = make_constant("real");
 const mono func =
   make_constant("->", kind::term() >>= kind::term() >>= kind::term());
 
+const mono list =
+  make_constant("list", kind::term() >>= kind::term());
+  
 
 const mono io =
   make_constant("io", kind::term() >>= kind::term());
@@ -38,6 +44,7 @@ const mono io =
 const mono rec =
   make_constant("record", kind::row() >>= kind::term());
 
+  
 const mono empty = make_constant("{}", kind::row());
 
 
@@ -79,7 +86,7 @@ application::application(mono ctor, mono arg)
       std::clog << poly{{}, ctor} << " :: " << ctor.kind()
                 << " " << poly{{}, arg} << " :: " << arg.kind()
                 << std::endl;
-      throw kind::error("argument has not the expected kind");
+      throw kind::error("argument does not have the expected kind");
     }
   } else {
     throw kind::error("type constructor must have constructor kind");
@@ -133,21 +140,47 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
-    std::vector<poly> vars;
+    const mono alpha = s->fresh();
+    const poly id = s->generalize(alpha >>= alpha);
+
+    // function scope
+    const auto sub = scope(s);
     
     // construct function type
     const mono result = s->fresh();
-    const mono sig = foldr(result, self.args, [&](symbol name, mono t) {
-        const mono alpha = s->fresh();
-        // note: alpha is monomorphic in sigma
-        const poly sigma = {{}, alpha}; 
-        vars.emplace_back(sigma);
-        return alpha >>= t;
+    const mono sig = foldr(result, self.args, [&](ast::abs::argument arg, mono t) {
+
+        const mono outer = s->fresh();
+        const mono inner = sub->fresh();
+
+        const poly unpack = arg.match<poly>
+        ([&](symbol) { return id; },
+         [&](ast::abs::typed self) {
+           try {
+             return s->find(self.type);
+           } catch(std::out_of_range& e) {
+             throw error("unknown constructor " + tool::quote(self.type.get()));
+           }
+         });
+        
+        sub->unify(outer >>= inner, instantiate(unpack, sub->level));
+
+        const symbol name = arg.match<symbol>
+        ([](symbol self) { return self; },
+         [](ast::abs::typed self) { return self.name; });
+        
+        std::clog << "outer type: " << name << " : " << s->generalize(outer) << std::endl;        
+        
+        const poly sigma = sub->generalize(inner);
+        std::clog << "inner type: " << name << " : " << sigma << std::endl;
+        
+        sub->locals.emplace(name, sigma);
+        
+        return outer >>= t;
       });
     
     // infer lambda body with augmented environment
-    auto scope = augment(s, self.args, vars.rbegin(), vars.rend());
-    s->unify(result, mono::infer(scope, *self.body));
+    s->unify(result, mono::infer(sub, *self.body));
     
     return sig;
   }
@@ -527,7 +560,6 @@ static void unify_rows(state* self, const app& from, const app& to) {
 
     if(debug) {
       ostream_visitor::map_type map;
-      
       std::clog << std::string(2 * indent, '.')
                 << "rewrote: " << show(map, self->generalize(to))
                 << " as: " << show(map, self->generalize(rw.get().head)) << "; "
@@ -551,6 +583,36 @@ static void unify_rows(state* self, const app& from, const app& to) {
 }
 
 
+  struct upgrade_visitor {
+
+    void operator()(const cst& self, std::size_t level, state* s) const { }
+    void operator()(const var& self, std::size_t level, state* s) const {
+      const auto sub = s->substitute(self);
+
+      if(sub != self) {
+        sub.visit(upgrade_visitor(), level, s);
+        return;
+      }
+
+      if(self->level > level) {
+        s->unify(self, make_variable(level, self->kind));
+        return;
+      }
+    }
+
+    void operator()(const app& self, std::size_t level, state* s) const {
+      self->ctor.visit(upgrade_visitor(), level, s);
+      self->arg.visit(upgrade_visitor(), level, s);      
+    }
+    
+  };
+  
+  // make sure all substituted variables in a type have at most given level
+  static void upgrade(state* self, mono t, std::size_t level) {
+    t.visit(upgrade_visitor(), level, self);
+  }
+  
+
 void state::unify(mono from, mono to) {
   const lock instance;
 
@@ -560,9 +622,9 @@ void state::unify(mono from, mono to) {
   if( debug ) {
     ostream_visitor::map_type map;
     std::clog << std::string(2 * indent, '.')
-              << "unifying: " << show{map, generalize(from)}
-    << " with: " << show{map, generalize(to)}
-    << std::endl;
+              << "unifying: " << show(map, generalize(from))
+              << " with: " << show(map, generalize(to))
+              << std::endl;
   }
   
   // resolve
@@ -579,7 +641,7 @@ void state::unify(mono from, mono to) {
   if(from.get<var>() && to.get<var>()) {
     // var <- var
     if(from.cast<var>()->level < to.cast<var>()->level) {
-      link(this, from.cast<var>(), to);
+      link(this, to.cast<var>(), from);
       return;
     }
   }
@@ -587,12 +649,14 @@ void state::unify(mono from, mono to) {
   // var -> mono
   if(auto v = from.get<var>()) {
     link(this, *v, to);
+    upgrade(this, to, (*v)->level);
     return;
   }
 
   // mono <- var
   if(auto v = to.get<var>()) {
     link(this, *v, from);
+    upgrade(this, from, (*v)->level);
     return;
   }
 
@@ -611,10 +675,10 @@ void state::unify(mono from, mono to) {
   }
   
   if(from != to) {
-    std::stringstream ss;
     ostream_visitor::map_type map;
-    ss << "cannot unify types \"" << show{map, generalize(from)}
-    << "\" and \"" << show{map, generalize(to)} << "\"";
+    std::stringstream ss;
+    ss << "cannot unify types \"" << show(map, generalize(from))
+       << "\" and \"" << show(map, generalize(to)) << "\"";
     throw error(ss.str());
   }
 
