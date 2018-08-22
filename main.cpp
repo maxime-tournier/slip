@@ -111,13 +111,16 @@ int main(int argc, char** argv) {
     {
       using namespace type;
       
-      const auto a = ts->fresh();
-      const auto b = ts->fresh();
+      const mono f = ts->fresh(kind::term() >>= kind::term());
 
-      const mono foldable = make_ref<constant>(symbol("foldable"), kind::term() >>= kind::term());
+      const mono a = ts->fresh(kind::term());
+      const mono b = ts->fresh(kind::term());      
+      
+      const mono functor = make_ref<constant>(symbol("functor"), (f.kind() >>= kind::term()));
+
       (*ts)
-        ("foldable",
-         foldable(a) >>= rec(ext(symbol("foldl"))(a >>= list(b) >>= (a >>= b >>= a) >>= a)(empty)));
+        ("functor",
+         functor(f) >>= rec(ext(symbol("map"))(f(a) >>= (a >>= b) >>= f(b))(empty)));
     }
 
     

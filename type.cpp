@@ -169,10 +169,10 @@ struct infer_visitor {
         ([](symbol self) { return self; },
          [](ast::abs::typed self) { return self.name; });
         
-        std::clog << "outer type: " << name << " : " << s->generalize(outer) << std::endl;        
-        
         const poly sigma = sub->generalize(inner);
-        std::clog << "inner type: " << name << " : " << sigma << std::endl;
+
+        // std::clog << "outer type: " << name << " : " << s->generalize(outer) << std::endl;        
+        // std::clog << "inner type: " << name << " : " << sigma << std::endl;
         
         sub->locals.emplace(name, sigma);
         
