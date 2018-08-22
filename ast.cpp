@@ -171,51 +171,41 @@ static const auto check_def = check_binding >> [](def self) {
 };
 
 
-  static maybe<expr> check_seq(sexpr::list args) {
-    const expr res = seq{map(args, io::check)};
-    return res;
-  }
+static maybe<expr> check_seq(sexpr::list args) {
+  const expr res = seq{map(args, io::check)};
+  return res;
+}
 
-  static const auto check_cond =
-    pop()
-    >> [](sexpr self) {
-         auto test = make_ref<expr>(expr::check(self));
-         return pop()
-           >> [=](sexpr self) {
-                auto conseq = make_ref<expr>(expr::check(self));
-                return pop()
-                  >> [=](sexpr self) {
-                       auto alt = make_ref<expr>(expr::check(self));
-                       const expr res = cond{test, conseq, alt};
-                       return pure(res);
-                     };
-              };
-       };
+static const auto check_cond =
+  pop()
+  >> [](sexpr self) {
+    auto test = make_ref<expr>(expr::check(self));
+    return pop()
+      >> [=](sexpr self) {
+        auto conseq = make_ref<expr>(expr::check(self));
+        return pop()
+          >> [=](sexpr self) {
+            auto alt = make_ref<expr>(expr::check(self));
+            const expr res = cond{test, conseq, alt};
+            return pure(res);
+          };
+      };
+  };
 
 
 static maybe<expr> check_record(sexpr::list args) {
   const auto init = just(rec::attr::list());
 
   // build attribute list by folding args
-  return foldl(init, args, [](maybe<rec::attr::list> lhs, sexpr rhs) {
-    return lhs >> [&](rec::attr::list lhs) {
+  return foldr(init, args, [](sexpr e, maybe<rec::attr::list> tail) {
+    return tail >> [&](rec::attr::list tail) {
       // lhs is legit so far, check that rhs is an sexpr list
       
-      if(auto self = rhs.get<sexpr::list>()) {
-
-        // unpack rhs as symbol/value
-        static const auto impl = pop_as<symbol>() >> [](symbol name) {
-          return pop() >> [name](sexpr value) {
-
-            // build attribute
-            return done(pure(rec::attr{name, expr::check(value)}));
-          };
+      if(auto self = e.get<sexpr::list>()) {
+        return check_binding(*self) >> [&](def d) {
+          const rec::attr head{d.name, d.value};
+          return just(head >>= tail);
         };
-
-        return impl(*self) >> [&](rec::attr attr) {
-          return just(attr >>= lhs);
-        };
-        
       } else {
         return maybe<rec::attr::list>();
       }
@@ -228,19 +218,22 @@ static maybe<expr> check_record(sexpr::list args) {
   
 }
 
-  namespace kw {
-    symbol
-      abs("func"),
-      let("let"),
-      seq("do"),
-      def("def"),
-      cond("if"),
-      record("record");
-      
-      static const std::set<symbol> reserved = {
-        abs, let, seq, def, cond, record,
-      };
-  }
+namespace kw {
+
+symbol abs("func"),
+  let("let"),
+  seq("do"),
+  def("def"),
+  cond("if"),
+  rec("record"),
+  make("new");
+   
+
+static const std::set<symbol> reserved = {
+  abs, let, seq, def, cond, rec, make,
+};
+
+}
   
   // special forms table
   static const special_type<expr> special_expr = {
@@ -248,7 +241,8 @@ static maybe<expr> check_record(sexpr::list args) {
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
-    {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
+    {kw::rec, {check_record, "(record (`symbol` `expr`)...)"}},
+    // {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {

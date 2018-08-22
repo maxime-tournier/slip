@@ -201,7 +201,7 @@ struct infer_visitor {
   // rec
   mono operator()(const ast::rec& self, const ref<state>& s) const {
     const mono init = empty;
-    const mono row = foldl(init, self.attrs, [&](mono tail, ast::rec::attr attr) {
+    const mono row = foldr(init, self.attrs, [&](ast::rec::attr attr, mono tail) {
         return ext(attr.name)(mono::infer(s, attr.value))(tail);
       });
 
