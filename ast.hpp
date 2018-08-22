@@ -31,16 +31,7 @@ namespace ast {
 
 
   struct abs {
-    struct typed {
-      const symbol type;
-      const symbol name;
-    };
-
-    struct argument : variant<symbol, typed> {
-      using argument::variant::variant;
-    };
-    
-    const list<argument> args;
+    const list<symbol> args;
     const ref<expr> body;
   };
 

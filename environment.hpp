@@ -55,10 +55,13 @@ struct environment {
   }
 
   // convenience
-  environment& operator()(std::string s, const T& value) {
-    locals.emplace(s, value);
+  environment& def(const symbol& s, const T& value) {
+    if(!locals.emplace(s, value).second) {
+      throw std::runtime_error("redefined variable " + tool::quote(s.get()));
+    }
     return *this;
   }
+
   
 };
 

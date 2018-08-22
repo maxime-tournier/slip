@@ -58,8 +58,8 @@ mono ext(symbol attr) {
 }
 
 
-state& state::operator()(std::string s, mono t) {
-  locals.emplace(s, generalize(t));
+state& state::def(symbol name, mono t) {
+  locals.emplace(name, generalize(t));
   return *this;
 }
   
@@ -140,44 +140,16 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
-    const mono alpha = s->fresh();
-    const poly id = s->generalize(alpha >>= alpha);
-
     // function scope
     const auto sub = scope(s);
     
     // construct function type
     const mono result = s->fresh();
-    const mono sig = foldr(result, self.args, [&](ast::abs::argument arg, mono t) {
-
-        const mono outer = s->fresh();
-        const mono inner = sub->fresh();
-
-        const poly unpack = arg.match<poly>
-        ([&](symbol) { return id; },
-         [&](ast::abs::typed self) {
-           try {
-             return s->find(self.type);
-           } catch(std::out_of_range& e) {
-             throw error("unknown constructor " + tool::quote(self.type.get()));
-           }
-         });
-        
-        sub->unify(outer >>= inner, instantiate(unpack, sub->level));
-
-        const symbol name = arg.match<symbol>
-        ([](symbol self) { return self; },
-         [](ast::abs::typed self) { return self.name; });
-        
-        const poly sigma = sub->generalize(inner);
-
-        // std::clog << "outer type: " << name << " : " << s->generalize(outer) << std::endl;        
-        // std::clog << "inner type: " << name << " : " << sigma << std::endl;
-        
-        sub->locals.emplace(name, sigma);
-        
-        return outer >>= t;
-      });
+    const mono sig = foldr(result, self.args, [&](symbol arg, mono tail) {
+      const mono head = s->fresh();
+      sub->def(arg, head);
+      return head >>= tail;
+    });
     
     // infer lambda body with augmented environment
     s->unify(result, mono::infer(sub, *self.body));

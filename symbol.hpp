@@ -7,7 +7,8 @@ class symbol {
   const char* name;
 public:
   
-  explicit symbol(const std::string& name);
+  symbol(const std::string& name);
+  symbol(const char* name) : symbol(std::string(name)) { }
 
   inline const char* get() const { return name; }
   inline bool operator<(const symbol& other) const { return name < other.name; }

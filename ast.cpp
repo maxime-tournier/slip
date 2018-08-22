@@ -49,34 +49,76 @@ namespace ast {
     return res;
   }
 
-  // check lambdas
-  using args_type = list<abs::argument>;
+struct typed_argument {
+  const symbol type;
+  const symbol name;
+};
 
-  static maybe<args_type> check_args(sexpr::list self) {
-    maybe<args_type> init(nullptr);
-    return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
-        return rhs >> [&](args_type tail) -> maybe<args_type> {
+struct argument : variant<symbol, typed_argument> {
+  using argument::variant::variant;
+};
+
+using args_type = list<argument>;
+
+static maybe<args_type> check_args(sexpr::list self) {
+  maybe<args_type> init(nullptr);
+  return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
+    return rhs >> [&](args_type tail) -> maybe<args_type> {
           
-          if(auto res = lhs.get<symbol>()) return *res >>= tail;
-          if(auto res = lhs.get<sexpr::list>()) {
-            return (pop_as<symbol>() >> [tail](symbol type) {
-                return pop_as<symbol>() >> [type, tail](symbol name) {
-                  const abs::typed head{type, name};
-                  return done(pure(head >>= tail));
-                };
-              })(*res);
-          }
-          return {};
-        };
-      });
-  }
+      if(auto res = lhs.get<symbol>()) {
+        return *res >>= tail;
+      }
+      if(auto res = lhs.get<sexpr::list>()) {
+        return (pop_as<symbol>() >> [tail](symbol type){
+          return pop_as<symbol>() >> [tail, type](symbol name) {
+            return pure(typed_argument{type, name} >>= tail);
+          };
+        } )(*res);
+      }
+      return {};
+    };
+  });
+}
 
-  // 
+struct argument_name {
+  symbol operator()(symbol self) const { return self; }
+  symbol operator()(typed_argument self) const { return self.name; }
+};
+
+struct extract_typed {
+  list<typed_argument> operator()(symbol self, list<typed_argument> tail) const {
+    return tail;
+  }
+  list<typed_argument> operator()(typed_argument self, list<typed_argument> tail) const {
+    return self >>= tail;
+  }
+};
+
+static expr rewrite(const list<typed_argument>& args, const expr& body) {
+  return let{ map(args, [](typed_argument arg) {
+    return def{arg.name, app{ make_ref<expr>(var{arg.type}),
+          var{arg.name} >>= list<expr>()}};
+  }), make_ref<expr>(body)};
+  
+}
+
+// 
   static const auto check_abs = pop_as<sexpr::list>() 
     >> [](sexpr::list self) {
     return pop() >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
-        const expr e = abs{args.get(), make_ref<expr>(expr::check(body))};
+
+        const list<symbol> names = map(args.get(), [](argument arg) {
+          return arg.visit<symbol>(argument_name());
+        });
+
+        const expr rewritten_body =
+          rewrite(foldr(list<typed_argument>(), args.get(),
+                        [](argument arg, list<typed_argument> tail) {
+                          return arg.visit<list<typed_argument>>(extract_typed(), tail);
+                        }), expr::check(body));
+        
+        const expr e = abs{names, make_ref<expr>(rewritten_body)};
         return done(pure(e));
       } else {
         return fail<expr>();
@@ -272,17 +314,11 @@ static maybe<expr> check_record(sexpr::list args) {
         return symbol("var") >>= self.name >>= list<sexpr>();
       }
 
-      sexpr operator()(const symbol& self) const { return self; }
-      
-      sexpr operator()(const abs::typed& self) const {
-        return self.type >>= self.name >>= sexpr::list();
-      }
-      
       sexpr operator()(const abs& self) const {
         return symbol("abs")
-          >>= map(self.args, [](abs::argument arg) -> sexpr {
-              return arg.visit<sexpr>(repr());
-            })
+          >>= map(self.args, [](symbol arg) -> sexpr {
+            return arg;
+          })
           >>= self.body->visit<sexpr>(repr())
           >>= list<sexpr>();
       }

@@ -85,10 +85,7 @@ struct eval_visitor {
   }
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
-    const list<symbol> args = map(self.args, [](ast::abs::argument arg) -> symbol {
-        return arg.match<symbol>([](symbol self) { return self; },
-                                 [](ast::abs::typed self) { return self.name; });
-      });
+    const list<symbol> args = self.args;
     const std::size_t argc = size(args);
     
     const ast::expr body = *self.body;

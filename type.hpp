@@ -47,10 +47,10 @@ struct state : environment<poly> {
   void unify(mono from, mono to);
 
   // convenience
-  using environment<poly>::operator();
+  using environment<poly>::def;
 
   // generalize t at current depth before inserting
-  state& operator()(std::string, mono t);
+  state& def(symbol name, mono t);
 };
 
 
@@ -115,7 +115,17 @@ mono ext(symbol attr);
 // convenience: build function types
 mono operator>>=(mono lhs, mono rhs);
 
+// convenience: build record types
+struct row {
+  const symbol attr;
+  const mono head;
 
+  row(std::string attr, mono head) : attr(attr), head(head) { }
+
+  mono operator|=(mono tail) const {
+    return ext(attr)(head)(tail);
+  }
+};
 
 
 }

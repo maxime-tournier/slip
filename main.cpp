@@ -15,6 +15,9 @@
 
 #include "type.hpp"
 
+const bool debug = true;
+
+
 struct history {
   const std::string filename;
   history(const std::string& filename="/tmp/slap.history")
@@ -47,19 +50,20 @@ static ref<env> prelude() {
   auto res = make_ref<env>();
   
   (*res)
-    ("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+    .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
       return lhs + rhs;
     }))
-    ("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+    .def("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
       return lhs - rhs;
     }))
-    ("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
+    .def("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
       return lhs == rhs;
     }))
-    ("nil", value::list())
-    ("cons", closure(2, [](const value* args) -> value {
-        return args[0] >>= args[1].cast<value::list>();
-      }))
+    
+    .def("nil", value::list())
+    .def("cons", closure(2, [](const value* args) -> value {
+      return args[0] >>= args[1].cast<value::list>();
+    }))
     ;
   
   return res;
@@ -72,28 +76,34 @@ int main(int argc, char** argv) {
   auto ts = make_ref<type::state>();
 
   {
+    using namespace type;
     using type::integer;
     using type::boolean;
     using type::list;
-    
-    (*ts)
-      ("+", integer >>= integer >>= integer)
-      ("-", integer >>= integer >>= integer)
-      ("=", integer >>= integer >>= boolean);
+    using type::real;    
 
+    // arithmetic
+    (*ts)
+      .def("+", integer >>= integer >>= integer)
+      .def("-", integer >>= integer >>= integer)
+      .def("=", integer >>= integer >>= boolean);
+
+    // lists
     {
       const auto a = ts->fresh();
-      (*ts)("nil", list(a));
+      ts->def("nil", list(a));
     }
 
     {
       const auto a = ts->fresh();
-      (*ts)("cons", a >>= list(a) >>= list(a));
+      ts->def("cons", a >>= list(a) >>= list(a));
     }
 
+    // constructors
     (*ts)
-      ("integer", integer >>= integer)
-      ("boolean", boolean >>= boolean)
+      .def("integer", integer >>= integer)
+      .def("real", real >>= real)      
+      .def("boolean", boolean >>= boolean)
       ;    
 
     {
@@ -102,9 +112,11 @@ int main(int argc, char** argv) {
       const auto a = ts->fresh();
       const auto b = ts->fresh();
 
-      const mono pair = make_ref<constant>(symbol("pair"), kind::term() >>= kind::term() >>= kind::term());
-      (*ts)
-        ("pair", pair(a)(b) >>= rec(ext(symbol("first"))(a)(ext(symbol("second"))(b)(empty))));
+      const mono pair =
+        make_ref<constant>(symbol("pair"), 
+                           kind::term() >>= kind::term() >>= kind::term());
+      ts->def("pair",
+              pair(a)(b) >>= rec(row("first", a) |= row("second", a) |= empty));
     }
 
 
@@ -116,18 +128,18 @@ int main(int argc, char** argv) {
       const mono a = ts->fresh(kind::term());
       const mono b = ts->fresh(kind::term());      
       
-      const mono functor = make_ref<constant>(symbol("functor"), (f.kind() >>= kind::term()));
-
-      (*ts)
-        ("functor",
-         functor(f) >>= rec(ext(symbol("map"))(f(a) >>= (a >>= b) >>= f(b))(empty)));
+      const mono functor
+        = make_ref<constant>(symbol("functor"), f.kind() >>= kind::term());
+      
+      ts->def("functor", functor(f) >>=
+              rec(row("map", f(a) >>= (a >>= b) >>= f(b)) |= empty))
+        ;
     }
 
     
   }
 
   
-  const bool debug = true;
   // parser::debug::stream = &std::clog;
   
   using parser::operator+;
