@@ -58,7 +58,9 @@ mono ext(symbol attr) {
 
 
 state& state::def(symbol name, mono t) {
-  locals.emplace(name, generalize(t));
+  if(!locals.emplace(name, generalize(t)).second) {
+    throw error("redefined variable " + tool::quote(name.get()));
+  }
   return *this;
 }
   
@@ -238,10 +240,10 @@ kind::any mono::kind() const {
            });
         });
       
-      const list<def> defs =
-        foldr(list<def>(), self.args, [&](const abs::arg arg, list<def> tail) {
+      const list<bind> defs =
+        foldr(list<bind>(), self.args, [&](const abs::arg arg, list<bind> tail) {
             if(auto t = arg.get<abs::typed>()) {
-              return def{t->name, 
+              return bind{t->name, 
                          ast::app{ast::var{t->type},
                                   ast::var{assoc.at(t->name)} >>= list<expr>()}} >>= tail;
             } else {
@@ -257,17 +259,17 @@ kind::any mono::kind() const {
   static const symbol fix = "__fix__";
   
   struct let {
-    const ::list<ast::def> defs;
+    const ::list<ast::bind> defs;
     const ast::expr body;
 
     // rewrite let as non-recursive let + fix
     static let rewrite(const ast::let& self) {
       using ::list;
-      const list<ast::def> defs = map(self.defs, [](ast::def self) {
-          return ast::def{self.name,
-                          ast::app{ast::var{fix},
-                                   ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
-                                   >>= list<ast::expr>()}};
+      const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
+          return ast::bind{self.name,
+                           ast::app{ast::var{fix},
+                                    ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
+                                    >>= list<ast::expr>()}};
         });
 
       return {defs, *self.body};
@@ -336,7 +338,7 @@ struct infer_visitor {
   mono operator()(const let& self, const ref<state>& s) const {
     auto sub = scope(s);
 
-    for(ast::def def : self.defs) {
+    for(ast::bind def : self.defs) {
       sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value)));
     }
     
@@ -450,6 +452,18 @@ struct infer_visitor {
     return result;    
   }
 
+  
+  // def
+  mono operator()(const ast::def& self, const ref<state>& s) const {
+    const mono value = mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= ::list<ast::bind>(),
+                                               ast::var{self.name}));
+    try {
+      s->def(self.name, value);
+      return io(unit);
+    } catch(std::runtime_error& e) {
+      throw error(e.what());
+    }
+  }
   
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {

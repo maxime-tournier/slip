@@ -111,22 +111,21 @@ struct eval_visitor {
 
 
   value operator()(const ast::def& self, const ref<env>& e) const {
-	// note: the type system will keep us from evaluating side effects if the
-	// variable is already defined
-	auto res = e->locals.emplace(self.name, eval(e, self.value));
-	if(!res.second) {
-	  throw std::runtime_error("redefined variable " + tool::quote(self.name.get()));
-	}
-							   
-	return unit();
+    // note: the type system will keep us from evaluating side effects if the
+    // variable is already defined
+    if(!e->locals.emplace(self.name, eval(e, *self.value)).second) {
+      throw std::logic_error("redefined variable " + tool::quote(self.name.get()));
+    }
+    
+    return unit();
   }
-
+  
   
   value operator()(const ast::let& self, const ref<env>& e) const {
     auto sub = scope(e);
     env::locals_type locals;
     
-    for(const ast::def& def : self.defs) {
+    for(const ast::bind& def : self.defs) {
       locals.emplace(def.name, eval(sub, def.value));
     }
 

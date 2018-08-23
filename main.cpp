@@ -15,7 +15,7 @@
 
 #include "type.hpp"
 
-const bool debug = true;
+const bool debug = false;
 
 
 struct history {
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
             if(debug) std::cout << "ast: " << a << std::endl;
 
             // toplevel expression?
-            if(auto e = a.get<ast::io>()->get<ast::expr>()) {
+            if(auto e = a.get<ast::expr>()) {
               const type::mono t = type::mono::infer(ts, *e);
               const type::poly p = ts->generalize(t);
 

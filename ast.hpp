@@ -56,11 +56,13 @@ namespace ast {
 
   struct def;
 
+  struct bind;
+  
   struct let {
-    let(const list<def>& defs, const expr& body)
+    let(const list<bind>& defs, const expr& body)
       : defs(defs), body(make_expr(body)) { }
     
-    const list<def> defs;
+    const list<bind> defs;
     const ref<expr> body;
   };
 
@@ -98,28 +100,37 @@ namespace ast {
   };
 
 
-  struct io;
 
-  // computation sequencing
+
+  // module packing
+  struct make {
+    const symbol type;
+    const list<rec::attr> attrs;
+  };
+
+  // definition (modifies current environment)
+  struct def {
+    const symbol name;
+    const ref<expr> value;
+    def(symbol name, const expr& value)
+      : name(name), value(make_expr(value)) { }
+  };
+
+  // sequencing
+  struct io;
+  
   struct seq {
     const list<io> items;
   };
-
-
-// module packing
-struct make {
-  const symbol type;
-  const list<rec::attr> attrs;
-};
 
   struct expr : variant<lit<boolean>,
                         lit<integer>,
                         lit<real>,
                         var, abs, app, let,
                         cond,
-                        seq,
                         rec, sel,
-                        make> {
+                        make,
+                        def, seq> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
@@ -134,16 +145,14 @@ struct make {
     const expr value;
   };
 
-
-  // definition
-  struct def {
+  // monadic binding in a sequence
+  struct bind {
     const symbol name;
     const expr value;
   };
-
-
+  
   // stateful computations
-  struct io : variant<def, expr>{
+  struct io : variant<bind, expr>{
     using io::variant::variant;
 
     static io check(const sexpr& e);
@@ -151,7 +160,7 @@ struct make {
   };
 
 
-  struct toplevel : variant<io> {
+  struct toplevel : variant<expr> {
     using toplevel::variant::variant;
     
     // TODO types, modules etc

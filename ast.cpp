@@ -101,20 +101,20 @@ static maybe<args_type> check_args(sexpr::list self) {
   };
 
 // check a binding (`symbol`, `expr`)
-static const auto check_binding =
+static const auto check_bind =
   pop_as<symbol>() >> [](symbol id) {
     return pop() >> [id](sexpr e) {
-      return done(pure(def{id, expr::check(e)}));
+      return done(pure(bind{id, expr::check(e)}));
     };
   };
 
 // check a binding sequence (`binding`...)
 static const auto check_bindings = [](sexpr::list self) {
-  list<def> defs;
-  return foldr(just(defs), self, [](sexpr lhs, maybe<list<def>> rhs) {
-      return rhs >> [&](list<def> tail) -> maybe<list<def>> {
+  list<bind> defs;
+  return foldr(just(defs), self, [](sexpr lhs, maybe<list<bind>> rhs) {
+      return rhs >> [&](list<bind> tail) -> maybe<list<bind>> {
         if(auto binding = lhs.get<sexpr::list>()) {
-          return check_binding(*binding) >> [&](def self) {
+          return check_bind(*binding) >> [&](bind self) {
             return just(self >>= tail);
           };
         }
@@ -135,8 +135,8 @@ static const auto check_let = pop_as<sexpr::list>()
 };
 
 
-static const auto check_def = check_binding >> [](def self) {
-  const io res = self;
+static const auto check_def = check_bind >> [](bind self) {
+  const expr res = def{self.name, self.value};
   return pure(res);
 };
 
@@ -169,8 +169,8 @@ static maybe<expr> check_seq(sexpr::list args) {
     return foldr(init, args, [](sexpr e, maybe<rec::attr::list> tail) {
       return tail >> [&](rec::attr::list tail) {
         if(auto self = e.get<sexpr::list>()) {
-          return check_binding(*self) >> [&](def d) {
-            const rec::attr head{d.name, d.value};
+          return check_bind(*self) >> [&](bind b) {
+            const rec::attr head{b.name, b.value};
             return just(head >>= tail);
           };
         } else {
@@ -202,11 +202,13 @@ static maybe<expr> check_seq(sexpr::list args) {
       def("def"),
       cond("if"),
       rec("record"),
-      make("new");
+      make("new"),
+      bind("bind")
+      ;
    
 
     static const std::set<symbol> reserved = {
-      abs, let, seq, def, cond, rec, make,
+      abs, let, def, cond, rec, make, bind, seq,
     };
 
   }
@@ -215,17 +217,17 @@ static maybe<expr> check_seq(sexpr::list args) {
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
-    {kw::seq, {check_seq, "(do ((def `symbol` `expr`) | `expr`)...)"}},
+    {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::rec, {check_record, "(record (`symbol` `expr`)...)"}},
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
+    {kw::def, {check_def, "(def `symbol` `expr`)"}},    
   };
 
   static const special_type<io> special_io = {
-    {kw::def, {check_def, "(def `symbol` `expr`)"}},
+    {kw::bind, {check_bind >> [](bind self) { return pure(io(self)); }, "(bind `symbol` `expr`)"}},
   };
   
-
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_call;
     
@@ -271,7 +273,7 @@ static maybe<expr> check_seq(sexpr::list args) {
 
   
   toplevel toplevel::check(const sexpr& e) {
-    return io::check(e);
+    return expr::check(e);
   }
 
   
@@ -320,7 +322,7 @@ static maybe<expr> check_seq(sexpr::list args) {
 
       sexpr operator()(const let& self) const {
         return kw::let
-          >>= map(self.defs, [](const def& self) -> sexpr {
+          >>= map(self.defs, [](const bind& self) -> sexpr {
             return self.name >>= self.value.visit(repr()) >>= sexpr::list();
           })
           >>= self.body->visit(repr())
@@ -338,7 +340,7 @@ static maybe<expr> check_seq(sexpr::list args) {
       sexpr operator()(const def& self) const {
         return kw::def
           >>= self.name
-          >>= self.value.visit(repr())
+          >>= self.value->visit(repr())
           >>= list<sexpr>();
       }
 
