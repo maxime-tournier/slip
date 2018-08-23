@@ -15,14 +15,14 @@
 
 # types
 
-- variants, matches
-- modular variants?
-
+- importing/exporting modules
+- variants, match
+- precise error messages
 - mutable variables
 - sequencing/binds
-- importing modules
-- precise error messages
+
+- modular variants?
 
 # eval
 
-- importing modules
+- importing/exporting modules
