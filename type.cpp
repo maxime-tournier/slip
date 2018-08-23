@@ -455,8 +455,9 @@ struct infer_visitor {
   
   // def
   mono operator()(const ast::def& self, const ref<state>& s) const {
-    const mono value = mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= ::list<ast::bind>(),
-                                               ast::var{self.name}));
+    const mono value =
+      mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= ::list<ast::bind>(),
+                              ast::var{self.name}));
     try {
       s->def(self.name, value);
       return io(unit);
@@ -516,7 +517,7 @@ static mono instantiate(poly self, std::size_t level) {
   // associate quantified variables with fresh variables
   instantiate_visitor::map_type map;
   for(const ref<variable>& it : self.forall) {
-    assert(it->level <= level);
+    // assert(it->level <= level);
     map.emplace(it, make_ref<variable>( variable{level, it->kind} ));
   }
 

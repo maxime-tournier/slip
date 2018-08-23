@@ -69,7 +69,7 @@ static ref<env> prelude() {
         }))
     
     .def("isnil", closure(+[](const value::list& self) -> boolean {
-          return boolean(self);
+          return !boolean(self);
         }))
     .def("head", closure(1, [](const value* args) -> value {
         return args[0].cast<value::list>()->head;
@@ -201,6 +201,7 @@ int main(int argc, char** argv) {
 
               // TODO: cleanup variables with depth greater than current in
               // substitution
+              if(auto v = e->get<ast::var>()) std::cout << v->name;
               std::cout << " : " << p;
 
               const value v = eval(re, *e);
