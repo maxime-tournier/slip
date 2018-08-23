@@ -249,10 +249,30 @@ kind::any mono::kind() const {
             }
           });
 
-      return {args, ast::let{defs, self.body}};
+      return {args, ast::let{defs, *self.body}};
     }
   };
+
+
+  static const symbol fix = "__fix__";
   
+  struct let {
+    const ::list<ast::def> defs;
+    const ast::expr body;
+
+    // rewrite let as non-recursive let + fix
+    static let rewrite(const ast::let& self) {
+      using ::list;
+      const list<ast::def> defs = map(self.defs, [](ast::def self) {
+          return ast::def{self.name,
+                          ast::app{ast::var{fix},
+                                   ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
+                                   >>= list<ast::expr>()}};
+        });
+
+      return {defs, *self.body};
+    }
+  };
 
 struct infer_visitor {
   using type = mono;
@@ -312,17 +332,24 @@ struct infer_visitor {
   }
 
 
-  // let
+  // non-recursive let
+  mono operator()(const let& self, const ref<state>& s) const {
+    auto sub = scope(s);
+
+    for(ast::def def : self.defs) {
+      sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value)));
+    }
+    
+    return mono::infer(sub, self.body);
+  }
+  
+  // recursive let
   mono operator()(const ast::let& self, const ref<state>& s) const {
     auto sub = scope(s);
-    for(ast::def def : self.defs) {
-      auto it = sub->locals.emplace(def.name,
-                                    s->generalize(mono::infer(s, def.value))).first;
-      (void) it;
-      // std::clog << it->first << " : " << it->second << std::endl;
-    }
-
-    return mono::infer(sub, *self.body);
+    const mono a = sub->fresh();
+    sub->def(fix, (a >>= a) >>= a);
+    
+    return operator()(let::rewrite(self), sub);
   }
 
 

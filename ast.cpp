@@ -92,7 +92,7 @@ static maybe<args_type> check_args(sexpr::list self) {
     >> [](sexpr::list self) {
     return pop() >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
-        const expr e = abs{args.get(), make_ref<expr>(expr::check(body))};
+        const expr e = abs{args.get(), expr::check(body)};
         return done(pure(e));
       } else {
         return fail<expr>();
@@ -128,7 +128,7 @@ static const auto check_let = pop_as<sexpr::list>()
   >> [](sexpr::list bindings) -> monad<expr> {
     if(const auto defs = check_bindings(bindings)) {
       return pop() >> [defs](sexpr body) {
-        const expr res = let{defs.get(), make_ref<expr>(expr::check(body))};
+        const expr res = let{defs.get(), expr::check(body)};
         return done(pure(res));
       };
     } else return fail<expr>();
@@ -146,22 +146,21 @@ static maybe<expr> check_seq(sexpr::list args) {
   return res;
 }
 
-static const auto check_cond =
-  pop()
+  static const auto check_cond = pop()
   >> [](sexpr self) {
-    auto test = make_ref<expr>(expr::check(self));
+    const auto test = expr::check(self);
     return pop()
-      >> [=](sexpr self) {
-        auto conseq = make_ref<expr>(expr::check(self));
-        return pop()
-          >> [=](sexpr self) {
-            auto alt = make_ref<expr>(expr::check(self));
-            const expr res = cond{test, conseq, alt};
-            return pure(res);
-          };
+    >> [=](sexpr self) {
+      const auto conseq = expr::check(self);
+      return pop()
+        >> [=](sexpr self) {
+        const auto alt = expr::check(self);
+        const expr res = cond{test, conseq, alt};
+        return pure(res);
       };
+    };
   };
-
+  
 
   static maybe<expr> check_record(sexpr::list args) {
     const auto init = just(rec::attr::list());

@@ -53,6 +53,9 @@ static ref<env> prelude() {
     .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
           return lhs + rhs;
         }))
+    .def("*", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+          return lhs * rhs;
+        }))
     .def("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
           return lhs - rhs;
         }))
@@ -96,6 +99,7 @@ int main(int argc, char** argv) {
     // arithmetic
     (*ts)
       .def("+", integer >>= integer >>= integer)
+      .def("*", integer >>= integer >>= integer)      
       .def("-", integer >>= integer >>= integer)
       .def("=", integer >>= integer >>= boolean);
 

@@ -21,9 +21,11 @@ namespace ast {
   template<class T>
   static lit<T> make_lit(T value) { return {value}; }
 
-
   struct expr;
 
+  static inline ref<expr> make_expr(const expr& e) { return make_ref<expr>(e); }
+  static inline ref<expr> make_expr(expr&& e) { return make_ref<expr>(std::move(e)); }  
+  
   struct app {
     app(const expr& func, const list<expr>& args)
       : func(make_ref<expr>(func)),
@@ -47,11 +49,17 @@ namespace ast {
     
     const list<arg> args;
     const ref<expr> body;
+
+    abs(const list<arg>& args, const expr& body)
+      : args(args), body(make_expr(body)) { }
   };
 
   struct def;
 
   struct let {
+    let(const list<def>& defs, const expr& body)
+      : defs(defs), body(make_expr(body)) { }
+    
     const list<def> defs;
     const ref<expr> body;
   };
@@ -63,6 +71,13 @@ namespace ast {
 
   // conditionals
   struct cond {
+    cond(const expr& test,
+         const expr& conseq,
+         const expr& alt)
+      : test(make_expr(test)),
+        conseq(make_expr(conseq)),
+        alt(make_expr(alt)) { }
+    
     const ref<expr> test;
     const ref<expr> conseq;
     const ref<expr> alt;

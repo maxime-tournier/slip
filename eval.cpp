@@ -124,10 +124,13 @@ struct eval_visitor {
   
   value operator()(const ast::let& self, const ref<env>& e) const {
     auto sub = scope(e);
+    env::locals_type locals;
+    
     for(const ast::def& def : self.defs) {
-      sub->locals.emplace(def.name, eval(e, def.value));
+      locals.emplace(def.name, eval(sub, def.value));
     }
 
+    sub->locals = std::move(locals);
     return eval(sub, *self.body);
   }
 
