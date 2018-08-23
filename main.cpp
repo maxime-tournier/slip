@@ -51,19 +51,30 @@ static ref<env> prelude() {
   
   (*res)
     .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
-      return lhs + rhs;
-    }))
+          return lhs + rhs;
+        }))
     .def("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
-      return lhs - rhs;
-    }))
+          return lhs - rhs;
+        }))
     .def("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
-      return lhs == rhs;
-    }))
+          return lhs == rhs;
+        }))
     
     .def("nil", value::list())
     .def("cons", closure(2, [](const value* args) -> value {
-      return args[0] >>= args[1].cast<value::list>();
-    }))
+          return args[0] >>= args[1].cast<value::list>();
+        }))
+    
+    .def("isnil", closure(+[](const value::list& self) -> boolean {
+          return boolean(self);
+        }))
+    .def("head", closure(1, [](const value* args) -> value {
+        return args[0].cast<value::list>()->head;
+        }))
+    .def("tail", closure(1, [](const value* args) -> value {
+        return args[0].cast<value::list>()->tail;
+        }))
+      
     ;
   
   return res;
@@ -99,6 +110,23 @@ int main(int argc, char** argv) {
       ts->def("cons", a >>= list(a) >>= list(a));
     }
 
+    // 
+    {
+      const auto a = ts->fresh();
+      ts->def("isnil", list(a) >>= boolean);
+    }
+
+    {
+      const auto a = ts->fresh();
+      ts->def("head", list(a) >>= a);
+    }
+
+    {
+      const auto a = ts->fresh();
+      ts->def("tail", list(a) >>= list(a));
+    }
+    
+    
     // constructors
     (*ts)
       .def("integer", integer >>= integer)
