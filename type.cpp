@@ -746,7 +746,35 @@ static void unify_rows(state* self, const app& from, const app& to) {
   static void upgrade(state* self, mono t, std::size_t level) {
     t.visit(upgrade_visitor(), level, self);
   }
+
+
+  struct occurs_visitor {
+    using type = bool;
+
+    type operator()(const cst& self, const var& v) const {
+      return false;
+    }
+    
+    type operator()(const var& self, const var& v) const {
+      return self == v;
+    }
+    
+    type operator()(const app& self, const var& v) const {
+      return self->ctor.visit(occurs_visitor(), v) ||
+        self->arg.visit(occurs_visitor(), v);
+    }
+  };
   
+  static void occurs_check(state* self, var v, mono t) {
+    if(t.visit(occurs_visitor(), v)) {
+      ostream_visitor::map_type map;
+      std::stringstream ss;
+      ss << "type variable " << show(map, self->generalize(v))
+         << " occurs in type " << show(map, self->generalize(t));
+      
+      throw error(ss.str());
+    }
+  }
 
 void state::unify(mono from, mono to) {
   const lock instance;
@@ -774,18 +802,15 @@ void state::unify(mono from, mono to) {
   
   // var -> var
   if(from.get<var>() && to.get<var>()) {
-    if(from == to) return;
-    assert(from != to && "self-unifying variable");
-    
-    // var <- var
-    if(from.cast<var>()->level < to.cast<var>()->level) {
-      link(this, to.cast<var>(), from);
+    if(from == to) {
+      // TODO is this legal?
       return;
     }
   }
   
   // var -> mono
   if(auto v = from.get<var>()) {
+    occurs_check(this, *v, to);
     link(this, *v, to);
     upgrade(this, to, (*v)->level);
     return;
@@ -793,6 +818,7 @@ void state::unify(mono from, mono to) {
 
   // mono <- var
   if(auto v = to.get<var>()) {
+    occurs_check(this, *v, from);
     link(this, *v, from);
     upgrade(this, from, (*v)->level);
     return;
