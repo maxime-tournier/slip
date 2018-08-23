@@ -25,13 +25,27 @@ namespace ast {
   struct expr;
 
   struct app {
+    app(const expr& func, const list<expr>& args)
+      : func(make_ref<expr>(func)),
+        args(args) { }
+    
     const ref<expr> func;
     const list<expr> args;
   };
 
 
   struct abs {
-    const list<symbol> args;
+    struct typed {
+      const symbol type;
+      const symbol name;
+    };
+
+    struct arg : variant<symbol, typed> {
+      using arg::variant::variant;
+      symbol name() const;
+    };
+    
+    const list<arg> args;
     const ref<expr> body;
   };
 

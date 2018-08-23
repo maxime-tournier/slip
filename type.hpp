@@ -120,7 +120,7 @@ struct row {
   const symbol attr;
   const mono head;
 
-  row(std::string attr, mono head) : attr(attr), head(head) { }
+  row(symbol attr, mono head) : attr(attr), head(head) { }
 
   mono operator|=(mono tail) const {
     return ext(attr)(head)(tail);

@@ -14,7 +14,7 @@ static const bool debug = false;
 
   
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
-  return make_ref<constant>(constant{symbol(name), k});
+  return make_ref<constant>(constant{name, k});
 };
 
   
@@ -94,6 +94,102 @@ application::application(mono ctor, mono arg)
 }
 
 
+struct ostream_visitor {
+  using type = void;
+  
+  using map_type = std::map<ref<variable>, std::size_t>;
+  map_type& map;
+
+  void operator()(const ref<constant>& self, std::ostream& out,
+                  const poly::forall_type& forall, bool parens) const {
+    out << self->name;
+  }
+
+  void operator()(const ref<variable>& self, std::ostream& out,
+                  const poly::forall_type& forall, bool parens) const {
+    auto it = map.emplace(self, map.size()).first;
+    if(forall.find(self) != forall.end()) {
+      out << "'";
+    } else {
+      out << "!";
+    }
+    
+    out << char('a' + it->second);
+
+    if(debug) {
+      out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
+    }
+  }
+
+  void operator()(const ref<application>& self, std::ostream& out,
+                  const poly::forall_type& forall, bool parens) const {
+    const kind::any k = mono(self).kind();
+    
+    if(self->ctor == rec) {
+      // skip record constructor altogether since row types have {} around
+      self->arg.visit(*this, out, forall, true);
+      return;
+    }
+
+    if(parens) {
+      if(k == kind::row()) out << "{";
+      else out << "(";
+    }
+    
+    if(self->ctor == func) {
+      // print function types in infix style
+      self->arg.visit(*this, out, forall, true);
+      out << " ";
+      self->ctor.visit(*this, out, forall, false);
+    } else if(mono(self).kind() == kind::row()) {
+      // print row types: ctor is (attr: type) so we want parens
+      self->ctor.visit(*this, out, forall, true);
+
+      // skip trailing empty record type
+      if(self->arg != empty) {
+        out << " ";
+        self->arg.visit(*this, out, forall, false);
+      }
+    } else {
+      // regular types
+      self->ctor.visit(*this, out, forall, false);
+      out << " ";
+      self->arg.visit(*this, out, forall, false);
+    }
+
+    if(parens) {
+      if(k == kind::row()) out << "}";
+      else out << ")";
+    }
+  }
+  
+};
+
+
+struct show {
+  ostream_visitor::map_type& map;
+  const poly& p;
+
+  show(ostream_visitor::map_type& map, const poly& p)
+    : map(map), p(p) { }
+  
+  friend std::ostream& operator<<(std::ostream& out, const show& self) {
+    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall, false);
+    return out;
+  }
+};
+
+
+  
+
+std::ostream& operator<<(std::ostream& out, const poly& self) {
+  ostream_visitor::map_type map;
+  self.type.visit(ostream_visitor{map}, out, self.forall, false);
+  return out;
+}
+
+
+  
 struct kind_visitor {
   using type = kind::any;
   
@@ -121,6 +217,33 @@ kind::any mono::kind() const {
 }
 
 
+  struct lam {
+    const ::list<symbol> args;
+    const ast::expr body;
+
+    static lam rewrite(const ast::abs& self) {
+      using ::list;
+      using namespace ast;
+      
+      const list<symbol> args = map(self.args, [](const abs::arg arg) {
+          return arg.name();
+        });
+
+      const list<def> defs =
+        foldr(list<def>(), self.args, [](const abs::arg arg, list<def> tail) {
+            if(auto t = arg.get<abs::typed>()) {
+              return def{t->name, 
+                         ast::app{ast::var{t->type},
+                                  ast::var{t->name} >>= list<expr>()}} >>= tail;
+            } else {
+              return tail;
+            }
+          });
+
+      return {args, ast::let{defs, self.body}};
+    }
+  };
+  
 
 struct infer_visitor {
   using type = mono;
@@ -143,6 +266,11 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
+    // rewrite typed arguments
+    return operator()(lam::rewrite(self), s);
+  }
+
+  mono operator()(const lam& self, const ref<state>& s) const {
     // function scope
     const auto sub = scope(s);
     
@@ -155,7 +283,7 @@ struct infer_visitor {
     });
     
     // infer lambda body with augmented environment
-    s->unify(result, mono::infer(sub, *self.body));
+    s->unify(result, mono::infer(sub, self.body));
     
     return sig;
   }
@@ -208,6 +336,67 @@ struct infer_visitor {
     return rec(row);
   }
 
+
+  // make
+  mono operator()(const ast::make& self, const ref<state>& s) const {
+    // get signature type
+    const poly sig = s->find(self.type);
+
+    auto sub = scope(s);
+    
+    const mono outer = s->fresh();
+    const mono inner = sub->fresh();
+
+    // instantiate signature at sub level prevents generalization of
+    // contravariant side (variables only appearing in the covariant side will
+    // be generalized)
+    s->unify(outer >>= inner, instantiate(sig, sub->level));
+
+    // vanilla covariant type
+    const poly reference = sub->generalize(inner);
+    
+    // build provided type
+    const mono init = empty;
+    const mono provided = rec(foldr(init, self.attrs, [&](const ast::rec::attr attr, mono tail) {
+          return row(attr.name, mono::infer(sub, attr.value)) |= tail;
+        }));
+
+    // now also unify inner with provided type
+    s->unify(inner, provided);
+
+    // now generalize the provided type
+    const poly gen = sub->generalize(inner);
+
+    // generalization check: quantified variables in reference/gen should
+    // substitute to the same variables
+    std::set<var> quantified;
+    for(const var& v : gen.forall) {
+      assert(sub->substitute(v) == v);
+      quantified.insert(v);
+    }
+
+    // make sure all reference quantified references substitute to quantified
+    // variables
+    for(const var& v : reference.forall) {
+      if(auto u = sub->substitute(v).get<var>()) {
+        auto it = quantified.find(*u);
+        if(it != quantified.end()) {
+          continue;
+        }
+      }
+
+      ostream_visitor::map_type map;
+      std::stringstream ss;
+      ss << "failed to generalize "
+         << show(map, gen)
+         << " as " 
+         << show(map, reference);
+        throw error(ss.str());
+    }
+
+    return outer;
+  }
+  
 
   // cond
   mono operator()(const ast::cond& self, const ref<state>& s) const {
@@ -348,83 +537,6 @@ poly state::generalize(const mono& t) const {
 }
 
 
-struct ostream_visitor {
-  using type = void;
-  
-  using map_type = std::map<ref<variable>, std::size_t>;
-  map_type& map;
-
-  void operator()(const ref<constant>& self, std::ostream& out,
-                  const poly::forall_type& forall, bool parens) const {
-    out << self->name;
-  }
-
-  void operator()(const ref<variable>& self, std::ostream& out,
-                  const poly::forall_type& forall, bool parens) const {
-    auto it = map.emplace(self, map.size()).first;
-    if(forall.find(self) != forall.end()) {
-      out << "'";
-    } else {
-      out << "!";
-    }
-    
-    out << char('a' + it->second);
-
-    if(debug) {
-      out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
-    }
-  }
-
-  void operator()(const ref<application>& self, std::ostream& out,
-                  const poly::forall_type& forall, bool parens) const {
-    const kind::any k = mono(self).kind();
-    
-    if(self->ctor == rec) {
-      // skip record constructor altogether since row types have {} around
-      self->arg.visit(*this, out, forall, true);
-      return;
-    }
-
-    if(parens) {
-      if(k == kind::row()) out << "{";
-      else out << "(";
-    }
-    
-    if(self->ctor == func) {
-      // print function types in infix style
-      self->arg.visit(*this, out, forall, true);
-      out << " ";
-      self->ctor.visit(*this, out, forall, false);
-    } else if(mono(self).kind() == kind::row()) {
-      // print row types: ctor is (attr: type) so we want parens
-      self->ctor.visit(*this, out, forall, true);
-
-      // skip trailing empty record type
-      if(self->arg != empty) {
-        out << " ";
-        self->arg.visit(*this, out, forall, false);
-      }
-    } else {
-      // regular types
-      self->ctor.visit(*this, out, forall, false);
-      out << " ";
-      self->arg.visit(*this, out, forall, false);
-    }
-
-    if(parens) {
-      if(k == kind::row()) out << "}";
-      else out << ")";
-    }
-  }
-  
-};
-
-
-std::ostream& operator<<(std::ostream& out, const poly& self) {
-  ostream_visitor::map_type map;
-  self.type.visit(ostream_visitor{map}, out, self.forall, false);
-  return out;
-}
 
 
 struct substitute_visitor {
@@ -456,20 +568,6 @@ static std::size_t indent = 0;
 struct lock {
   lock() { ++indent; }
   ~lock() { --indent; }
-};
-
-
-struct show {
-  ostream_visitor::map_type& map;
-  const poly& p;
-
-  show(ostream_visitor::map_type& map, const poly& p)
-    : map(map), p(p) { }
-  
-  friend std::ostream& operator<<(std::ostream& out, const show& self) {
-    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall, false);
-    return out;
-  }
 };
 
 
@@ -663,7 +761,7 @@ void state::unify(mono from, mono to) {
     ostream_visitor::map_type map;
     std::stringstream ss;
     ss << "cannot unify types \"" << show(map, generalize(from))
-       << "\" and \"" << show(map, generalize(to)) << "\"";
+       << "\" vs. \"" << show(map, generalize(to)) << "\"";
     throw error(ss.str());
   }
 

@@ -86,7 +86,10 @@ struct eval_visitor {
   }
   
   value operator()(const ast::abs& self, const ref<env>& e) const {
-    const list<symbol> args = self.args;
+    const list<symbol> args = map(self.args, [](const ast::abs::arg& arg) {
+        return arg.name();
+      });
+    
     const std::size_t argc = size(args);
     
     const ast::expr body = *self.body;
@@ -162,6 +165,11 @@ struct eval_visitor {
       return args[0].cast<record>().attrs.at(name);      
       // return args[0].cast<record>().attrs.find(name)->second;
     });
+  }
+
+
+  value operator()(const ast::make& self, const ref<env>& e) const {
+    return eval(e, ast::rec{self.attrs});
   }
   
   

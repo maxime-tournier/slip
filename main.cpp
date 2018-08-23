@@ -107,8 +107,7 @@ int main(int argc, char** argv) {
       ;    
 
     {
-      using namespace type;
-      
+      // pair
       const auto a = ts->fresh();
       const auto b = ts->fresh();
 
@@ -121,21 +120,28 @@ int main(int argc, char** argv) {
 
 
     {
-      using namespace type;
-      
+      // functor
       const mono f = ts->fresh(kind::term() >>= kind::term());
 
       const mono a = ts->fresh(kind::term());
       const mono b = ts->fresh(kind::term());      
       
       const mono functor
-        = make_ref<constant>(symbol("functor"), f.kind() >>= kind::term());
+        = make_ref<constant>("functor", f.kind() >>= kind::term());
       
       ts->def("functor", functor(f) >>=
               rec(row("map", f(a) >>= (a >>= b) >>= f(b)) |= empty))
         ;
     }
 
+    {
+      // test
+      const mono a = ts->fresh();
+      const mono b = ts->fresh();
+
+      const mono value = make_ref<constant>("value", kind::term() >>= kind::term());
+      ts->def("value", value(a) >>= rec( row("get", b >>= a) |= empty ));
+    }
     
   }
 
