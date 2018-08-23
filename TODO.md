@@ -15,7 +15,6 @@
 
 # types
 
-- occurs check
 - variants, matches
 - modular variants?
 
