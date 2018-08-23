@@ -224,17 +224,26 @@ kind::any mono::kind() const {
     static lam rewrite(const ast::abs& self) {
       using ::list;
       using namespace ast;
-      
-      const list<symbol> args = map(self.args, [](const abs::arg arg) {
-          return arg.name();
-        });
 
+      // associate typed arg names with dummy arg names
+      std::map<symbol, symbol> assoc;
+      
+      const list<symbol> args = map(self.args, [&](const abs::arg arg) {
+          return arg.match<symbol>
+          ([](symbol self) { return self; },
+           [&](abs::typed self) {
+             const std::string s = "__" + std::to_string(assoc.size());
+             auto it = assoc.emplace(self.name, s);
+             return it.first->second;
+           });
+        });
+      
       const list<def> defs =
-        foldr(list<def>(), self.args, [](const abs::arg arg, list<def> tail) {
+        foldr(list<def>(), self.args, [&](const abs::arg arg, list<def> tail) {
             if(auto t = arg.get<abs::typed>()) {
               return def{t->name, 
                          ast::app{ast::var{t->type},
-                                  ast::var{t->name} >>= list<expr>()}} >>= tail;
+                                  ast::var{assoc.at(t->name)} >>= list<expr>()}} >>= tail;
             } else {
               return tail;
             }
