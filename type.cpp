@@ -11,7 +11,6 @@
 namespace type {
 
 static const bool debug = false;
-
   
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{name, k});
@@ -81,8 +80,8 @@ application::application(mono ctor, mono arg)
   : ctor(ctor),
     arg(arg) {
   const kind::any k = ctor.kind();
-  if(auto c = k.get<ref<kind::constructor>>()) {
-    if((*c)->from != arg.kind()) {
+  if(auto c = k.get<kind::constructor>()) {
+    if(*c->from != arg.kind()) {
       std::clog << poly{{}, ctor} << " :: " << ctor.kind()
                 << " " << poly{{}, arg} << " :: " << arg.kind()
                 << std::endl;
@@ -116,8 +115,9 @@ struct ostream_visitor {
     
     out << char('a' + it->second);
 
-    if(debug) {
-      out << "(" << std::hex << (long(self.get()) & 0xffff) << ")";
+    static const bool extra = false;
+    if(debug && extra) {
+      out << "(" << std::hex << (long(self.get()) & 0xffff) << "::" << self->kind << ")";
     }
   }
 
@@ -203,8 +203,8 @@ struct kind_visitor {
 
   kind::any operator()(const ref<application>& self) const {
     const kind::any k = self->ctor.kind();
-    if(auto c = k.get<ref<kind::constructor>>()) {
-      return (*c)->to;
+    if(auto c = k.get<kind::constructor>()) {
+      return *c->to;
     } else {
       throw std::logic_error("derp");
     }
@@ -346,6 +346,7 @@ struct infer_visitor {
   // recursive let
   mono operator()(const ast::let& self, const ref<state>& s) const {
     auto sub = scope(s);
+
     const mono a = sub->fresh();
     sub->def(fix, (a >>= a) >>= a);
     
@@ -758,6 +759,9 @@ void state::unify(mono from, mono to) {
   
   // var -> var
   if(from.get<var>() && to.get<var>()) {
+    if(from == to) return;
+    assert(from != to && "self-unifying variable");
+    
     // var <- var
     if(from.cast<var>()->level < to.cast<var>()->level) {
       link(this, to.cast<var>(), from);

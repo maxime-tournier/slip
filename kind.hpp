@@ -7,32 +7,34 @@
 
 namespace kind {
 
-struct constant;
-struct constructor;
+  struct any;
+  
+  struct constant {
+    const symbol name;
+    bool operator==(const constant& other) const { return name == other.name; }
+  };
+  
+  struct constructor {
+    const ref<any> from;
+    const ref<any> to;
 
-struct any : variant<ref<constant>, ref<constructor>> {
-  using any::variant::variant;
+    bool operator==(const constructor& other) const;
+  };
 
-  friend std::ostream& operator<<(std::ostream& out, const any& self);
-};
+  struct any : variant<constant, constructor> {
+    using any::variant::variant;
+  
+    friend std::ostream& operator<<(std::ostream& out, const any& self);
+  };
 
-ref<constant> term();
-ref<constant> row();
+  any term();
+  any row();
+  
+  any operator>>=(any from, any to);
 
-struct constant {
-  const symbol name;
-};
-
-struct constructor {
-  const any from;
-  const any to;
-};
-
-any operator>>=(any from, any to);
-
-struct error : std::runtime_error {
-  using std::runtime_error::runtime_error;
-};
+  struct error : std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
 
 }
 

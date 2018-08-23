@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
         = make_ref<constant>("functor", f.kind() >>= kind::term());
       
       ts->def("functor", functor(f) >>=
-              rec(row("map", f(a) >>= (a >>= b) >>= f(b)) |= empty))
+              rec(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty))
         ;
     }
 
@@ -213,6 +213,8 @@ int main(int argc, char** argv) {
         std::cerr << "syntax error: " << e.what() << std::endl;
       } catch(type::error& e) {
         std::cerr << "type error: " << e.what() << std::endl;
+      } catch(kind::error& e) {
+        std::cerr << "kind error: " << e.what() << std::endl;
       } catch(std::runtime_error& e) {
         std::cerr << "runtime error: " << e.what() << std::endl;
       }

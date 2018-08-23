@@ -4,42 +4,36 @@
 
 namespace kind {
 
-// constants
-ref<constant> term() {
-  static const auto res = make_ref<constant>(constant{symbol{"*"}});
-  return res;
-}
+  // constants
+  any term() { return constant{"*"}; }
+  any row() { return constant{"@"}; }  
 
-ref<constant> row() {
-  static const auto res = make_ref<constant>(constant{symbol{"@"}});
-  return res;
-}
-
-
-any operator>>=(any from, any to) {
-  return make_ref<constructor>(constructor{from, to});
-}
-  
-
-namespace {
-struct ostream_visitor {
-  using type = void;
-  
-  void operator()(const ref<constant>& self, std::ostream& out) const {
-    out << self->name;
+  any operator>>=(any from, any to) {
+    return constructor{make_ref<any>(from), make_ref<any>(to)};
   }
+
+  bool constructor::operator==(const constructor& other) const {
+    return *from == *other.from && *to == *other.to;
+  }  
+
+  namespace {
+    struct ostream_visitor {
+      using type = void;
+  
+      void operator()(const constant& self, std::ostream& out) const {
+        out << self.name;
+      }
       
-  void operator()(const ref<constructor>& self, std::ostream& out) const {
-    out << self->from << " -> " << self->to;           
-  }
+      void operator()(const constructor& self, std::ostream& out) const {
+        out << *self.from << " -> " << *self.to;           
+      }
         
-};
-}
+    };
+  }
 
-  
-std::ostream& operator<<(std::ostream& out, const any& self) {
-  self.visit(ostream_visitor(), out);
-  return out;
-}
+  std::ostream& operator<<(std::ostream& out, const any& self) {
+    self.visit(ostream_visitor(), out);
+    return out;
+  }
   
 }
