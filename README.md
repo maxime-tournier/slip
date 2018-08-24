@@ -75,9 +75,10 @@ reader-bind
 reader-monad
 ```
 
+output: 
 
 ```
-build/slap test/monad.el
+$ slap test/monad.el
  : io unit = ()
  : io unit = ()
  : io unit = ()
