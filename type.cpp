@@ -695,7 +695,7 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 
   // rewriting failed: attribute error
   std::stringstream ss;
-  ss << "attribute " << tool::quote(e.attr.get()) << "not found in record type \""
+  ss << "expected attribute " << tool::quote(e.attr.get()) << " in record type \""
      << self->generalize(to) << "\"";
   throw error(ss.str());
 }

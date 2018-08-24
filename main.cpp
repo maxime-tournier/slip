@@ -79,9 +79,8 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
         }))
 
     .def("functor", unit())
-    .def("pair", unit())
-    .def("test", unit())        
-    
+    .def("monad", unit())    
+
     ;
 
   auto s = make_ref<type::state>();
@@ -137,19 +136,6 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
       ;    
 
     {
-      // pair
-      const auto a = s->fresh();
-      const auto b = s->fresh();
-
-      const mono pair =
-        make_ref<constant>(symbol("pair"), 
-                           kind::term() >>= kind::term() >>= kind::term());
-      s->def("pair",
-              module(pair(a)(b))(rec(row("first", a) |= row("second", a) |= empty)));
-    }
-
-
-    {
       // functor
       const mono f = s->fresh(kind::term() >>= kind::term());
 
@@ -164,13 +150,23 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
     }
 
     {
-      // test
-      const mono a = s->fresh();
-      const mono b = s->fresh();
+      // monad
+      const mono m = s->fresh(kind::term() >>= kind::term());
 
-      const mono value = make_ref<constant>("value", kind::term() >>= kind::term());
-      s->def("value", module(value(a))(rec( row("get", b >>= a) |= empty)));
+      const mono a = s->fresh(kind::term());
+      const mono b = s->fresh(kind::term());
+      const mono c = s->fresh(kind::term());            
+      
+      const mono monad
+        = make_ref<constant>("monad", m.kind() >>= kind::term());
+      
+      s->def("monad", module(monad(m))
+             (rec(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
+                  row("pure", c >>= m(c)) |=
+                  empty)))
+        ;
     }
+
     
   }
 
