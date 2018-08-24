@@ -1,5 +1,5 @@
 
-
+;; list monad
 (def append
      (func (lhs rhs)
            (if (isnil lhs) rhs
@@ -11,7 +11,6 @@
 
 (append (cons 1 (cons 2 nil))
         (cons 3 (cons 4 nil)))
-
 
 (def concat
 	 (func (xs)
@@ -27,7 +26,7 @@
 
 (def list-pure
      (func (x) (cons x nil)))
-
+list-pure
 
 (def list-bind
 	 (func (xs f)
@@ -40,3 +39,21 @@ list-bind
 		  (bind list-bind)))
 list-monad
 
+;; reader monad
+(def reader-pure
+	 (func (x)
+		   (func (y) x)))
+reader-pure
+
+
+(def reader-bind
+	 (func (a f)
+		   (func (e)
+				 ((f (a e)) e))))
+reader-bind
+
+(def reader-monad
+	 (new monad
+		  (pure reader-pure)
+		  (bind reader-bind)))
+reader-monad
