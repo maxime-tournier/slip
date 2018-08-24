@@ -10,7 +10,7 @@
 
 namespace type {
 
-static const bool debug = false;
+static const bool debug = true;
   
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{name, k});
@@ -352,7 +352,12 @@ struct infer_visitor {
     const mono a = sub->fresh();
     sub->def(fix, (a >>= a) >>= a);
     
-    return operator()(let::rewrite(self), sub);
+    const mono res = operator()(let::rewrite(self), sub);
+    if(s->substitute(res).get<var>()) {
+      throw error("definition does not define anything");
+    }
+    
+    return res;
   }
 
 
@@ -624,8 +629,10 @@ struct lock {
 
 
 
-static void link(state* self, const ref<variable>& from, const mono& to) {
+static void link(state* self, const var& from, const mono& to) {
   assert(from->kind == to.kind());
+  if(mono(from) == to) return;
+  
   if(!self->sub->emplace(from, to).second) {
     assert(false);
   }
@@ -685,15 +692,15 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
   return row.visit(rewrite_visitor(), attr, s);
 };
 
-
-static void unify_rows(state* self, const app& from, const app& to) {
+  static void unify(state* self, mono from, mono to, ostream_visitor::map_type& map);
+  
+  static void unify_rows(state* self, const app& from, const app& to, ostream_visitor::map_type& map) {
   const extension e = extension::unpack(from);
 
   // try rewriting 'to' like 'from'
   if(auto rw = rewrite(self, e.attr, to)) {
 
     if(debug) {
-      ostream_visitor::map_type map;
       std::clog << std::string(2 * indent, '.')
                 << "rewrote: " << show(map, self->generalize(to))
                 << " as: " << show(map, self->generalize(rw.get().head)) << "; "
@@ -702,10 +709,10 @@ static void unify_rows(state* self, const app& from, const app& to) {
     }
     
     // rewriting succeeded, unify rewritten terms
-    self->unify(e.head, rw.get().head);
+    unify(self, e.head, rw.get().head, map);
 
     // TODO switch tail order so that we don't always rewrite the same side
-    self->unify(e.tail, rw.get().tail);
+    unify(self, e.tail, rw.get().tail, map);
     return;
   }
 
@@ -766,6 +773,8 @@ static void unify_rows(state* self, const app& from, const app& to) {
   };
   
   static void occurs_check(state* self, var v, mono t) {
+    if(mono(v) == t) return;
+    
     if(t.visit(occurs_visitor(), v)) {
       ostream_visitor::map_type map;
       std::stringstream ss;
@@ -776,79 +785,74 @@ static void unify_rows(state* self, const app& from, const app& to) {
     }
   }
 
-void state::unify(mono from, mono to) {
-  const lock instance;
 
-  using var = ref<variable>;
-  using app = ref<application>;
 
-  if( debug ) {
-    ostream_visitor::map_type map;
-    std::clog << std::string(2 * indent, '.')
-              << "unifying: " << show(map, generalize(from))
-              << " with: " << show(map, generalize(to))
-              << std::endl;
-  }
+  static void unify(state* self, mono from, mono to, ostream_visitor::map_type& map) {
+    const lock instance;
+
+    using var = ref<variable>;
+    using app = ref<application>;
+
+    if(debug) {
+      std::clog << std::string(2 * indent, '.')
+                << "unifying: " << show(map, self->generalize(from))
+                << " with: " << show(map, self->generalize(to))
+                << std::endl;
+    }
   
-  // resolve
-  from = substitute(from);
-  to = substitute(to);
+    // resolve
+    from = self->substitute(from);
+    to = self->substitute(to);
 
-  if(from.kind() != to.kind()) {
-    throw kind::error("cannot unify types of different kinds");
-  }
+    if(from.kind() != to.kind()) {
+      throw kind::error("cannot unify types of different kinds");
+    }
 
-  const kind::any k = from.kind();
+    const kind::any k = from.kind();
   
-  // var -> var
-  if(from.get<var>() && to.get<var>()) {
-    if(from == to) {
-      // TODO is this legal?
+    // var -> mono
+    if(auto v = from.get<var>()) {
+      occurs_check(self, *v, to);
+      link(self, *v, to);
+      upgrade(self, to, (*v)->level);
       return;
+    }
+
+    // mono <- var
+    if(auto v = to.get<var>()) {
+      occurs_check(self, *v, from);
+      link(self, *v, from);
+      upgrade(self, from, (*v)->level);
+      return;
+    }
+
+    // app <-> app
+    if(from.get<app>() && to.get<app>()) {
+
+      // row polymorphism
+      if(k == kind::row()) {
+        unify_rows(self, from.cast<app>(), to.cast<app>(), map);
+        return;
+      }
+
+      unify(self, from.cast<app>()->arg, to.cast<app>()->arg, map);
+      unify(self, from.cast<app>()->ctor, to.cast<app>()->ctor, map);
+      return;
+    }
+  
+    if(from != to) {
+      ostream_visitor::map_type map;
+      std::stringstream ss;
+      ss << "cannot unify types \"" << show(map, self->generalize(from))
+         << "\" vs. \"" << show(map, self->generalize(to)) << "\"";
+      throw error(ss.str());
     }
   }
   
-  // var -> mono
-  if(auto v = from.get<var>()) {
-    occurs_check(this, *v, to);
-    link(this, *v, to);
-    upgrade(this, to, (*v)->level);
-    return;
-  }
-
-  // mono <- var
-  if(auto v = to.get<var>()) {
-    occurs_check(this, *v, from);
-    link(this, *v, from);
-    upgrade(this, from, (*v)->level);
-    return;
-  }
-
-  // app <-> app
-  if(from.get<app>() && to.get<app>()) {
-
-    // row polymorphism
-    if(k == kind::row()) {
-      unify_rows(this, from.cast<app>(), to.cast<app>());
-      return;
-    }
-    
-    unify(from.cast<app>()->ctor, to.cast<app>()->ctor);
-    unify(from.cast<app>()->arg, to.cast<app>()->arg);
-    return;
-  }
-  
-  if(from != to) {
+  void state::unify(mono from, mono to) {
     ostream_visitor::map_type map;
-    std::stringstream ss;
-    ss << "cannot unify types \"" << show(map, generalize(from))
-       << "\" vs. \"" << show(map, generalize(to)) << "\"";
-    throw error(ss.str());
+    type::unify(this, from, to, map);
   }
-
-}
-
-
 
 
 };
