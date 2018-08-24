@@ -74,7 +74,7 @@ struct eval_visitor {
 
   
   value operator()(const ast::app& self, const ref<env>& e) const {
-	const value func = eval(e, *self.func);
+    const value func = eval(e, *self.func);
 
     std::vector<value> args;
     foldl(unit(), self.args, [&](unit, const ast::expr& self) {
@@ -89,7 +89,7 @@ struct eval_visitor {
     const list<symbol> args = map(self.args, [](const ast::abs::arg& arg) {
         return arg.name();
       });
-    
+
     const std::size_t argc = size(args);
     
     const ast::expr body = *self.body;

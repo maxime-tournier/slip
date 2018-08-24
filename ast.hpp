@@ -52,9 +52,8 @@ namespace ast {
 
     abs(const list<arg>& args, const expr& body)
       : args(args), body(make_expr(body)) { }
-  };
 
-  struct def;
+  };
 
   struct bind;
   

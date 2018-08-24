@@ -234,7 +234,8 @@ kind::any mono::kind() const {
           return arg.match<symbol>
           ([](symbol self) { return self; },
            [&](abs::typed self) {
-             const std::string s = "__" + std::to_string(assoc.size());
+             // const std::string s = "__" + std::to_string(assoc.size());
+             const std::string s = self.name.get();
              auto it = assoc.emplace(self.name, s);
              return it.first->second;
            });
@@ -256,20 +257,25 @@ kind::any mono::kind() const {
   };
 
 
-  static const symbol fix = "__fix__";
   
   struct let {
     const ::list<ast::bind> defs;
     const ast::expr body;
 
-    // rewrite let as non-recursive let + fix
+    static symbol fix() { return "__fix__"; }
+    
+    // rewrite let as non-recursive let + fix **when defining functions**
     static let rewrite(const ast::let& self) {
       using ::list;
       const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
-          return ast::bind{self.name,
-                           ast::app{ast::var{fix},
-                                    ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
-                                    >>= list<ast::expr>()}};
+          return self.value.match<ast::bind>
+          ([&](const ast::abs& abs) { 
+            return ast::bind{self.name,
+                             ast::app{ast::var{fix()},
+                                      ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
+                                      >>= list<ast::expr>()}};
+          }, 
+            [&](const ast::expr& expr) { return self; });
         });
 
       return {defs, *self.body};
@@ -350,14 +356,9 @@ struct infer_visitor {
     auto sub = scope(s);
 
     const mono a = sub->fresh();
-    sub->def(fix, (a >>= a) >>= a);
+    sub->def(let::fix(), (a >>= a) >>= a);
     
-    const mono res = operator()(let::rewrite(self), sub);
-    if(s->substitute(res).get<var>()) {
-      throw error("definition does not define anything");
-    }
-    
-    return res;
+    return operator()(let::rewrite(self), sub);
   }
 
 
