@@ -59,9 +59,9 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   };
 
 
-  static const auto initial_parser = chr<std::isalpha>(); 
+  static const auto initial_parser = chr<std::isalpha>() | chr<matches<'_'>>(); 
   
-  static const auto rest_parser = chr<std::isalnum>();  
+  static const auto rest_parser = chr<std::isalnum>() | chr<matches<'-'>>();  
 
   static const auto symbol_parser = initial_parser >> [](char c) {
     return noskip(*rest_parser >> [c](std::deque<char>&& rest) {

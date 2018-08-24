@@ -20,20 +20,23 @@
 
 (concat (cons l1 (cons l2 (cons l2 nil))))
 
-(def lmap
+(def list-map
      (func (f x)
            (if (isnil x) nil
-             (cons (f (head x)) (lmap f (tail x))))))
+             (cons (f (head x)) (list-map f (tail x))))))
 
-(def lpure
+(def list-pure
      (func (x) (cons x nil)))
 
 
-(def lbind
+(def list-bind
 	 (func (xs f)
-		   (concat (lmap f xs))))
-lbind
+		   (concat (list-map f xs))))
+list-bind
 
-(new monad
-	 (pure lpure)
-	 (bind lbind))
+(def list-monad
+	 (new monad
+		  (pure list-pure)
+		  (bind list-bind)))
+list-monad
+
