@@ -17,20 +17,35 @@ namespace {
   
 }
 
+
+template<class T>
+static const std::ios::pos_type try_parse(std::istream& in) {
+  const parser::stream_state backup(in);
+  T t;
+  in >> t;
+  return parser::stream_state(in).pos;
+}
+
 maybe<sexpr> sexpr::parse(std::istream& in) {
   using namespace parser;
   
   static const auto separator_parser = // parser::debug("sep") |=
     noskip(chr<std::isspace>());
+
+  static const auto integer_parser = // parser::debug("real") |=
+    value<integer>();
   
   static const auto real_parser = // parser::debug("real") |=
     value<double>();
+
+  static const auto as_expr = parser::cast<sexpr>();
   
-  static const auto number_parser = // debug("num") |= 
-    real_parser >> [](real num) {
-    const long cast = num;
-    const sexpr value = num == real(cast) ? sexpr(cast) : sexpr(num);
-    return pure(value);                     
+  static const auto number_parser = [](std::istream& in) {
+    const auto pr = try_parse<real>(in);
+    const auto pi = try_parse<integer>(in);    
+
+    if(pr == pi) return (integer_parser >> as_expr)(in);
+    return (real_parser >> as_expr)(in);
   };
 
 
@@ -60,8 +75,6 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
     };
   };
   
-  static const auto as_expr = parser::cast<sexpr>();
-
   static auto expr_parser = any<sexpr>();
 
   static const auto lparen = // debug("lparen") |=
