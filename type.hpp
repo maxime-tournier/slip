@@ -106,10 +106,13 @@ struct poly {
 // constants
 const extern mono unit, boolean, integer, real;
 
-// constructors
+  // constructors
   const extern mono func, list; // , io
   const extern mono rec, empty;
 
+  // module unpacking
+  const extern mono module;
+  
 mono ext(symbol attr);
 
 // convenience: build function types

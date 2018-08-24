@@ -236,7 +236,7 @@ struct ostream {
     }
     out << "}";
   }
-  
+
 };
 }
 

@@ -45,11 +45,11 @@ static void read_loop(const F& f) {
 };
 
 
-static ref<env> prelude() {
+static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont) {
   using namespace unpack;
-  auto res = make_ref<env>();
+  auto e = make_ref<env>();
   
-  (*res)
+  (*e)
     .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
           return lhs + rhs;
         }))
@@ -77,27 +77,25 @@ static ref<env> prelude() {
     .def("tail", closure(1, [](const value* args) -> value {
         return args[0].cast<value::list>()->tail;
         }))
-      
+
+    .def("functor", unit())
+    .def("pair", unit())
+    .def("test", unit())        
+    
     ;
-  
-  return res;
-};
 
-
-int main(int argc, char** argv) {
-
-  auto re = prelude();
-  auto ts = make_ref<type::state>();
+  auto s = make_ref<type::state>();
 
   {
     using namespace type;
     using type::integer;
     using type::boolean;
     using type::list;
-    using type::real;    
+    using type::real;
+    using type::module;
 
     // arithmetic
-    (*ts)
+    (*s)
       .def("+", integer >>= integer >>= integer)
       .def("*", integer >>= integer >>= integer)      
       .def("-", integer >>= integer >>= integer)
@@ -105,135 +103,142 @@ int main(int argc, char** argv) {
 
     // lists
     {
-      const auto a = ts->fresh();
-      ts->def("nil", list(a));
+      const auto a = s->fresh();
+      s->def("nil", list(a));
     }
 
     {
-      const auto a = ts->fresh();
-      ts->def("cons", a >>= list(a) >>= list(a));
+      const auto a = s->fresh();
+      s->def("cons", a >>= list(a) >>= list(a));
     }
 
     // 
     {
-      const auto a = ts->fresh();
-      ts->def("isnil", list(a) >>= boolean);
+      const auto a = s->fresh();
+      s->def("isnil", list(a) >>= boolean);
     }
 
     {
-      const auto a = ts->fresh();
-      ts->def("head", list(a) >>= a);
+      const auto a = s->fresh();
+      s->def("head", list(a) >>= a);
     }
 
     {
-      const auto a = ts->fresh();
-      ts->def("tail", list(a) >>= list(a));
+      const auto a = s->fresh();
+      s->def("tail", list(a) >>= list(a));
     }
     
     
     // constructors
-    (*ts)
-      .def("integer", integer >>= integer)
-      .def("real", real >>= real)      
-      .def("boolean", boolean >>= boolean)
+    (*s)
+      .def("boolean", module(boolean)(boolean))
+      .def("integer", module(integer)(integer))
+      .def("real", module(real)(real))
       ;    
 
     {
       // pair
-      const auto a = ts->fresh();
-      const auto b = ts->fresh();
+      const auto a = s->fresh();
+      const auto b = s->fresh();
 
       const mono pair =
         make_ref<constant>(symbol("pair"), 
                            kind::term() >>= kind::term() >>= kind::term());
-      ts->def("pair",
-              pair(a)(b) >>= rec(row("first", a) |= row("second", a) |= empty));
+      s->def("pair",
+              module(pair(a)(b))(rec(row("first", a) |= row("second", a) |= empty)));
     }
 
 
     {
       // functor
-      const mono f = ts->fresh(kind::term() >>= kind::term());
+      const mono f = s->fresh(kind::term() >>= kind::term());
 
-      const mono a = ts->fresh(kind::term());
-      const mono b = ts->fresh(kind::term());      
+      const mono a = s->fresh(kind::term());
+      const mono b = s->fresh(kind::term());      
       
       const mono functor
         = make_ref<constant>("functor", f.kind() >>= kind::term());
       
-      ts->def("functor", functor(f) >>=
-              rec(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty))
+      s->def("functor", module(functor(f))(rec(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)))
         ;
     }
 
     {
       // test
-      const mono a = ts->fresh();
-      const mono b = ts->fresh();
+      const mono a = s->fresh();
+      const mono b = s->fresh();
 
       const mono value = make_ref<constant>("value", kind::term() >>= kind::term());
-      ts->def("value", value(a) >>= rec( row("get", b >>= a) |= empty ));
+      s->def("value", module(value(a))(rec( row("get", b >>= a) |= empty)));
     }
     
   }
 
-  
+  // push a scope just in case
+  return cont(scope(e), scope(s));
+};
+
+
+int main(int argc, char** argv) {
+
   // parser::debug::stream = &std::clog;
   
   using parser::operator+;
+  
   static const auto program = parser::debug("prog") |= +[](std::istream& in) {
     return sexpr::parse(in);
   } >> parser::drop(parser::eof()) | parser::error<std::deque<sexpr>>("parse error");
-  
-  static const auto handler =
-    [&](std::istream& in) {
-      try {
-        if(auto exprs = program(in)) {
-          for(const sexpr& s : exprs.get()) {
-            // std::cout << "parsed: " << s << std::endl;
-            const ast::toplevel a = ast::toplevel::check(s);
-            if(debug) std::cout << "ast: " << a << std::endl;
 
-            // toplevel expression?
-            if(auto e = a.get<ast::expr>()) {
-              const type::mono t = type::mono::infer(ts, *e);
-              const type::poly p = ts->generalize(t);
+  return with_prelude([&](ref<env> r, ref<type::state> s) {
+      static const auto handler =
+        [&](std::istream& in) {
+        try {
+          if(auto exprs = program(in)) {
+            for(const sexpr& x : exprs.get()) {
+              // std::cout << "parsed: " << s << std::endl;
+              const ast::toplevel c = ast::toplevel::check(x);
+              if(debug) std::cout << "ast: " << c << std::endl;
 
-              // TODO: cleanup variables with depth greater than current in
-              // substitution
-              if(auto v = e->get<ast::var>()) std::cout << v->name;
-              std::cout << " : " << p;
+              // toplevel expression?
+              if(auto e = c.get<ast::expr>()) {
+                const type::mono t = type::mono::infer(s, *e);
+                const type::poly p = s->generalize(t);
 
-              const value v = eval(re, *e);
-              std::cout << " = " << v << std::endl;
+                // TODO: cleanup variables with depth greater than current in
+                // substitution
+                if(auto v = e->get<ast::var>()) std::cout << v->name;
+                std::cout << " : " << p;
+
+                const value v = eval(r, *e);
+                std::cout << " = " << v << std::endl;
+              }
             }
-          }
-          return true;
-        } 
-      } catch(ast::error& e) {
-        std::cerr << "syntax error: " << e.what() << std::endl;
-      } catch(type::error& e) {
-        std::cerr << "type error: " << e.what() << std::endl;
-      } catch(kind::error& e) {
-        std::cerr << "kind error: " << e.what() << std::endl;
-      } catch(std::runtime_error& e) {
-        std::cerr << "runtime error: " << e.what() << std::endl;
-      }
-      return false;
-    };
+            return true;
+          } 
+        } catch(ast::error& e) {
+          std::cerr << "syntax error: " << e.what() << std::endl;
+        } catch(type::error& e) {
+          std::cerr << "type error: " << e.what() << std::endl;
+        } catch(kind::error& e) {
+          std::cerr << "kind error: " << e.what() << std::endl;
+        } catch(std::runtime_error& e) {
+          std::cerr << "runtime error: " << e.what() << std::endl;
+        }
+        return false;
+      };
 
   
-  if(argc > 1) {
-    const char* filename = argv[1];
-    if(auto ifs = std::ifstream(filename)) {
-      return handler(ifs) ? 0 : 1;
-    } else {
-      std::cerr << "io error: " << "cannot read " << filename << std::endl;
-      return 1;
-    }
-  } else {
-    read_loop(handler);
-  }
-  
-  return 0;
+      if(argc > 1) {
+        const char* filename = argv[1];
+        if(auto ifs = std::ifstream(filename)) {
+          return handler(ifs) ? 0 : 1;
+        } else {
+          std::cerr << "io error: " << "cannot read " << filename << std::endl;
+          return 1;
+        }
+      } else {
+        read_loop(handler);
+      }
+      return 0;
+    });  
 }

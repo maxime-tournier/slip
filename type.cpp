@@ -10,7 +10,7 @@
 
 namespace type {
 
-static const bool debug = true;
+static const bool debug = false;
   
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
   return make_ref<constant>(constant{name, k});
@@ -40,22 +40,26 @@ const mono io =
   make_constant("io", kind::term() >>= kind::term());
 
 
-const mono rec =
-  make_constant("record", kind::row() >>= kind::term());
+  // records
+  const mono rec =
+    make_constant("record", kind::row() >>= kind::term());
 
   
-const mono empty = make_constant("{}", kind::row());
+  const mono empty = make_constant("{}", kind::row());
 
 
-mono ext(symbol attr) {
-  static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
-  static std::map<symbol, ref<constant>> table;
-  const std::string name = attr.get() + std::string(":");
+  mono ext(symbol attr) {
+    static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
+    static std::map<symbol, ref<constant>> table;
+    const std::string name = attr.get() + std::string(":");
   
-  auto it = table.emplace(attr, make_constant(name.c_str(), k));
-  return it.first->second;
-}
+    auto it = table.emplace(attr, make_constant(name.c_str(), k));
+    return it.first->second;
+  }
 
+  const mono module =
+    make_constant("module", kind::term() >>= kind::term() >>= kind::term());
+  
 
 state& state::def(symbol name, mono t) {
   if(!locals.emplace(name, generalize(t)).second) {
@@ -219,43 +223,6 @@ kind::any mono::kind() const {
 }
 
 
-  struct lam {
-    const ::list<symbol> args;
-    const ast::expr body;
-
-    static lam rewrite(const ast::abs& self) {
-      using ::list;
-      using namespace ast;
-
-      // associate typed arg names with dummy arg names
-      std::map<symbol, symbol> assoc;
-      
-      const list<symbol> args = map(self.args, [&](const abs::arg arg) {
-          return arg.match<symbol>
-          ([](symbol self) { return self; },
-           [&](abs::typed self) {
-             // const std::string s = "__" + std::to_string(assoc.size());
-             const std::string s = self.name.get();
-             auto it = assoc.emplace(self.name, s);
-             return it.first->second;
-           });
-        });
-      
-      const list<bind> defs =
-        foldr(list<bind>(), self.args, [&](const abs::arg arg, list<bind> tail) {
-            if(auto t = arg.get<abs::typed>()) {
-              return bind{t->name, 
-                         ast::app{ast::var{t->type},
-                                  ast::var{assoc.at(t->name)} >>= list<expr>()}} >>= tail;
-            } else {
-              return tail;
-            }
-          });
-
-      return {args, ast::let{defs, *self.body}};
-    }
-  };
-
 
   
   struct let {
@@ -303,24 +270,33 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
-    // rewrite typed arguments
-    return operator()(lam::rewrite(self), s);
-  }
-
-  mono operator()(const lam& self, const ref<state>& s) const {
     // function scope
     const auto sub = scope(s);
     
     // construct function type
     const mono result = s->fresh();
-    const mono sig = foldr(result, self.args, [&](symbol arg, mono tail) {
-      const mono head = s->fresh();
-      sub->def(arg, head);
-      return head >>= tail;
+    const mono sig = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
+
+        const mono ctor = arg.match<mono>
+        ([&](symbol self) {
+          const mono a = sub->fresh();
+          return module(a)(a);
+         },
+         [&](ast::abs::typed self) {
+           return mono::infer(sub, self.type);
+         });
+        
+        const mono outer = s->fresh();
+        const mono inner = sub->fresh();
+
+        sub->unify(module(outer)(inner), ctor);
+        
+        sub->def(arg.name(), inner);
+        return outer >>= tail;
     });
     
     // infer lambda body with augmented environment
-    s->unify(result, mono::infer(sub, self.body));
+    s->unify(result, mono::infer(sub, *self.body));
     
     return sig;
   }
@@ -395,7 +371,7 @@ struct infer_visitor {
     // instantiate signature at sub level prevents generalization of
     // contravariant side (variables only appearing in the covariant side will
     // be generalized)
-    s->unify(outer >>= inner, instantiate(sig, sub->level));
+    s->unify(module(outer)(inner), instantiate(sig, sub->level));
 
     // vanilla covariant type
     const poly reference = sub->generalize(inner);
@@ -845,7 +821,7 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
       ostream_visitor::map_type map;
       std::stringstream ss;
       ss << "cannot unify types \"" << show(map, self->generalize(from))
-         << "\" vs. \"" << show(map, self->generalize(to)) << "\"";
+         << "\" and \"" << show(map, self->generalize(to)) << "\"";
       throw error(ss.str());
     }
   }

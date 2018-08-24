@@ -37,15 +37,8 @@ namespace ast {
 
 
   struct abs {
-    struct typed {
-      const symbol type;
-      const symbol name;
-    };
-
-    struct arg : variant<symbol, typed> {
-      using arg::variant::variant;
-      symbol name() const;
-    };
+    struct typed;
+    struct arg;
     
     const list<arg> args;
     const ref<expr> body;
@@ -137,6 +130,15 @@ namespace ast {
     static expr check(const sexpr& e);
   };
 
+  struct abs::typed {
+    const expr type;
+    const symbol name;
+  };
+  
+  struct abs::arg : variant<symbol, typed> {
+    using arg::variant::variant;
+    symbol name() const;
+  };  
 
   struct rec::attr {
     using list = list<attr>;

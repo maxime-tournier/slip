@@ -75,9 +75,9 @@ static maybe<args_type> check_args(sexpr::list self) {
         return *res >>= tail;
       }
       if(auto res = lhs.get<sexpr::list>()) {
-        return (pop_as<symbol>() >> [tail](symbol type){
+        return (pop() >> [tail](sexpr type) {
           return pop_as<symbol>() >> [tail, type](symbol name) {
-            return pure(abs::typed{type, name} >>= tail);
+            return pure(abs::typed{expr::check(type), name} >>= tail);
           };
           })(*res);
       }
@@ -296,7 +296,7 @@ static maybe<expr> check_seq(sexpr::list args) {
       }
 
       sexpr operator()(const abs::typed& self) const {
-        return self.type >>= self.name >>= sexpr::list();
+        return self.type.visit(repr()) >>= self.name >>= sexpr::list();
       }
       
 
