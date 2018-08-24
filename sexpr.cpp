@@ -63,11 +63,10 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto op_parser =
     chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
     return pure(symbol(std::string(1, c)));
-  }
-    | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
-                                                     return pure(symbol(s));
-                                                   };
-                                        
+  } | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
+    return pure(symbol(s));
+  };
+  
   
   static const auto attr_parser = chr<matches<':'>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
