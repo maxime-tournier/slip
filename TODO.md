@@ -2,10 +2,10 @@
 
 # parser
 
-- comments
 - extend symbol grammar
 - record literals?
 - variant literals?
+- record line numbers somewhow
 
 # syntax
 
