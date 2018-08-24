@@ -389,6 +389,21 @@ static noskip_type<Parser> noskip(const Parser& parser) {
 }
 
 
+// try to parse but always rollback input stream (check if something would
+// parse)
+template<class Parser>
+struct peek_type {
+  const Parser parser;
+
+  maybe<value_type<Parser>> operator()(std::istream& in) const {
+    const stream_state backup(in);
+    return parser(in);
+  }
+};
+
+template<class Parser>
+static peek_type<Parser> peek(Parser parser) { return {parser}; }  
+
 ////////////////////////////////////////////////////////////////////////////////
 // actual parsers
 
