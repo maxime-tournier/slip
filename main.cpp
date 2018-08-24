@@ -182,12 +182,13 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
 int main(int argc, char** argv) {
 
   // parser::debug::stream = &std::clog;
-  
-  using parser::operator+;
-  
-  static const auto program = parser::debug("prog") |= +[](std::istream& in) {
-    return sexpr::parse(in);
-  } >> parser::drop(parser::eof()) | parser::error<std::deque<sexpr>>("parse error");
+
+  const parser::any<sexpr> expr = sexpr::parse;
+
+  using parser::operator*;
+  static const auto program = parser::debug("prog") |=
+    *expr >> parser::drop(parser::debug("eof") |= parser::eof())
+    | parser::error<std::deque<sexpr>>("parse error");
 
   return with_prelude([&](ref<env> r, ref<type::state> s) {
       static const auto handler =

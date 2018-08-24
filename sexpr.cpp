@@ -26,6 +26,7 @@ static const std::ios::pos_type try_parse(std::istream& in) {
   return parser::stream_state(in).pos;
 }
 
+
 maybe<sexpr> sexpr::parse(std::istream& in) {
   using namespace parser;
   
@@ -38,6 +39,15 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto real_parser = // parser::debug("real") |=
     value<double>();
 
+  static const auto semicolon = chr<matches<';'>>();
+  static const auto endl = chr<matches<'\n'>>();
+  
+  static const auto comment_parser = debug("comment") |=
+    semicolon >> then(noskip(*!endl));
+  
+  static const auto skip_parser = debug("skip") |=
+    comment_parser;
+  
   static const auto as_expr = parser::cast<sexpr>();
   
   static const auto number_parser = [](std::istream& in) {
@@ -80,7 +90,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
     token("(");
   
   static const auto rparen = // debug("rparen") |=
-    token(")");
+    skip(skip_parser, token(")"));
 
   static const auto exprs_parser = // debug("exprs") |=
     parser::ref(expr_parser) % separator_parser;
@@ -93,13 +103,13 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   
   static const auto once =
     (expr_parser =
-     // debug("expr") |= 
-     (symbol_parser >> as_expr)
-     | (attr_parser >> as_expr)
-     | (op_parser >> as_expr)
-     | number_parser
-     | (list_parser >> as_expr)
-     , 0); (void) once;
+     (debug("expr") |=
+      skip(skip_parser, (symbol_parser >> as_expr)
+           | (attr_parser >> as_expr)
+           | (op_parser >> as_expr)
+           | number_parser
+           | (list_parser >> as_expr)))
+      , 0); (void) once;
 
   // debug::stream = &std::clog;
   return expr_parser(in);

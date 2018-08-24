@@ -404,6 +404,24 @@ struct peek_type {
 template<class Parser>
 static peek_type<Parser> peek(Parser parser) { return {parser}; }  
 
+
+// skip stream then parse, without backtracking skip if parsing fails.
+template<class Skip, class Parser>
+struct skip_type {
+  const Skip skip;
+  const Parser parser;
+
+  result_type<Parser> operator()(std::istream& in) const {
+    skip(in);
+    return parser(in);
+  }
+};
+
+template<class Skip, class Parser>
+static skip_type<Skip, Parser> skip(Skip skip, Parser parser) {
+  return {skip, parser};
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // actual parsers
 
@@ -473,7 +491,8 @@ struct option_type {
         if(auto res = parser(in)) {
             return res;
         }
-        return {{}};
+        
+        return value_type<Parser>();
     }
 };
 
@@ -485,16 +504,19 @@ static option_type<Parser> operator~(const Parser& parser) { return {parser}; }
 // explicitely disabled with 'noskip'
 template<int (*f) (int)>
 struct chr {
-    
-    maybe<char> operator()(std::istream& in) const {
-        stream_state backup(in);
-        char c;
-        if((in >> c) && f(c)) {
-          backup.discard();
-          return c;
-        }
-        return {};
-    };
+
+  static int negation(int c) { return !f(c); }
+  chr<negation> operator!() const { return {}; }
+  
+  maybe<char> operator()(std::istream& in) const {
+    stream_state backup(in);
+    char c;
+    if((in >> c) && f(c)) {
+      backup.discard();
+      return c;
+    }
+    return {};
+  };
     
 };
 
