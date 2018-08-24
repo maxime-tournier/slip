@@ -42,6 +42,7 @@ simple prototype language with:
 	 (new functor (map list-map)))
 
 list-functor
+;; list-functor : functor list = {map: #<func>}
 
 ;; list monad
 (def list-pure
