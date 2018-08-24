@@ -378,9 +378,11 @@ struct infer_visitor {
     
     // build provided type
     const mono init = empty;
-    const mono provided = rec(foldr(init, self.attrs, [&](const ast::rec::attr attr, mono tail) {
-          return row(attr.name, mono::infer(sub, attr.value)) |= tail;
-        }));
+    const mono provided =
+      rec(foldr(init, self.attrs,
+                [&](const ast::rec::attr attr, mono tail) {
+                  return row(attr.name, mono::infer(sub, attr.value)) |= tail;
+                }));
 
     // now also unify inner with provided type
     s->unify(inner, provided);
@@ -399,7 +401,8 @@ struct infer_visitor {
     // make sure all reference quantified references substitute to quantified
     // variables
     for(const var& v : reference.forall) {
-      if(auto u = sub->substitute(v).get<var>()) {
+      const mono vs = sub->substitute(v);
+      if(auto u = vs.get<var>()) {
         auto it = quantified.find(*u);
         if(it != quantified.end()) {
           continue;
