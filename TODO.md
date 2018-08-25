@@ -6,6 +6,7 @@
 - record literals?
 - variant literals?
 - record line numbers somewhow
+- qualified names foo.bar.baz -> (:baz (:bar foo))
 
 # syntax
 
@@ -26,3 +27,13 @@
 # eval
 
 - importing/exporting modules
+
+
+# modules
+
+- (use `symbol`) : unwrap module and populate environment with contents
+  : io unit
+  
+- (import `symbol`) : load file and assign last result to variable
+  : io unit
+  

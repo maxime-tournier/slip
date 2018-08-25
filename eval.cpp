@@ -4,6 +4,10 @@
 
 #include "sexpr.hpp"
 
+// env::~env() {
+//   std::clog << __func__ << std::endl;
+// }
+
 closure::closure(std::size_t argc, func_type func)
   : func(func),
     argc(argc) {
@@ -93,10 +97,12 @@ struct eval_visitor {
     const std::size_t argc = size(args);
     
     const ast::expr body = *self.body;
-    const ref<env> scope = e;
+
+    // note: weak ref to break cycles
+    const std::weak_ptr<env> scope = e;
     
     return closure(argc, [argc, args, scope, body](const value* values) -> value {
-      return eval(augment(scope, args, values, values + argc), body);
+      return eval(augment(scope.lock(), args, values, values + argc), body);
     });
   }
 

@@ -10,7 +10,11 @@
 #include "ast.hpp"
 
 struct value;
-using env = environment<value>;
+
+struct env : environment<value> {
+  using env::environment::environment;
+  // ~env();
+};
 
 struct record {
   std::map<symbol, value> attrs;
