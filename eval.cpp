@@ -212,11 +212,6 @@ value eval(const ref<env>& e, const ast::expr& self) {
 }
 
   
-value eval(const ref<env>& e, const ast::toplevel& self) {
-  return self.visit(eval_visitor(), e);
-}
-
-
 namespace {
 struct ostream {
   using type = void;

@@ -57,6 +57,5 @@ closure::closure(Ret (*impl) (const Args&...) )
 value apply(const value& func, const value* first, const value* last);
 
 value eval(const ref<env>& e, const ast::expr& expr);
-value eval(const ref<env>& e, const ast::toplevel& expr);
 
 #endif

@@ -178,16 +178,6 @@ namespace ast {
   };
 
 
-  struct toplevel : variant<expr> {
-    using toplevel::variant::variant;
-    
-    // TODO types, modules etc
-    friend std::ostream& operator<<(std::ostream& out, const toplevel& self);
-
-    static toplevel check(const sexpr& e);
-  };
-
-  
   struct error : std::runtime_error {
     using runtime_error::runtime_error;
   };

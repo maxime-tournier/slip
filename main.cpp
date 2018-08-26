@@ -196,22 +196,19 @@ int main(int argc, char** argv) {
           if(auto exprs = program(in)) {
             for(const sexpr& x : exprs.get()) {
               // std::cout << "parsed: " << s << std::endl;
-              const ast::toplevel c = ast::toplevel::check(x);
-              if(debug) std::cout << "ast: " << c << std::endl;
+              const ast::expr e = ast::expr::check(x);
+              if(debug) std::cout << "ast: " << e << std::endl;
 
-              // toplevel expression?
-              if(auto e = c.get<ast::expr>()) {
-                const type::mono t = type::mono::infer(s, *e);
-                const type::poly p = s->generalize(t);
-
-                // TODO: cleanup variables with depth greater than current in
-                // substitution
-                if(auto v = e->get<ast::var>()) std::cout << v->name;
-                std::cout << " : " << p;
-
-                const value v = eval(r, *e);
-                std::cout << " = " << v << std::endl;
-              }
+              const type::mono t = type::mono::infer(s, e);
+              const type::poly p = s->generalize(t);
+              
+              // TODO: cleanup variables with depth greater than current in
+              // substitution
+              if(auto v = e.get<ast::var>()) std::cout << v->name;
+              std::cout << " : " << p;
+              
+              const value v = eval(r, e);
+              std::cout << " = " << v << std::endl;
             }
             return true;
           } 

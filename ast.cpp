@@ -292,11 +292,6 @@ static maybe<expr> check_seq(sexpr::list args) {
   }
 
   
-  toplevel toplevel::check(const sexpr& e) {
-    return expr::check(e);
-  }
-
-  
   namespace {
     struct repr {
       using type = sexpr;
@@ -437,10 +432,6 @@ static maybe<expr> check_seq(sexpr::list args) {
     return out << self.visit(repr());
   }
   
-  std::ostream& operator<<(std::ostream& out, const toplevel& self) {
-    return out << self.visit(repr());
-  }
-
   
 }
 
