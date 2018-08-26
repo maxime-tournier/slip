@@ -179,6 +179,20 @@ struct eval_visitor {
   value operator()(const ast::make& self, const ref<env>& e) const {
     return eval(e, ast::rec{self.attrs});
   }
+
+  value operator()(const ast::use& self, const ref<env>& e) const {
+    auto r = eval(e, *self.env);
+    auto s = scope(e);
+    if(auto rr = r.get<record>()) {
+      for(const auto& it : rr->attrs) {
+        s->locals.emplace(it.first, it.second);
+      }
+
+      return eval(s, *self.body);
+    }
+    
+    throw std::logic_error("attempting to use a non-record expr");
+  }
   
   
   template<class T>

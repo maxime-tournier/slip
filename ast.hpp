@@ -115,13 +115,24 @@ namespace ast {
     const list<io> items;
   };
 
+  // unpack a record into the environment
+  struct use {
+    const ref<expr> env;
+    const ref<expr> body;
+
+    use(const expr& env, const expr& body)
+      : env(make_expr(env)),
+        body(make_expr(body)) { }
+  };
+  
+  
   struct expr : variant<lit<boolean>,
                         lit<integer>,
                         lit<real>,
                         var, abs, app, let,
                         cond,
                         rec, sel,
-                        make,
+                        make, use,
                         def, seq> {
     using expr::variant::variant;
 

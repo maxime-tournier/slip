@@ -20,6 +20,9 @@ static const auto make_constant = [](const char* name, kind::any k=kind::term())
 static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
   return make_ref<variable>(variable{level, k});
 };
+
+template<class Func>
+static void iter_rows(mono self, Func func);
   
 
 // constants
@@ -123,7 +126,10 @@ struct ostream_visitor {
 
     static const bool extra = false;
     if(debug && extra) {
-      out << "(" << std::hex << (long(self.get()) & 0xffff) << "::" << self->kind << ")";
+      out << "("
+          << std::hex << (long(self.get()) & 0xffff)
+          << "::" << self->kind
+          << ")";
     }
   }
 
@@ -239,7 +245,8 @@ kind::any mono::kind() const {
           ([&](const ast::abs& abs) { 
             return ast::bind{self.name,
                              ast::app{ast::var{fix()},
-                                      ast::abs{self.name >>= list<ast::abs::arg>(), self.value}
+                                      ast::abs{self.name >>= list<ast::abs::arg>(),
+                                          self.value}
                                       >>= list<ast::expr>()}};
           }, 
             [&](const ast::expr& expr) { return self; });
@@ -440,8 +447,9 @@ struct infer_visitor {
   
   // def
   mono operator()(const ast::def& self, const ref<state>& s) const {
+    using ::list;
     const mono value =
-      mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= ::list<ast::bind>(),
+      mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= list<ast::bind>(),
                               ast::var{self.name}));
     try {
       s->def(self.name, value);
@@ -449,6 +457,27 @@ struct infer_visitor {
     } catch(std::runtime_error& e) {
       throw error(e.what());
     }
+  }
+
+
+  // use
+  mono operator()(const ast::use& self, const ref<state>& s) const {
+    // infer value type
+    const mono value = mono::infer(s, *self.env);
+
+    // make sure value type is a record
+    const mono row = s->fresh(kind::row());
+    s->unify(value, rec(row));
+
+    auto sub = scope(s);
+    
+    // fill sub scope with record contents
+    iter_rows(s->substitute(row), [&](symbol attr, mono t) {
+        // TODO generalization issue?
+        sub->def(attr, t);
+      });
+
+    return mono::infer(sub, *self.body);
   }
   
   // lit
@@ -637,6 +666,16 @@ struct extension {
   }
 };
 
+template<class Func>
+static void iter_rows(mono self, Func func) {
+  assert(self.kind() == kind::row());
+  self.match
+    ([&](const app& self) {
+      const auto e = extension::unpack(self);
+      func(e.attr, e.head);
+      iter_rows(e.tail, func);
+    }, [](const mono& ) { });
+}
 
 static maybe<extension> rewrite(state* s, symbol attr, mono row);
 

@@ -190,7 +190,15 @@ static maybe<expr> check_seq(sexpr::list args) {
     pop_as<symbol>() >> [](symbol type) {
       return check_record >> [type](expr self) {
         const expr res = make{type, self.cast<rec>().attrs};
-        return pure(res);
+        return done(pure(res));
+      };
+    };
+
+  static const auto check_use =
+    pop() >> [](sexpr env) {
+      return pop() >> [env](sexpr body) {
+        const expr res = use(expr::check(env), expr::check(body));
+        return done(pure(res));
       };
     };
   
@@ -203,12 +211,13 @@ static maybe<expr> check_seq(sexpr::list args) {
       cond("if"),
       rec("record"),
       make("new"),
-      bind("bind")
+      bind("bind"),
+      use("use")
       ;
    
 
     static const std::set<symbol> reserved = {
-      abs, let, def, cond, rec, make, bind, seq,
+      abs, let, def, cond, rec, bind, seq, make, use
     };
 
   }
@@ -221,11 +230,14 @@ static maybe<expr> check_seq(sexpr::list args) {
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::rec, {check_record, "(record (`symbol` `expr`)...)"}},
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
-    {kw::def, {check_def, "(def `symbol` `expr`)"}},    
+    {kw::def, {check_def, "(def `symbol` `expr`)"}},
+    {kw::use, {check_use, "(use `expr` `expr`)"}},        
   };
 
   static const special_type<io> special_io = {
-    {kw::bind, {check_bind >> [](bind self) { return pure(io(self)); }, "(bind `symbol` `expr`)"}},
+    {kw::bind, {check_bind >> [](bind self) {
+      return pure(io(self));
+    }, "(bind `symbol` `expr`)"}},
   };
   
   expr expr::check(const sexpr& e) {
@@ -385,6 +397,13 @@ static maybe<expr> check_seq(sexpr::list args) {
           >>= map(self.attrs, [](rec::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
+      }
+
+      sexpr operator()(const use& self) const {
+        return kw::use
+          >>= self.env->visit(repr())
+          >>= self.body->visit(repr())
+          >>= sexpr::list();
       }
       
       

@@ -10,7 +10,7 @@
 
 # syntax
 
-- record line numbers somewhow
+- record line numbers somewhow (record stream_pos pairs in sexprs)
 - type language
 - type definitions
 
@@ -31,9 +31,6 @@
 
 # modules
 
-- (use `symbol`) : unwrap module and populate environment with contents
-  : io unit
-  
 - (import `symbol`) : load file and assign last result to variable
   : io unit
   
