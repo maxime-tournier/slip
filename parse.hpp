@@ -264,11 +264,17 @@ struct kleene_type {
     }
 };
 
-template<class Parser, class = value_type<Parser> >
-static kleene_type<Parser> operator*(const Parser& parser) {
+template<class Parser, class=value_type<Parser> >
+static kleene_type<Parser> operator*(Parser parser) {
     return {parser};
 }
 
+
+template<class Parser, class=value_type<Parser> >
+static kleene_type<Parser> kleene(Parser parser) {
+    return {parser};
+}
+  
 
 // (non-empty) kleene star
 template<class Parser>

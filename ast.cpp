@@ -432,6 +432,12 @@ static maybe<expr> check_seq(sexpr::list args) {
     return out << self.visit(repr());
   }
   
+
+  void expr::iter(std::istream& in, std::function<void(expr)> cont) {
+    sexpr::iter(in, [cont](sexpr e) {
+      cont(expr::check(e));
+    });
+  }
   
 }
 

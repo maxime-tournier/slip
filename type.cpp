@@ -7,6 +7,7 @@
 #include "tool.hpp"
 
 #include "maybe.hpp"
+#include "import.hpp"
 
 namespace type {
 
@@ -479,6 +480,14 @@ struct infer_visitor {
 
     return mono::infer(sub, *self.body);
   }
+
+
+  // import
+  mono operator()(const ast::import& self, const ref<state>& s) const {
+    s->def(self.package, import::typecheck(self.package));
+    return io(unit);
+  }
+  
   
   // lit
   mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
@@ -713,7 +722,8 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 
   static void unify(state* self, mono from, mono to, ostream_visitor::map_type& map);
   
-  static void unify_rows(state* self, const app& from, const app& to, ostream_visitor::map_type& map) {
+  static void unify_rows(state* self, const app& from, const app& to,
+                         ostream_visitor::map_type& map) {
   const extension e = extension::unpack(from);
 
   // try rewriting 'to' like 'from'
@@ -737,8 +747,8 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 
   // rewriting failed: attribute error
   std::stringstream ss;
-  ss << "expected attribute " << tool::quote(e.attr.get()) << " in record type \""
-     << self->generalize(to) << "\"";
+  ss << "expected attribute " << tool::quote(e.attr.get())
+     << " in record type \"" << self->generalize(to) << "\"";
   throw error(ss.str());
 }
 

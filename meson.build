@@ -14,5 +14,6 @@ executable('slap',
 		   'tool.cpp',
 		   'type.cpp',
 		   'kind.cpp',
+		   'import.cpp',		   
 		   dependencies: [readline])
 

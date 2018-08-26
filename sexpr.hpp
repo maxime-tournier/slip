@@ -14,11 +14,16 @@ struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   using list = list<sexpr>;
 
   static maybe<sexpr> parse(std::istream& in);
+
+  struct error : std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+
+  static void iter(std::istream& in, std::function<void(sexpr)> cont);
 };
 
-struct parse_error : std::runtime_error {
-  using std::runtime_error::runtime_error;
-};
+
+
 
 
 #endif

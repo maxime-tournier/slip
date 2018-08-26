@@ -4,6 +4,7 @@
 
 #include "sexpr.hpp"
 
+namespace eval {
 // env::~env() {
 //   std::clog << __func__ << std::endl;
 // }
@@ -16,8 +17,6 @@ closure::closure(std::size_t argc, func_type func)
 
 closure::closure(const closure&) = default;
 closure::closure(closure&&) = default;
-
-static value eval(const ref<env>& e, const ast::io& self);
 
 value apply(const value& self, const value* first, const value* last) {
   const std::size_t argc = last - first;
@@ -59,16 +58,16 @@ value apply(const value& self, const value* first, const value* last) {
 }
 
 
-struct eval_visitor {
+struct expr_visitor {
   using type = value;
   
   template<class T>
-  T operator()(const ast::lit<T>& self, const ref<env>& ) const {
+  T operator()(const ast::lit<T>& self, const ref<state>& ) const {
 	return self.value;
   }
 
   
-  value operator()(const ast::var& self, const ref<env>& e) const {
+  value operator()(const ast::var& self, const ref<state>& e) const {
 	try {
 	  return e->find(self.name);
 	} catch(std::out_of_range& e) {
@@ -77,19 +76,19 @@ struct eval_visitor {
   }
 
   
-  value operator()(const ast::app& self, const ref<env>& e) const {
-    const value func = eval(e, *self.func);
+  value operator()(const ast::app& self, const ref<state>& e) const {
+    const value func = expr(e, *self.func);
 
     std::vector<value> args;
     foldl(unit(), self.args, [&](unit, const ast::expr& self) {
-        args.emplace_back(eval(e, self));
+        args.emplace_back(expr(e, self));
         return unit();
       });
     
     return apply(func, args.data(), args.data() + args.size());
   }
   
-  value operator()(const ast::abs& self, const ref<env>& e) const {
+  value operator()(const ast::abs& self, const ref<state>& e) const {
     const list<symbol> args = map(self.args, [](const ast::abs::arg& arg) {
         return arg.name();
       });
@@ -99,27 +98,27 @@ struct eval_visitor {
     const ast::expr body = *self.body;
 
     // note: weak ref to break cycles
-    const std::weak_ptr<env> scope = e;
+    const std::weak_ptr<state> scope = e;
     
     return closure(argc, [argc, args, scope, body](const value* values) -> value {
-      return eval(augment(scope.lock(), args, values, values + argc), body);
+      return expr(augment(scope.lock(), args, values, values + argc), body);
     });
   }
 
   
-  value operator()(const ast::seq& self, const ref<env>& e) const {
+  value operator()(const ast::seq& self, const ref<state>& e) const {
 	const value init = unit();
 	return foldl(init, self.items,
 				 [&](const value&, const ast::io& self) -> value {
-				   return eval(e, self);
+				   return self.visit(expr_visitor(), e);
 				 });
   }
 
 
-  value operator()(const ast::def& self, const ref<env>& e) const {
+  value operator()(const ast::def& self, const ref<state>& e) const {
     // note: the type system will keep us from evaluating side effects if the
     // variable is already defined
-    if(!e->locals.emplace(self.name, eval(e, *self.value)).second) {
+    if(!e->locals.emplace(self.name, expr(e, *self.value)).second) {
       throw std::logic_error("redefined variable " + tool::quote(self.name.get()));
     }
     
@@ -127,47 +126,47 @@ struct eval_visitor {
   }
   
   
-  value operator()(const ast::let& self, const ref<env>& e) const {
+  value operator()(const ast::let& self, const ref<state>& e) const {
     auto sub = scope(e);
-    env::locals_type locals;
+    state::locals_type locals;
     
     for(const ast::bind& def : self.defs) {
-      locals.emplace(def.name, eval(sub, def.value));
+      locals.emplace(def.name, expr(sub, def.value));
     }
 
     sub->locals = std::move(locals);
-    return eval(sub, *self.body);
+    return expr(sub, *self.body);
   }
 
   
-  value operator()(const ast::cond& self, const ref<env>& e) const {
-    const value test = eval(e, *self.test);
+  value operator()(const ast::cond& self, const ref<state>& e) const {
+    const value test = expr(e, *self.test);
     if(auto b = test.get<boolean>()) {
-      if(*b) return eval(e, *self.conseq);
-      else return eval(e, *self.alt);
+      if(*b) return expr(e, *self.conseq);
+      else return expr(e, *self.alt);
     } else throw std::runtime_error("condition must be boolean");
   }
 
 				   
-  value operator()(const ast::io& self, const ref<env>& e) const {
-	return self.visit(eval_visitor(), e);
+  value operator()(const ast::io& self, const ref<state>& e) const {
+	return self.visit(expr_visitor(), e);
   }
 
-  value operator()(const ast::expr& self, const ref<env>& e) const {
-	return self.visit(eval_visitor(), e);
+  value operator()(const ast::expr& self, const ref<state>& e) const {
+	return self.visit(expr_visitor(), e);
   }
 
-  value operator()(const ast::record& self, const ref<env>& e) const {
+  value operator()(const ast::record& self, const ref<state>& e) const {
     record res;
     foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
-      res.attrs.emplace(attr.name, eval(e, attr.value));
+      res.attrs.emplace(attr.name, expr(e, attr.value));
       return unit();
     });
     return res;
   }
 
 
-  value operator()(const ast::sel& self, const ref<env>& e) const {
+  value operator()(const ast::sel& self, const ref<state>& e) const {
     const symbol name = self.name;
     return closure(1, [name](const value* args) -> value {
       return args[0].cast<record>().attrs.at(name);      
@@ -176,19 +175,19 @@ struct eval_visitor {
   }
 
 
-  value operator()(const ast::make& self, const ref<env>& e) const {
-    return eval(e, ast::record{self.attrs});
+  value operator()(const ast::make& self, const ref<state>& e) const {
+    return expr(e, ast::record{self.attrs});
   }
 
-  value operator()(const ast::use& self, const ref<env>& e) const {
-    auto r = eval(e, *self.env);
+  value operator()(const ast::use& self, const ref<state>& e) const {
+    auto r = expr(e, *self.env);
     auto s = scope(e);
     if(auto rr = r.get<record>()) {
       for(const auto& it : rr->attrs) {
         s->locals.emplace(it.first, it.second);
       }
 
-      return eval(s, *self.body);
+      return expr(s, *self.body);
     }
     
     throw std::logic_error("attempting to use a non-record expr");
@@ -196,19 +195,15 @@ struct eval_visitor {
   
   
   template<class T>
-  value operator()(const T& self, const ref<env>& e) const {
+  value operator()(const T& self, const ref<state>& e) const {
 	throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
   }
   
 };
 
 
-static value eval(const ref<env>& e, const ast::io& self) {
-  return self.visit(eval_visitor(), e);
-}
-
-value eval(const ref<env>& e, const ast::expr& self) {
-  return self.visit(eval_visitor(), e);
+value expr(const ref<state>& e, const ast::expr& self) {
+  return self.visit(expr_visitor(), e);
 }
 
   
@@ -258,4 +253,6 @@ struct ostream {
 std::ostream& operator<<(std::ostream& out, const value& self) {
   self.visit(ostream(), out);
   return out;
+}
+
 }

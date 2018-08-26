@@ -104,7 +104,8 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto once =
     (expr_parser =
      (debug("expr") |=
-      skip(skip_parser, (symbol_parser >> as_expr)
+      skip(skip_parser,
+           (symbol_parser >> as_expr)
            | (attr_parser >> as_expr)
            | (op_parser >> as_expr)
            | number_parser
@@ -114,3 +115,21 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   // debug::stream = &std::clog;
   return expr_parser(in);
 }
+
+
+void sexpr::iter(std::istream& in, std::function<void(sexpr)> cont) {
+  using namespace parser;
+
+  using exprs_type = std::deque<sexpr>;
+  
+  static const auto program_parser = debug("prog") |=
+    kleene(parse) >> drop(debug("eof") |= eof())
+    | parser::error<exprs_type>("parse error");
+  
+  (program_parser >> [cont](exprs_type es) {
+    std::for_each(es.begin(), es.end(), cont);
+    return pure(unit());
+  })(in);
+  
+}
+

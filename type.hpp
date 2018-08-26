@@ -107,7 +107,7 @@ struct poly {
   const extern mono unit, boolean, integer, real;
 
   // constructors
-  const extern mono func, list; // , io
+  const extern mono func, list, io;
   const extern mono record, empty;
 
   // module unpacking

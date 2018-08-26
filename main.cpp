@@ -14,6 +14,7 @@
 #include "unpack.hpp"
 
 #include "type.hpp"
+#include "import.hpp"
 
 const bool debug = false;
 
@@ -45,10 +46,12 @@ static void read_loop(const F& f) {
 };
 
 
-static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont) {
+static int with_prelude(std::function<int(ref<eval::state> e,
+                                          ref<type::state> s)> cont) {
   using namespace unpack;
-  auto e = make_ref<env>();
-  
+  auto e = make_ref<eval::state>();
+
+  using namespace eval;
   (*e)
     .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
           return lhs + rhs;
@@ -182,42 +185,36 @@ int main(int argc, char** argv) {
 
   // parser::debug::stream = &std::clog;
 
-  const parser::any<sexpr> expr = sexpr::parse;
-
-  using parser::operator*;
-  static const auto program = parser::debug("prog") |=
-    *expr >> parser::drop(parser::debug("eof") |= parser::eof())
-    | parser::error<std::deque<sexpr>>("parse error");
-
-  return with_prelude([&](ref<env> r, ref<type::state> s) {
+  return with_prelude([&](ref<eval::state> r, ref<type::state> s) {
       static const auto handler =
         [&](std::istream& in) {
         try {
-          if(auto exprs = program(in)) {
-            for(const sexpr& x : exprs.get()) {
-              // std::cout << "parsed: " << s << std::endl;
-              const ast::expr e = ast::expr::check(x);
-              if(debug) std::cout << "ast: " << e << std::endl;
-
-              const type::mono t = type::mono::infer(s, e);
-              const type::poly p = s->generalize(t);
-              
-              // TODO: cleanup variables with depth greater than current in
-              // substitution
-              if(auto v = e.get<ast::var>()) std::cout << v->name;
-              std::cout << " : " << p;
-              
-              const value v = eval(r, e);
-              std::cout << " = " << v << std::endl;
-            }
-            return true;
-          } 
+          ast::expr::iter(in, [&](ast::expr e) {
+            if(debug) std::cout << "ast: " << e << std::endl;
+            
+            const type::mono t = type::mono::infer(s, e);
+            const type::poly p = s->generalize(t);
+            
+            // TODO: cleanup variables with depth greater than current in
+            // substitution
+            if(auto v = e.get<ast::var>()) std::cout << v->name;
+            std::cout << " : " << p;
+            
+            const eval::value v = eval::expr(r, e);
+            std::cout << " = " << v << std::endl;
+          });
+          
+          return true;
+        } catch(sexpr::error& e) {
+          std::cerr << "parse error: " << e.what() << std::endl;
         } catch(ast::error& e) {
           std::cerr << "syntax error: " << e.what() << std::endl;
         } catch(type::error& e) {
           std::cerr << "type error: " << e.what() << std::endl;
         } catch(kind::error& e) {
           std::cerr << "kind error: " << e.what() << std::endl;
+        } catch(import::error& e) {
+          std::cerr << "import error: " << e.what() << std::endl;
         } catch(std::runtime_error& e) {
           std::cerr << "runtime error: " << e.what() << std::endl;
         }
