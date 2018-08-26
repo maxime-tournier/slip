@@ -14,8 +14,6 @@
 #include "unpack.hpp"
 
 #include "type.hpp"
-#include "import.hpp"
-
 #include "core.hpp"
 
 const bool debug = false;
@@ -48,32 +46,37 @@ static void read_loop(const F& f) {
 };
 
 
+static const std::string ext = ".el";
+
+static std::string resolver(symbol name) {
+  return name.get() + ext;
+}
+
+
 int main(int argc, char** argv) {
 
   // parser::debug::stream = &std::clog;
-  auto s = make_ref<type::state>();
-  auto r = make_ref<eval::state>();
-
-  core::setup(s, r);
+  package pkg(resolver);
+  core::setup(pkg);
+  
+  // core::setup(s, r);
   
   static const auto handler =
     [&](std::istream& in) {
       try {
         ast::expr::iter(in, [&](ast::expr e) {
           if(debug) std::cout << "ast: " << e << std::endl;
-          
-          const type::mono t = type::mono::infer(s, e);
-          const type::poly p = s->generalize(t);
+          pkg.exec(e, [&](type::poly p, eval::value v) {
+            // TODO: cleanup variables with depth greater than current in
+            // substitution
+            if(auto v = e.get<ast::var>()) {
+              std::cout << v->name;
+            }
             
-          // TODO: cleanup variables with depth greater than current in
-          // substitution
-          if(auto v = e.get<ast::var>()) std::cout << v->name;
-          std::cout << " : " << p;
-            
-          const eval::value v = eval::expr(r, e);
-          std::cout << " = " << v << std::endl;
+            std::cout << " : " << p
+                      << " = " << v << std::endl;
+          });
         });
-          
         return true;
       } catch(sexpr::error& e) {
         std::cerr << "parse error: " << e.what() << std::endl;
@@ -83,8 +86,6 @@ int main(int argc, char** argv) {
         std::cerr << "type error: " << e.what() << std::endl;
       } catch(kind::error& e) {
         std::cerr << "kind error: " << e.what() << std::endl;
-      } catch(import::error& e) {
-        std::cerr << "import error: " << e.what() << std::endl;
       } catch(std::runtime_error& e) {
         std::cerr << "runtime error: " << e.what() << std::endl;
       }

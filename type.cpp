@@ -7,7 +7,7 @@
 #include "tool.hpp"
 
 #include "maybe.hpp"
-#include "import.hpp"
+#include "package.hpp"
 
 namespace type {
 
@@ -72,8 +72,6 @@ state& state::def(symbol name, mono t) {
   return *this;
 }
   
-
-static mono instantiate(poly self, std::size_t depth);
 
 
 mono mono::operator()(mono arg) const {
@@ -269,7 +267,7 @@ struct infer_visitor {
   // var
   mono operator()(const ast::var& self, const ref<state>& s) const {
     try {
-      return instantiate(s->find(self.name), s->level);
+      return s->instantiate(s->find(self.name));
     } catch(std::out_of_range& e) {
       throw error("unbound variable " + tool::quote(self.name.get()));
     }
@@ -291,7 +289,7 @@ struct infer_visitor {
           return module(a)(a);
          },
          [&](ast::abs::typed self) {
-           return mono::infer(sub, self.type);
+           return infer(sub, self.type);
          });
         
         const mono outer = s->fresh();
@@ -304,7 +302,7 @@ struct infer_visitor {
     });
     
     // infer lambda body with augmented environment
-    s->unify(result, mono::infer(sub, *self.body));
+    s->unify(result, infer(sub, *self.body));
     
     return sig;
   }
@@ -312,11 +310,11 @@ struct infer_visitor {
 
   // app
   mono operator()(const ast::app& self, const ref<state>& s) const {
-    const mono func = mono::infer(s, *self.func);
+    const mono func = infer(s, *self.func);
     const mono result = s->fresh();
 
     const mono sig = foldr(result, self.args, [&](ast::expr e, mono t) {
-        return mono::infer(s, e) >>= t;
+        return infer(s, e) >>= t;
       });
 
     s->unify(sig, func);
@@ -329,10 +327,10 @@ struct infer_visitor {
     auto sub = scope(s);
 
     for(ast::bind def : self.defs) {
-      sub->locals.emplace(def.name, s->generalize(mono::infer(s, def.value)));
+      sub->locals.emplace(def.name, s->generalize(infer(s, def.value)));
     }
     
-    return mono::infer(sub, self.body);
+    return infer(sub, self.body);
   }
   
   // recursive let
@@ -359,7 +357,7 @@ struct infer_visitor {
   mono operator()(const ast::record& self, const ref<state>& s) const {
     const mono init = empty;
     const mono row = foldr(init, self.attrs, [&](ast::record::attr attr, mono tail) {
-        return ext(attr.name)(mono::infer(s, attr.value))(tail);
+        return ext(attr.name)(infer(s, attr.value))(tail);
       });
 
     return record(row);
@@ -379,7 +377,7 @@ struct infer_visitor {
     // instantiate signature at sub level prevents generalization of
     // contravariant side (variables only appearing in the covariant side will
     // be generalized)
-    s->unify(module(outer)(inner), instantiate(sig, sub->level));
+    s->unify(module(outer)(inner), sub->instantiate(sig));
 
     // vanilla covariant type
     const poly reference = sub->generalize(inner);
@@ -389,7 +387,7 @@ struct infer_visitor {
     const mono provided =
       record(foldr(init, self.attrs,
                 [&](const ast::record::attr attr, mono tail) {
-                  return row(attr.name, mono::infer(sub, attr.value)) |= tail;
+                  return row(attr.name, infer(sub, attr.value)) |= tail;
                 }));
 
     // now also unify inner with provided type
@@ -432,11 +430,11 @@ struct infer_visitor {
 
   // cond
   mono operator()(const ast::cond& self, const ref<state>& s) const {
-    const mono test = mono::infer(s, *self.test);
+    const mono test = infer(s, *self.test);
     s->unify(test, boolean);
 
-    const mono conseq = mono::infer(s, *self.conseq);
-    const mono alt = mono::infer(s, *self.alt);    
+    const mono conseq = infer(s, *self.conseq);
+    const mono alt = infer(s, *self.alt);    
 
     const mono result = s->fresh();
     s->unify(result, conseq);
@@ -450,7 +448,7 @@ struct infer_visitor {
   mono operator()(const ast::def& self, const ref<state>& s) const {
     using ::list;
     const mono value =
-      mono::infer(s, ast::let(ast::bind{self.name, *self.value} >>= list<ast::bind>(),
+      infer(s, ast::let(ast::bind{self.name, *self.value} >>= list<ast::bind>(),
                               ast::var{self.name}));
     try {
       s->def(self.name, value);
@@ -464,7 +462,7 @@ struct infer_visitor {
   // use
   mono operator()(const ast::use& self, const ref<state>& s) const {
     // infer value type
-    const mono value = mono::infer(s, *self.env);
+    const mono value = infer(s, *self.env);
 
     // make sure value type is a record
     const mono row = s->fresh(kind::row());
@@ -478,13 +476,22 @@ struct infer_visitor {
         sub->def(attr, t);
       });
 
-    return mono::infer(sub, *self.body);
+    return infer(sub, *self.body);
   }
 
 
   // import
   mono operator()(const ast::import& self, const ref<state>& s) const {
-    s->def(self.package, import::typecheck(self.package));
+    auto it = s->locals.find(self.package);
+    if(it != s->locals.end()) {
+      throw error("variable " + tool::quote(self.package.get()) + " already defined");
+    }
+    
+    const std::string filename = s->resolver(self.package);
+    package pkg(s->resolver);
+    pkg.exec(filename);
+    
+    s->locals.emplace(self.package, pkg.sig());
     return io(unit);
   }
   
@@ -536,7 +543,7 @@ struct instantiate_visitor {
 };
 
 
-static mono instantiate(poly self, std::size_t level) {
+mono state::instantiate(const poly& self) const {
   // associate quantified variables with fresh variables
   instantiate_visitor::map_type map;
   for(const ref<variable>& it : self.forall) {
@@ -549,23 +556,26 @@ static mono instantiate(poly self, std::size_t level) {
 }
 
 
-mono mono::infer(const ref<state>& s, const ast::expr& self) {
+mono infer(const ref<state>& s, const ast::expr& self) {
   return self.visit(infer_visitor(), s);
 }
 
 
 // type state
-state::state()
+state::state(resolver_type resolver)
   : level(0),
-    sub(make_ref<substitution>()) {
+    sub(make_ref<substitution>()),
+    resolver(resolver) {
 
 }
 
 
 state::state(const ref<state>& parent)
   : environment<poly>(parent),
-  level(parent->level + 1),
-  sub(parent->sub) {
+    level(parent->level + 1),
+    sub(parent->sub),
+    resolver(parent->resolver)
+{
 
 }
 

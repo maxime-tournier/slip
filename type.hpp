@@ -36,13 +36,19 @@ struct state : environment<poly> {
   const std::size_t level;
   const ref<substitution> sub;
 
-  state();
+  // package filename resolver
+  using resolver_type = std::function<std::string(symbol)>;
+  const resolver_type resolver;
+  
+  state(resolver_type resolver);
   state(const ref<state>& parent);
 
   ref<variable> fresh(kind::any k=kind::term()) const;
   
-  mono substitute(const mono& t) const; 
+  mono substitute(const mono& t) const;
+  
   poly generalize(const mono& t) const;
+  mono instantiate(const poly& p) const;
   
   void unify(mono from, mono to);
 
@@ -65,12 +71,13 @@ struct mono : variant<cst, var, app> {
 
   ::kind::any kind() const;
   
-  static mono infer(const ref<state>& s, const ast::expr& self);
-
   // convenience constructor for applications
   mono operator()(mono arg) const;
 };
 
+mono infer(const ref<state>& s, const ast::expr& self);
+
+  
 
 struct constant {
   const symbol name;
