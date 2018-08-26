@@ -44,7 +44,7 @@ const mono io =
 
 
   // records
-  const mono rec =
+  const mono record =
     make_constant("record", kind::row() >>= kind::term());
 
   
@@ -137,7 +137,7 @@ struct ostream_visitor {
                   const poly::forall_type& forall, bool parens) const {
     const kind::any k = mono(self).kind();
     
-    if(self->ctor == rec) {
+    if(self->ctor == record) {
       // skip record constructor altogether since row types have {} around
       self->arg.visit(*this, out, forall, true);
       return;
@@ -351,17 +351,17 @@ struct infer_visitor {
     const mono head = s->fresh(kind::term());
     
     const mono row = ext(self.name)(head)(tail);
-    return rec(row) >>= head;
+    return record(row) >>= head;
   }
 
-  // rec
-  mono operator()(const ast::rec& self, const ref<state>& s) const {
+  // record
+  mono operator()(const ast::record& self, const ref<state>& s) const {
     const mono init = empty;
-    const mono row = foldr(init, self.attrs, [&](ast::rec::attr attr, mono tail) {
+    const mono row = foldr(init, self.attrs, [&](ast::record::attr attr, mono tail) {
         return ext(attr.name)(mono::infer(s, attr.value))(tail);
       });
 
-    return rec(row);
+    return record(row);
   }
 
 
@@ -386,8 +386,8 @@ struct infer_visitor {
     // build provided type
     const mono init = empty;
     const mono provided =
-      rec(foldr(init, self.attrs,
-                [&](const ast::rec::attr attr, mono tail) {
+      record(foldr(init, self.attrs,
+                [&](const ast::record::attr attr, mono tail) {
                   return row(attr.name, mono::infer(sub, attr.value)) |= tail;
                 }));
 
@@ -467,7 +467,7 @@ struct infer_visitor {
 
     // make sure value type is a record
     const mono row = s->fresh(kind::row());
-    s->unify(value, rec(row));
+    s->unify(value, record(row));
 
     auto sub = scope(s);
     

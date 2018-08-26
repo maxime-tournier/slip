@@ -91,8 +91,10 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
     using type::boolean;
     using type::list;
     using type::real;
+    
     using type::module;
-
+    using type::record;
+    
     // arithmetic
     (*s)
       .def("+", integer >>= integer >>= integer)
@@ -145,7 +147,8 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
       const mono functor
         = make_ref<constant>("functor", f.kind() >>= kind::term());
       
-      s->def("functor", module(functor(f))(rec(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)))
+      s->def("functor", module(functor(f))
+             (record(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)))
         ;
     }
 
@@ -161,9 +164,9 @@ static int with_prelude(std::function<int(ref<env> e, ref<type::state> s)> cont)
         = make_ref<constant>("monad", m.kind() >>= kind::term());
       
       s->def("monad", module(monad(m))
-             (rec(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
-                  row("pure", c >>= m(c)) |=
-                  empty)))
+             (record(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
+                     row("pure", c >>= m(c)) |=
+                     empty)))
         ;
     }
 

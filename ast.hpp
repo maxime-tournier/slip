@@ -79,7 +79,7 @@ namespace ast {
 
 
   // records
-  struct rec {
+  struct record {
     struct attr;
 
     const list<attr> attrs;
@@ -97,7 +97,7 @@ namespace ast {
   // module packing
   struct make {
     const symbol type;
-    const list<rec::attr> attrs;
+    const list<record::attr> attrs;
   };
 
   // definition (modifies current environment)
@@ -124,6 +124,11 @@ namespace ast {
       : env(make_expr(env)),
         body(make_expr(body)) { }
   };
+
+  // load and add result to the environment
+  struct import {
+    const symbol package;
+  };
   
   
   struct expr : variant<lit<boolean>,
@@ -131,8 +136,9 @@ namespace ast {
                         lit<real>,
                         var, abs, app, let,
                         cond,
-                        rec, sel,
+                        record, sel,
                         make, use,
+                        import,
                         def, seq> {
     using expr::variant::variant;
 
@@ -151,7 +157,7 @@ namespace ast {
     symbol name() const;
   };  
 
-  struct rec::attr {
+  struct record::attr {
     using list = list<attr>;
     const symbol name;
     const expr value;

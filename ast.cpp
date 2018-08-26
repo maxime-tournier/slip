@@ -163,23 +163,23 @@ static maybe<expr> check_seq(sexpr::list args) {
   
 
   static maybe<expr> check_record(sexpr::list args) {
-    const auto init = just(rec::attr::list());
+    const auto init = just(record::attr::list());
 
     // build attribute list by folding args
-    return foldr(init, args, [](sexpr e, maybe<rec::attr::list> tail) {
-      return tail >> [&](rec::attr::list tail) {
+    return foldr(init, args, [](sexpr e, maybe<record::attr::list> tail) {
+      return tail >> [&](record::attr::list tail) {
         if(auto self = e.get<sexpr::list>()) {
           return check_bind(*self) >> [&](bind b) {
-            const rec::attr head{b.name, b.value};
+            const record::attr head{b.name, b.value};
             return just(head >>= tail);
           };
         } else {
-          return maybe<rec::attr::list>();
+          return maybe<record::attr::list>();
         }
       };
-    }) >> [](rec::attr::list attrs) {
+    }) >> [](record::attr::list attrs) {
       // build record from attribute list, if any
-      const expr res = rec{attrs};
+      const expr res = record{attrs};
       return just(res);
     };
   
@@ -189,7 +189,7 @@ static maybe<expr> check_seq(sexpr::list args) {
   static const auto check_make =
     pop_as<symbol>() >> [](symbol type) {
       return check_record >> [type](expr self) {
-        const expr res = make{type, self.cast<rec>().attrs};
+        const expr res = make{type, self.cast<record>().attrs};
         return done(pure(res));
       };
     };
@@ -201,6 +201,12 @@ static maybe<expr> check_seq(sexpr::list args) {
         return done(pure(res));
       };
     };
+
+  static const auto check_import =
+    pop_as<symbol>() >> [](symbol package) {
+      const expr res = import{package};
+      return done(pure(res));
+    };
   
   namespace kw {
 
@@ -209,15 +215,16 @@ static maybe<expr> check_seq(sexpr::list args) {
       seq("do"),
       def("def"),
       cond("if"),
-      rec("record"),
+      record("record"),
       make("new"),
       bind("bind"),
-      use("use")
+      use("use"),
+      import("import")
       ;
    
 
     static const std::set<symbol> reserved = {
-      abs, let, def, cond, rec, bind, seq, make, use
+      abs, let, def, cond, record, bind, seq, make, use, import
     };
 
   }
@@ -228,10 +235,11 @@ static maybe<expr> check_seq(sexpr::list args) {
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
-    {kw::rec, {check_record, "(record (`symbol` `expr`)...)"}},
+    {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
     {kw::def, {check_def, "(def `symbol` `expr`)"}},
-    {kw::use, {check_use, "(use `expr` `expr`)"}},        
+    {kw::use, {check_use, "(use `expr` `expr`)"}},
+    {kw::import, {check_import, "(import `symbol`)"}},            
   };
 
   static const special_type<io> special_io = {
@@ -374,9 +382,9 @@ static maybe<expr> check_seq(sexpr::list args) {
       }
 
 
-      sexpr operator()(const rec& self) const {
-        return kw::rec
-          >>= map(self.attrs, [](rec::attr attr) -> sexpr {
+      sexpr operator()(const record& self) const {
+        return kw::record
+          >>= map(self.attrs, [](record::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
       }
@@ -394,7 +402,7 @@ static maybe<expr> check_seq(sexpr::list args) {
       sexpr operator()(const make& self) const {
         return kw::make
           >>= self.type
-          >>= map(self.attrs, [](rec::attr attr) -> sexpr {
+          >>= map(self.attrs, [](record::attr attr) -> sexpr {
             return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
       }
@@ -405,7 +413,12 @@ static maybe<expr> check_seq(sexpr::list args) {
           >>= self.body->visit(repr())
           >>= sexpr::list();
       }
-      
+
+      sexpr operator()(const import& self) const {
+        return kw::import
+          >>= self.package
+          >>= sexpr::list();
+      }
       
       template<class T>
       sexpr operator()(const T& self) const {

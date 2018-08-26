@@ -157,9 +157,9 @@ struct eval_visitor {
 	return self.visit(eval_visitor(), e);
   }
 
-  value operator()(const ast::rec& self, const ref<env>& e) const {
+  value operator()(const ast::record& self, const ref<env>& e) const {
     record res;
-    foldl(unit(), self.attrs, [&](unit, const ast::rec::attr& attr) {
+    foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
       res.attrs.emplace(attr.name, eval(e, attr.value));
       return unit();
     });
@@ -177,7 +177,7 @@ struct eval_visitor {
 
 
   value operator()(const ast::make& self, const ref<env>& e) const {
-    return eval(e, ast::rec{self.attrs});
+    return eval(e, ast::record{self.attrs});
   }
 
   value operator()(const ast::use& self, const ref<env>& e) const {

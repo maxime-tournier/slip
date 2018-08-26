@@ -5,14 +5,14 @@
 - extend symbol grammar
 - record literals?
 - variant literals?
-- record line numbers somewhow
+- record line numbers somewhow (record stream_pos pairs in sexprs)
 - qualified names foo.bar.baz -> (:baz (:bar foo))
 
 # syntax
 
-- record line numbers somewhow (record stream_pos pairs in sexprs)
+- report line numbers in syntax errors
 - type language
-- type definitions
+- module definitions
 
 # types
 

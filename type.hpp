@@ -104,11 +104,11 @@ struct poly {
 
 
 // constants
-const extern mono unit, boolean, integer, real;
+  const extern mono unit, boolean, integer, real;
 
   // constructors
   const extern mono func, list; // , io
-  const extern mono rec, empty;
+  const extern mono record, empty;
 
   // module unpacking
   const extern mono module;
