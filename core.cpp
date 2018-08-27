@@ -4,11 +4,16 @@ package package::core() {
   package self;
   
   using namespace eval;
+  
   using type::list;
   using type::real;
     
   using type::module;
   using type::record;
+  using type::row;
+  using type::empty;
+  using type::mono;
+  using type::constant;
     
   self
     .def("+", type::integer >>= type::integer >>= type::integer,
@@ -69,6 +74,43 @@ package package::core() {
              }));
   }
 
+  {
+    // functor
+    const mono f = self.ts->fresh(kind::term() >>= kind::term());
+
+    const mono a = self.ts->fresh(kind::term());
+    const mono b = self.ts->fresh(kind::term());      
+      
+    const mono functor
+      = make_ref<constant>("functor", f.kind() >>= kind::term());
+      
+    self.def("functor", module(functor(f))
+             (record(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)),
+             unit());
+    ;
+  }
+
+
+  {
+    // monad
+    const mono m = self.ts->fresh(kind::term() >>= kind::term());
+
+    const mono a = self.ts->fresh(kind::term());
+    const mono b = self.ts->fresh(kind::term());
+    const mono c = self.ts->fresh(kind::term());            
+      
+    const mono monad
+      = make_ref<constant>("monad", m.kind() >>= kind::term());
+      
+    self.def("monad", module(monad(m))
+             (record(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
+                     row("pure", c >>= m(c)) |=
+                     empty)),
+             unit())
+      ;
+  }
+  
+  
   // self.def("functor", unit());
   // self.def("monad", unit())    
 

@@ -77,9 +77,22 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   } | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
     return pure(symbol(s));
   };
+
+  static const char colon = ':';
   
+  static const auto qualified_parser =
+    (symbol_parser % chr<matches<'.'>>()) >> [](std::deque<symbol> parts) {
+      sexpr res = parts.front();
+      parts.pop_front();
+      
+      for(symbol s : parts) {
+        res = symbol(std::string(1, colon) + s.get()) >>= res >>= sexpr::list();
+      }
+
+      return pure(res);
+    };
   
-  static const auto attr_parser = chr<matches<':'>>() >> [](char c) { 
+  static const auto attr_parser = chr<matches<colon>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
       return pure(symbol(c + std::string(s.get())));
     };
@@ -106,7 +119,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
     (expr_parser =
      (debug("expr") |=
       skip(skip_parser,
-           (symbol_parser >> as_expr)
+           (qualified_parser >> as_expr)
            | (attr_parser >> as_expr)
            | (op_parser >> as_expr)
            | number_parser
