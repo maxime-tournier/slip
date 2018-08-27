@@ -14,7 +14,7 @@
 #include "unpack.hpp"
 
 #include "type.hpp"
-#include "core.hpp"
+#include "package.hpp"
 
 const bool debug = false;
 
@@ -46,20 +46,10 @@ static void read_loop(const F& f) {
 };
 
 
-static const std::string ext = ".el";
-
-static std::string resolver(symbol name) {
-  return name.get() + ext;
-}
-
-
 int main(int argc, char** argv) {
 
   // parser::debug::stream = &std::clog;
-  package pkg(resolver);
-  core::setup(pkg);
-  
-  // core::setup(s, r);
+  package pkg = package::core();
   
   static const auto handler =
     [&](std::istream& in) {

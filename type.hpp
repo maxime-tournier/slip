@@ -38,11 +38,7 @@ struct state : environment<poly> {
   const std::size_t level;
   const ref<substitution> sub;
 
-  // package filename resolver
-  using resolver_type = std::function<std::string(symbol)>;
-  const resolver_type resolver;
-  
-  state(resolver_type resolver);
+  state();
   state(const ref<state>& parent);
 
   ref<variable> fresh(kind::any k=kind::term()) const;

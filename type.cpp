@@ -487,9 +487,7 @@ struct infer_visitor {
       throw error("variable " + tool::quote(self.package.get()) + " already defined");
     }
     
-    const std::string filename = s->resolver(self.package);
-    package pkg(s->resolver);
-    pkg.exec(filename);
+    const package pkg = package::import(self.package);
     
     s->locals.emplace(self.package, pkg.sig());
     return io(unit);
@@ -562,10 +560,9 @@ mono infer(const ref<state>& s, const ast::expr& self) {
 
 
 // type state
-state::state(resolver_type resolver)
+state::state()
   : level(0),
-    sub(make_ref<substitution>()),
-    resolver(resolver) {
+    sub(make_ref<substitution>()) {
 
 }
 
@@ -573,8 +570,7 @@ state::state(resolver_type resolver)
 state::state(const ref<state>& parent)
   : environment<poly>(parent),
     level(parent->level + 1),
-    sub(parent->sub),
-    resolver(parent->resolver)
+    sub(parent->sub)
 {
 
 }

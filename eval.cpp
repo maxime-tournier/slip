@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "sexpr.hpp"
+#include "package.hpp"
 
 namespace eval {
 // env::~env() {
@@ -193,6 +194,12 @@ struct expr_visitor {
     throw std::logic_error("attempting to use a non-record expr");
   }
   
+
+  value operator()(const ast::import& self, const ref<state>& e) const {
+    const package pkg = package::import(self.package);
+    e->def(self.package, pkg.dict());
+    return unit();
+  }
   
   template<class T>
   value operator()(const T& self, const ref<state>& e) const {

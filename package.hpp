@@ -12,16 +12,19 @@ struct package {
   
   package& def(symbol name, type::mono t, eval::value v);
 
-  using resolver_type = std::function<std::string(symbol)>;
-  package(resolver_type resolver);
+  package();
 
   void exec(std::string filename);
 
+  // exec ast
   using cont_type = std::function<void(type::poly, eval::value)>;
   void exec(ast::expr expr, cont_type cont=nullptr);
   
   type::poly sig() const;
   eval::value dict() const;
+
+  static package import(symbol name);
+  static package core();
 };
 
 #endif
