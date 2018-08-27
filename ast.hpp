@@ -1,5 +1,7 @@
-#ifndef AST_HPP
-#define AST_HPP
+#ifndef SLAP_AST_HPP
+#define SLAP_AST_HPP
+
+#include <functional>
 
 #include "ref.hpp"
 #include "variant.hpp"

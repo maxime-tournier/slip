@@ -1,6 +1,7 @@
 #include "sexpr.hpp"
 
 #include "parse.hpp"
+#include <algorithm>
 
 namespace {
 

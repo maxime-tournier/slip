@@ -2,6 +2,7 @@
 #define SLAP_TYPE_HPP
 
 #include <set>
+#include <functional>
 
 #include "variant.hpp"
 #include "list.hpp"
@@ -9,6 +10,7 @@
 #include "environment.hpp"
 
 #include "kind.hpp"
+
 
 namespace ast {
 struct expr;

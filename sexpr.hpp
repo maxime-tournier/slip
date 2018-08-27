@@ -1,6 +1,8 @@
 #ifndef SLAP_SEXPR_HPP
 #define SLAP_SEXPR_HPP
 
+#include <functional>
+
 #include "variant.hpp"
 #include "base.hpp"
 #include "symbol.hpp"
