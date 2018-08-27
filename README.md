@@ -6,6 +6,7 @@ simple prototype language with:
 - first-class polymorphism with type inference
 - higher-kinded types
 - simple interpreter
+- minimal package imports
 
 ```elisp
 ;; helper list functions
