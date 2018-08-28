@@ -64,19 +64,22 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   
   static const auto rest_parser = chr<std::isalnum>() | chr<matches<'-', '_'>>();  
 
-  static const auto symbol_parser = initial_parser >> [](char c) {
-    return noskip(*rest_parser >> [c](std::deque<char>&& rest) {
-        const std::string tmp = c + std::string(rest.begin(), rest.end());
-        return pure(symbol(tmp));
-      });
-  };
-
   static const auto op_parser =
     chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
     return pure(symbol(std::string(1, c)));
   } | (token("!=") | token("<=") | token(">=")) >> [](const char* s) {
     return pure(symbol(s));
   };
+
+  
+  static const auto identifier_parser = initial_parser >> [](char c) {
+    return noskip(*rest_parser >> [c](std::deque<char>&& rest) {
+        const std::string tmp = c + std::string(rest.begin(), rest.end());
+        return pure(symbol(tmp));
+      });
+  };
+
+  static const auto symbol_parser = identifier_parser | op_parser;
 
   static const char colon = ':';
   
