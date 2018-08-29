@@ -210,7 +210,7 @@ static maybe<expr> check_seq(sexpr::list args) {
   
   namespace kw {
 
-    symbol abs("func"),
+    symbol abs("fun"),
       let("let"),
       seq("do"),
       def("def"),
