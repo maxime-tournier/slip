@@ -74,41 +74,48 @@ package package::core() {
              }));
   }
 
-  {
-    // functor
-    const mono f = self.ts->fresh(kind::term() >>= kind::term());
-
-    const mono a = self.ts->fresh(kind::term());
-    const mono b = self.ts->fresh(kind::term());      
-      
-    const mono functor
-      = make_ref<constant>("functor", f.kind() >>= kind::term());
-      
-    self.def("functor", module(functor(f))
-             (record(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)),
-             unit());
-    ;
-  }
-
 
   {
-    // monad
-    const mono m = self.ts->fresh(kind::term() >>= kind::term());
-
-    const mono a = self.ts->fresh(kind::term());
-    const mono b = self.ts->fresh(kind::term());
-    const mono c = self.ts->fresh(kind::term());            
-      
-    const mono monad
-      = make_ref<constant>("monad", m.kind() >>= kind::term());
-      
-    self.def("monad", module(monad(m))
-             (record(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
-                     row("pure", c >>= m(c)) |=
-                     empty)),
-             unit())
-      ;
+    const auto a = self.ts->fresh();
+    self.def("list", module(list(a))(list(a)), unit());
   }
+  
+
+  // {
+  //   // functor
+  //   const mono f = self.ts->fresh(kind::term() >>= kind::term());
+
+  //   const mono a = self.ts->fresh(kind::term());
+  //   const mono b = self.ts->fresh(kind::term());      
+      
+  //   const mono functor
+  //     = make_ref<constant>("functor", f.kind() >>= kind::term());
+      
+  //   self.def("functor", module(functor(f))
+  //            (record(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)),
+  //            unit());
+  //   ;
+  // }
+
+
+  // {
+  //   // monad
+  //   const mono m = self.ts->fresh(kind::term() >>= kind::term());
+
+  //   const mono a = self.ts->fresh(kind::term());
+  //   const mono b = self.ts->fresh(kind::term());
+  //   const mono c = self.ts->fresh(kind::term());            
+      
+  //   const mono monad
+  //     = make_ref<constant>("monad", m.kind() >>= kind::term());
+      
+  //   self.def("monad", module(monad(m))
+  //            (record(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
+  //                    row("pure", c >>= m(c)) |=
+  //                    empty)),
+  //            unit())
+  //     ;
+  // }
 
 
   {

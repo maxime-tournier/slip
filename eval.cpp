@@ -224,7 +224,7 @@ struct ostream {
   }
 
   void operator()(const closure& self, std::ostream& out) const {
-	out << "#<func>";
+	out << "#<fun>";
   }
   
   void operator()(const unit& self, std::ostream& out) const {

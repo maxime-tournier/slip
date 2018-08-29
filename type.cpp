@@ -165,7 +165,16 @@ struct ostream_visitor {
       // regular types
       self->ctor.visit(*this, out, forall, false);
       out << " ";
-      self->arg.visit(*this, out, forall, false);
+      
+      const auto func_rhs = [&] {
+        if(auto a = self->ctor.get<app>()) {
+          if((*a)->ctor == func) return true;
+        }
+        return false;
+      };
+
+      // don't put parens on function rhs
+      self->arg.visit(*this, out, forall, !func_rhs());
     }
 
     if(parens) {
