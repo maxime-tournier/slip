@@ -15,6 +15,8 @@
 
 # types
 
+- fix generalization bug in module opening
+
 - variants, match
 - better error messages
 - mutable references

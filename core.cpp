@@ -110,6 +110,35 @@ package package::core() {
       ;
   }
 
+
+  {
+    const mono test = make_ref<constant>("type", kind::term() >>= kind::term());
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("type", module(test(a))(test(a)), unit());
+    }
+
+    const mono ctor = make_ref<constant>("ctor", (kind::term() >>= kind::term()) >>= kind::term());
+
+    {
+      const mono c = self.ts->fresh(kind::term() >>= kind::term());
+      
+      const mono a = self.ts->fresh();
+      self.def("ctor", module(ctor(c))(test(a) >>= test(c(a))), unit());
+    }
+    
+    {
+      const mono a = self.ts->fresh();
+      const mono b = self.ts->fresh();      
+      self.def("->", test(a) >>= test(b) >>= test(a >>= b),
+               closure(2, [](const eval::value*) -> eval::value{
+                   return unit();
+                 }));
+    }
+
+  }
+
   return self;
 }
   
