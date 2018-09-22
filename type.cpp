@@ -36,9 +36,6 @@ const mono real = make_constant("real");
   const mono func =
     make_constant("->", kind::term() >>= kind::term() >>= kind::term());
 
-  const mono list =
-    make_constant("list", kind::term() >>= kind::term());
-  
   const mono io =
     make_constant("io", kind::term() >>= kind::term());
   
@@ -295,15 +292,18 @@ struct infer_visitor {
           return a >>= a;
         },
           [&](ast::abs::typed self) {
-            return s->instantiate(s->sigs->find(self.type));
+            try {
+              auto sig = s->sigs->find(self.type);
+              return s->instantiate(sig);
+            } catch(std::out_of_range&) {
+              throw error("unknown constructor " + tool::quote(self.type.get()));
+            }
           });
       
       const mono outer = s->fresh();
       const mono inner = sub->fresh();
       
       sub->unify(outer >>= inner, sig);
-      std::clog << "arg: " << arg.name() << std::endl;
-      
       sub->def(arg.name(), inner);
       
       return outer >>= tail;

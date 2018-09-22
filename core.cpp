@@ -5,7 +5,6 @@ package package::core() {
   
   using namespace eval;
   
-  using type::list;
   using type::real;
     
   using type::record;
@@ -37,9 +36,12 @@ package package::core() {
          }))
     ;
 
+
+  const mono list = make_ref<type::constant>("list", kind::term() >>= kind::term());
+  
   {
     const auto a = self.ts->fresh();
-    self.def("nil", type::list(a), value::list());
+    self.def("nil", list(a), value::list());
   }
 
   {
@@ -76,7 +78,15 @@ package package::core() {
 
 
   using type::ty;
-  self.def("list", ty >>= ty, unit());
+
+  {
+    self.def("list", ty >>= ty, unit());
+
+    const mono a = self.ts->fresh(kind::term());
+
+    const mono sig = list(a) >>= list(a);
+    self.ts->sigs->locals.emplace("list", self.ts->generalize(sig));
+  }
 
   // TODO make this infix for great justice
   self.def("->", ty >>= ty >>= ty, unit());
@@ -84,16 +94,17 @@ package package::core() {
   {
     self.def("functor", (ty >>= ty) >>= ty, unit());
 
-    mono f = self.ts->fresh(kind::term() >>= kind::term());
-    mono a = self.ts->fresh(kind::term());
-    mono b = self.ts->fresh(kind::term());    
+    const mono f = self.ts->fresh(kind::term() >>= kind::term());
+    const mono a = self.ts->fresh(kind::term());
+    const mono b = self.ts->fresh(kind::term());    
 
-    mono functor = make_ref<type::constant>("functor", f.kind() >>= kind::term());
+    const mono functor =
+      make_ref<type::constant>("functor", f.kind() >>= kind::term());
 
-    mono t = functor(f) >>=
+    const mono sig = functor(f) >>=
       type::record(row("map", a >>= b >>= f(a) >>= f(b)) |= type::empty);
     
-    self.ts->sigs->locals.emplace("functor", self.ts->generalize(t));
+    self.ts->sigs->locals.emplace("functor", self.ts->generalize(sig));
   }
 
   
