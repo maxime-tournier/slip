@@ -23,7 +23,7 @@ type::poly package::sig() const {
   // TODO allow private members
   using namespace type;
   mono res = empty;
-  for(const auto& it : ts->locals) {
+  for(const auto& it : ts->vars->locals) {
     res = row(it.first, ts->instantiate(it.second)) |= res;
   }
 

@@ -61,12 +61,14 @@ const mono io =
     return it.first->second;
   }
 
-  const mono module =
-    make_constant("module", kind::term() >>= kind::term() >>= kind::term());
+  const mono sig =
+    make_constant("sig", kind::term() >>= kind::term() >>= kind::term());
   
+  const mono ty =
+    make_constant("type", kind::term() >>= kind::term());
 
 state& state::def(symbol name, mono t) {
-  if(!locals.emplace(name, generalize(t)).second) {
+  if(!vars->locals.emplace(name, generalize(t)).second) {
     throw error("redefined variable " + tool::quote(name.get()));
   }
   return *this;
@@ -165,7 +167,7 @@ struct ostream_visitor {
       // regular types
       self->ctor.visit(*this, out, forall, false);
       out << " ";
-      
+
       const auto func_rhs = [&] {
         if(auto a = self->ctor.get<app>()) {
           if((*a)->ctor == func) return true;
@@ -276,7 +278,7 @@ struct infer_visitor {
   // var
   mono operator()(const ast::var& self, const ref<state>& s) const {
     try {
-      return s->instantiate(s->find(self.name));
+      return s->instantiate(s->vars->find(self.name));
     } catch(std::out_of_range& e) {
       throw error("unbound variable " + tool::quote(self.name.get()));
     }
@@ -290,22 +292,23 @@ struct infer_visitor {
     
     // construct function type
     const mono result = s->fresh();
-    const mono sig = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
+    const mono res = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
 
-        const mono ctor = arg.match<mono>
+        const mono sig = arg.match<mono>
         ([&](symbol self) {
+          // untyped arguments: trivial signature
           const mono a = sub->fresh();
-          return module(a)(a);
+          return ty(a) >>= ty(a);
          },
          [&](ast::abs::typed self) {
            return infer(sub, self.type);
          });
-        
+
         const mono outer = s->fresh();
         const mono inner = sub->fresh();
 
-        sub->unify(module(outer)(inner), ctor);
-        
+        sub->unify(ty(outer) >>= ty(inner), sig);
+
         sub->def(arg.name(), inner);
         return outer >>= tail;
     });
@@ -313,7 +316,7 @@ struct infer_visitor {
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
     
-    return sig;
+    return res;
   }
 
 
@@ -336,7 +339,7 @@ struct infer_visitor {
     auto sub = scope(s);
 
     for(ast::bind def : self.defs) {
-      sub->locals.emplace(def.name, s->generalize(infer(s, def.value)));
+      sub->vars->locals.emplace(def.name, s->generalize(infer(s, def.value)));
     }
     
     return infer(sub, self.body);
@@ -376,7 +379,7 @@ struct infer_visitor {
   // make
   mono operator()(const ast::make& self, const ref<state>& s) const {
     // get signature type
-    const poly sig = s->find(self.type);
+    const poly sig = s->vars->find(self.type);
 
     auto sub = scope(s);
     
@@ -386,8 +389,8 @@ struct infer_visitor {
     // instantiate signature at sub level prevents generalization of
     // contravariant side (variables only appearing in the covariant side will
     // be generalized)
-    s->unify(module(outer)(inner), sub->instantiate(sig));
-
+    s->unify(ty(outer) >>= ty(inner), sub->instantiate(sig));
+    
     // vanilla covariant type
     const poly reference = sub->generalize(inner);
     
@@ -491,14 +494,14 @@ struct infer_visitor {
 
   // import
   mono operator()(const ast::import& self, const ref<state>& s) const {
-    auto it = s->locals.find(self.package);
-    if(it != s->locals.end()) {
+    auto it = s->vars->locals.find(self.package);
+    if(it != s->vars->locals.end()) {
       throw error("variable " + tool::quote(self.package.get()) + " already defined");
     }
     
     const package pkg = package::import(self.package);
     
-    s->locals.emplace(self.package, pkg.sig());
+    s->vars->locals.emplace(self.package, pkg.sig());
     return io(unit);
   }
   
@@ -571,14 +574,17 @@ mono infer(const ref<state>& s, const ast::expr& self) {
 // type state
 state::state()
   : level(0),
+    vars(make_ref<vars_type>()),
+    ctor(make_ref<ctor_type>()),
     sub(make_ref<substitution>()) {
 
 }
 
 
 state::state(const ref<state>& parent)
-  : environment<poly>(parent),
-    level(parent->level + 1),
+  : level(parent->level + 1),
+    vars(parent->vars),
+    ctor(parent->ctor),
     sub(parent->sub)
 {
 

@@ -30,12 +30,23 @@ struct constant;
 struct variable;
 struct application;
 
+// monotypes
+using cst = ref<constant>;
+using var = ref<variable>;
+using app = ref<application>;
+
 
 // type state
-struct state : environment<poly> {
+struct state {
+  using vars_type = environment<poly>;
+  using ctor_type = environment<cst>;
+
+  const std::size_t level;  
+  const ref<vars_type> vars;
+  const ref<ctor_type> ctor;
+  
   using substitution = std::map<ref<variable>, mono>;
   
-  const std::size_t level;
   const ref<substitution> sub;
 
   state();
@@ -50,19 +61,15 @@ struct state : environment<poly> {
   
   void unify(mono from, mono to);
 
-  // convenience
-  using environment<poly>::def;
-
-  // generalize t at current depth before inserting
+  // define variable, generalizing t at current depth before inserting
   state& def(symbol name, mono t);
+
+  // 
+  friend ref<state> scope(ref<state> parent) {
+    return make_ref<state>(parent);
+  }
 };
 
-
-
-// monotypes
-using cst = ref<constant>;
-using var = ref<variable>;
-using app = ref<application>;
 
 struct mono : variant<cst, var, app> {
   using mono::variant::variant;
@@ -108,20 +115,23 @@ struct poly {
 };
 
 
-// constants
+  // constants
   const extern mono unit, boolean, integer, real;
 
   // constructors
   const extern mono func, list, io;
   const extern mono record, empty;
 
-  // module unpacking
-  const extern mono module;
+  // type as value reification
+  const extern mono ty;
   
-mono ext(symbol attr);
+  // module signature
+  const extern mono sig;
+  
+  mono ext(symbol attr);
 
-// convenience: build function types
-mono operator>>=(mono lhs, mono rhs);
+  // convenience: build function types
+  mono operator>>=(mono lhs, mono rhs);
 
 // convenience: build record types
 struct row {
