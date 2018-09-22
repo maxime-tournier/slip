@@ -61,11 +61,7 @@ const mono io =
     return it.first->second;
   }
 
-  const mono sig =
-    make_constant("sig", kind::term() >>= kind::term() >>= kind::term());
-  
-  const mono ty =
-    make_constant("type", kind::term() >>= kind::term());
+  const mono ty = make_constant("type", kind::term());
 
 state& state::def(symbol name, mono t) {
   if(!vars->locals.emplace(name, generalize(t)).second) {
@@ -375,6 +371,8 @@ struct infer_visitor {
     return record(row);
   }
 
+  
+
 
   // make
   mono operator()(const ast::make& self, const ref<state>& s) const {
@@ -575,7 +573,7 @@ mono infer(const ref<state>& s, const ast::expr& self) {
 state::state()
   : level(0),
     vars(make_ref<vars_type>()),
-    ctor(make_ref<ctor_type>()),
+    sigs(make_ref<sigs_type>()),
     sub(make_ref<substitution>()) {
 
 }
@@ -584,7 +582,7 @@ state::state()
 state::state(const ref<state>& parent)
   : level(parent->level + 1),
     vars(parent->vars),
-    ctor(parent->ctor),
+    sigs(parent->sigs),
     sub(parent->sub)
 {
 

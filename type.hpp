@@ -39,11 +39,12 @@ using app = ref<application>;
 // type state
 struct state {
   using vars_type = environment<poly>;
-  using ctor_type = environment<cst>;
-
-  const std::size_t level;  
+  using sigs_type = environment<poly>;
+  
+  const std::size_t level;
+  
   const ref<vars_type> vars;
-  const ref<ctor_type> ctor;
+  const ref<sigs_type> sigs;
   
   using substitution = std::map<ref<variable>, mono>;
   
@@ -64,6 +65,8 @@ struct state {
   // define variable, generalizing t at current depth before inserting
   state& def(symbol name, mono t);
 
+  // TODO deftype(name, sig)
+  
   // 
   friend ref<state> scope(ref<state> parent) {
     return make_ref<state>(parent);

@@ -8,13 +8,13 @@ package package::core() {
   using type::list;
   using type::real;
     
-  using type::module;
   using type::record;
   using type::row;
   using type::empty;
   using type::mono;
   using type::constant;
-    
+
+  // terms
   self
     .def("+", type::integer >>= type::integer >>= type::integer,
          closure(+[](const integer& lhs, const integer& rhs) -> integer {
@@ -75,76 +75,12 @@ package package::core() {
   }
 
 
+  using type::ty;
   {
-    const auto a = self.ts->fresh();
-    self.def("list", module(list(a))(list(a)), unit());
+    self.def("list", ty >>= ty, unit());
+    self.def("->", ty >>= ty >>= ty, unit());
   }
   
-
-  // {
-  //   // functor
-  //   const mono f = self.ts->fresh(kind::term() >>= kind::term());
-
-  //   const mono a = self.ts->fresh(kind::term());
-  //   const mono b = self.ts->fresh(kind::term());      
-      
-  //   const mono functor
-  //     = make_ref<constant>("functor", f.kind() >>= kind::term());
-      
-  //   self.def("functor", module(functor(f))
-  //            (record(row("map", (a >>= b) >>= f(a) >>= f(b)) |= empty)),
-  //            unit());
-  //   ;
-  // }
-
-
-  // {
-  //   // monad
-  //   const mono m = self.ts->fresh(kind::term() >>= kind::term());
-
-  //   const mono a = self.ts->fresh(kind::term());
-  //   const mono b = self.ts->fresh(kind::term());
-  //   const mono c = self.ts->fresh(kind::term());            
-      
-  //   const mono monad
-  //     = make_ref<constant>("monad", m.kind() >>= kind::term());
-      
-  //   self.def("monad", module(monad(m))
-  //            (record(row("bind", m(a) >>= (a >>= m(b)) >>= m(b)) |=
-  //                    row("pure", c >>= m(c)) |=
-  //                    empty)),
-  //            unit())
-  //     ;
-  // }
-
-
-  {
-    const mono test = make_ref<constant>("type", kind::term() >>= kind::term());
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("type", module(test(a))(test(a)), unit());
-    }
-
-    const mono ctor = make_ref<constant>("ctor", (kind::term() >>= kind::term()) >>= kind::term());
-
-    {
-      const mono c = self.ts->fresh(kind::term() >>= kind::term());
-      
-      const mono a = self.ts->fresh();
-      self.def("ctor", module(ctor(c))(test(a) >>= test(c(a))), unit());
-    }
-    
-    {
-      const mono a = self.ts->fresh();
-      const mono b = self.ts->fresh();      
-      self.def("->", test(a) >>= test(b) >>= test(a >>= b),
-               closure(2, [](const eval::value*) -> eval::value{
-                   return unit();
-                 }));
-    }
-
-  }
 
   return self;
 }

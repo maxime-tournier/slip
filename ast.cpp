@@ -210,7 +210,7 @@ static maybe<expr> check_seq(sexpr::list args) {
   
   namespace kw {
 
-    symbol abs("fun"),
+    symbol abs("fn"),
       let("let"),
       seq("do"),
       def("def"),
@@ -231,7 +231,7 @@ static maybe<expr> check_seq(sexpr::list args) {
   
   // special forms table
   static const special_type<expr> special_expr = {
-    {kw::abs, {check_abs, "(func (`symbol`...) `expr`)"}},
+    {kw::abs, {check_abs, "(fn (`symbol`...) `expr`)"}},
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
