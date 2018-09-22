@@ -38,14 +38,36 @@ namespace ast {
     unimplemented(std::string what)
       : std::runtime_error("unimplemented: " + what) { }
   };
+
+  const symbol arrow = "->";
+  
+  static sexpr::list rewrite_arrows(sexpr::list args) {
+    if(!args) return args;
+
+    // (x -> ...) ~> (-> x ...)
+    if(args->tail && args->tail->head == arrow) {
+      auto tail = rewrite_arrows(args->tail->tail);
+      if(tail->tail) {
+        return arrow >>= args->head >>= tail >>= sexpr::list();        
+      } else {
+        return arrow >>= args->head >>= tail;
+      }
+    }
     
+    return args->head >>= rewrite_arrows(args->tail);
+  }
+  
   
   // check function calls
   static maybe<expr> check_call(sexpr::list args) {
     if(!args) throw error("empty list in application");
+
+    // TODO don't rewrite **all the time**
+    sexpr::list rw = rewrite_arrows(args);
     
-    const auto func = expr::check(args->head);
-    const expr res = app{func, map(args->tail, expr::check)};
+    const auto func = expr::check(rw->head);
+    const expr res = app{func, map(rw->tail, expr::check)};
+    
     return res;
   }
 

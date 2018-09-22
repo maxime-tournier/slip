@@ -16,7 +16,7 @@
 #include "type.hpp"
 #include "package.hpp"
 
-const bool debug = false;
+const bool debug = true;
 
 
 struct history {
