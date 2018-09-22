@@ -33,17 +33,15 @@ const mono integer = make_constant("integer");
 const mono real = make_constant("real");
 
 
-const mono func =
-  make_constant("->", kind::term() >>= kind::term() >>= kind::term());
+  const mono func =
+    make_constant("->", kind::term() >>= kind::term() >>= kind::term());
 
-const mono list =
-  make_constant("list", kind::term() >>= kind::term());
+  const mono list =
+    make_constant("list", kind::term() >>= kind::term());
   
-
-const mono io =
-  make_constant("io", kind::term() >>= kind::term());
-
-
+  const mono io =
+    make_constant("io", kind::term() >>= kind::term());
+  
   // records
   const mono record =
     make_constant("record", kind::row() >>= kind::term());
@@ -288,27 +286,27 @@ struct infer_visitor {
     
     // construct function type
     const mono result = s->fresh();
+    
     const mono res = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
-
-        const mono sig = arg.match<mono>
+      const mono sig = arg.match<mono>
         ([&](symbol self) {
           // untyped arguments: trivial signature
           const mono a = sub->fresh();
-          return ty(a) >>= ty(a);
-         },
-         [&](ast::abs::typed self) {
-           return infer(sub, self.type);
-         });
+          return a >>= a;
+        },
+          [&](ast::abs::typed self) {
+            return s->instantiate(s->sigs->find(self.type));
+          });
+      
+      const mono outer = s->fresh();
+      const mono inner = sub->fresh();
+      
+      sub->unify(outer >>= inner, sig);
 
-        const mono outer = s->fresh();
-        const mono inner = sub->fresh();
-
-        sub->unify(ty(outer) >>= ty(inner), sig);
-
-        sub->def(arg.name(), inner);
-        return outer >>= tail;
+      sub->def(arg.name(), inner);
+      return outer >>= tail;
     });
-    
+
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
     
