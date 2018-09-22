@@ -46,10 +46,8 @@ const mono real = make_constant("real");
   const mono record =
     make_constant("record", kind::row() >>= kind::term());
 
-  
   const mono empty = make_constant("{}", kind::row());
-
-
+  
   mono ext(symbol attr) {
     static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
     static std::map<symbol, ref<constant>> table;
@@ -65,6 +63,7 @@ state& state::def(symbol name, mono t) {
   if(!vars->locals.emplace(name, generalize(t)).second) {
     throw error("redefined variable " + tool::quote(name.get()));
   }
+  
   return *this;
 }
   
@@ -281,9 +280,10 @@ struct infer_visitor {
 
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
+
     // function scope
     const auto sub = scope(s);
-    
+
     // construct function type
     const mono result = s->fresh();
     
@@ -302,11 +302,15 @@ struct infer_visitor {
       const mono inner = sub->fresh();
       
       sub->unify(outer >>= inner, sig);
-
+      std::clog << "arg: " << arg.name() << std::endl;
+      
       sub->def(arg.name(), inner);
+      
       return outer >>= tail;
     });
 
+    
+    
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
     
@@ -579,8 +583,8 @@ state::state()
 
 state::state(const ref<state>& parent)
   : level(parent->level + 1),
-    vars(parent->vars),
-    sigs(parent->sigs),
+    vars(make_ref<vars_type>(parent->vars)),
+    sigs(make_ref<sigs_type>(parent->sigs)),
     sub(parent->sub)
 {
 

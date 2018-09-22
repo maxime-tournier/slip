@@ -76,12 +76,27 @@ package package::core() {
 
 
   using type::ty;
-  {
-    self.def("list", ty >>= ty, unit());
-    self.def("->", ty >>= ty >>= ty, unit());
-  }
-  
+  self.def("list", ty >>= ty, unit());
 
+  // TODO make this infix for great justice
+  self.def("->", ty >>= ty >>= ty, unit());
+
+  {
+    self.def("functor", (ty >>= ty) >>= ty, unit());
+
+    mono f = self.ts->fresh(kind::term() >>= kind::term());
+    mono a = self.ts->fresh(kind::term());
+    mono b = self.ts->fresh(kind::term());    
+
+    mono functor = make_ref<type::constant>("functor", f.kind() >>= kind::term());
+
+    mono t = functor(f) >>=
+      type::record(row("map", a >>= b >>= f(a) >>= f(b)) |= type::empty);
+    
+    self.ts->sigs->locals.emplace("functor", self.ts->generalize(t));
+  }
+
+  
   return self;
 }
   

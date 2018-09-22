@@ -71,6 +71,7 @@ struct state {
   friend ref<state> scope(ref<state> parent) {
     return make_ref<state>(parent);
   }
+  
 };
 
 
