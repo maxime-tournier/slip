@@ -64,13 +64,14 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   
   static const auto rest_parser = chr<std::isalnum>() | chr<matches<'-', '_'>>();  
 
-  static const auto op_parser = (token("!=") | token("<=") | token(">=") | token("->") | token("=>"))
+  static const auto op_parser =
+    (token("!=") | token("<=") | token(">=") | token("->") | token("=>"))
     >> [](const char* s) {
-    return pure(symbol(s));
-  } | chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
-    return pure(symbol(std::string(1, c)));
-  };
-
+      return pure(symbol(s));
+    } | chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {
+      return pure(symbol(std::string(1, c)));
+    };
+  
   
   static const auto identifier_parser = initial_parser >> [](char c) {
     return noskip(*rest_parser >> [c](std::deque<char>&& rest) {
@@ -113,7 +114,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
     parser::ref(expr_parser) % separator_parser;
   
   static const auto list_parser = // debug("list") |=
-    lparen >>= exprs_parser >> drop(rparen) 
+    lparen >>= (exprs_parser | pure<std::deque<sexpr>>()) >> drop(rparen) 
            >> [](std::deque<sexpr>&& es) {
     return pure(make_list(es.begin(), es.end()));
   };

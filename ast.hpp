@@ -94,7 +94,14 @@ namespace ast {
   };
 
 
+  // module definition
+  struct module {
+    const symbol name;
 
+    const list<abs::arg> args;
+    const list<record::attr> attrs;
+  };
+  
 
   // module packing
   struct make {
@@ -141,7 +148,8 @@ namespace ast {
                         record, sel,
                         make, use,
                         import,
-                        def, seq> {
+                        def, seq,
+                        module> {
     using expr::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const expr& self);

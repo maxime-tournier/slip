@@ -144,7 +144,9 @@ package package::core() {
   }
 
   self.def("integer", ty(type::integer), unit());
-  self.def("boolean", ty(type::boolean), unit());    
+  self.def("boolean", ty(type::boolean), unit());
+
+  
   // {
     
   //   self.def("functor", (ty >>= ty) >>= ty, unit());

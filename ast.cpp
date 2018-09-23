@@ -182,9 +182,9 @@ static maybe<expr> check_seq(sexpr::list args) {
       };
     };
   };
-  
 
-  static maybe<expr> check_record(sexpr::list args) {
+
+  static maybe<record::attr::list> check_record_attrs(sexpr::list args) {
     const auto init = just(record::attr::list());
 
     // build attribute list by folding args
@@ -199,14 +199,15 @@ static maybe<expr> check_seq(sexpr::list args) {
           return maybe<record::attr::list>();
         }
       };
-    }) >> [](record::attr::list attrs) {
-      // build record from attribute list, if any
+    });
+  };
+  
+  static maybe<expr> check_record(sexpr::list args) {
+    return check_record_attrs(args) >> [](record::attr::list attrs) {
       const expr res = record{attrs};
       return just(res);
     };
-  
   }
-
 
   static const auto check_make =
     pop_as<symbol>() >> [](symbol type) {
@@ -229,6 +230,22 @@ static maybe<expr> check_seq(sexpr::list args) {
       const expr res = import{package};
       return done(pure(res));
     };
+
+
+  static const auto check_module =
+    pop_as<symbol>() >> [](symbol name) {
+      return pop_as<sexpr::list>() >> [=](sexpr::list args) {
+        return check_record_attrs >> [=](record::attr::list attrs) -> monad<expr> {
+          if(auto a = check_args(args)) {
+            const expr res = module{name, a.get(), attrs};
+            return done(pure(res));
+          };
+
+          return fail<expr>();
+        };
+      };
+    };
+
   
   namespace kw {
 
@@ -241,12 +258,13 @@ static maybe<expr> check_seq(sexpr::list args) {
       make("new"),
       bind("bind"),
       use("use"),
-      import("import")
+      import("import"),
+      module("module")
       ;
    
 
     static const std::set<symbol> reserved = {
-      abs, let, def, cond, record, bind, seq, make, use, import
+      abs, let, def, cond, record, bind, seq, make, use, import, module,
     };
 
   }
@@ -261,7 +279,9 @@ static maybe<expr> check_seq(sexpr::list args) {
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
     {kw::def, {check_def, "(def `symbol` `expr`)"}},
     {kw::use, {check_use, "(use `expr` `expr`)"}},
-    {kw::import, {check_import, "(import `symbol`)"}},            
+    {kw::import, {check_import, "(import `symbol`)"}},
+    {kw::module, {check_module,
+                  "(module (`symbol` `symbol`...) (`symbol `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {
