@@ -151,7 +151,7 @@ namespace ast {
   };
 
   struct abs::typed {
-    const symbol type;
+    const expr type;
     const symbol name;
   };
   

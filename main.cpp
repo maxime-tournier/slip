@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
               std::cout << v->name;
             }
             
-            std::cout << " : " << p
+            std::cout << " : " << p << std::flush
                       << " = " << v << std::endl;
           });
         });

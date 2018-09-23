@@ -25,13 +25,13 @@ static const auto make_variable = [](std::size_t level, kind::any k=kind::term()
 template<class Func>
 static void iter_rows(mono self, Func func);
   
-
-// constants
-const mono unit = make_constant("unit");
-const mono boolean = make_constant("boolean");
-const mono integer = make_constant("integer");
-const mono real = make_constant("real");
-
+  
+  // constants
+  const mono unit = make_constant("unit");
+  const mono boolean = make_constant("boolean");
+  const mono integer = make_constant("integer");
+  const mono real = make_constant("real");
+  
 
   const mono func =
     make_constant("->", kind::term() >>= kind::term() >>= kind::term());
@@ -54,8 +54,9 @@ const mono real = make_constant("real");
     return it.first->second;
   }
 
-  const mono ty = make_constant("type", kind::term());
-
+  const mono ty = make_constant("type", kind::term() >>= kind::term());
+  
+  
 state& state::def(symbol name, mono t) {
   if(!vars->locals.emplace(name, generalize(t)).second) {
     throw error("redefined variable " + tool::quote(name.get()));
@@ -275,6 +276,40 @@ struct infer_visitor {
   }
 
 
+  // reconstruct actual type from reified type: ... -> (type 'a) yields 'a
+  // note: t must be substituted
+  static mono reconstruct(ref<state> s, mono t) {
+    // std::clog << "reconstructing: " << s->generalize(t) << std::endl;
+    
+    if(auto self = t.get<app>()) {
+      // std::clog << "ctor: " << s->generalize((*self)->ctor) << std::endl;
+      
+      if((*self)->ctor == ty) {
+        return (*self)->arg;
+      }
+    }
+    
+    auto from = s->fresh();
+    auto to = s->fresh();
+    
+    s->unify(from >>= to, t);
+    return reconstruct(s, s->substitute(to));
+  }
+  
+  static cst constructor(mono t) {
+    if(auto self = t.get<app>()) {
+      return constructor((*self)->ctor);
+    }
+
+    if(auto self = t.get<cst>()) {
+      return *self;
+    }
+
+    // TODO restrictive?
+    throw error("constructor must be a constant");
+  }
+  
+  
   // abs
   mono operator()(const ast::abs& self, const ref<state>& s) const {
 
@@ -292,11 +327,20 @@ struct infer_visitor {
           return a >>= a;
         },
           [&](ast::abs::typed self) {
+            // TODO reconstruct type
+            const mono t = infer(s, self.type);
+            const mono r = reconstruct(s, s->substitute(t));
+            
+            const cst c = constructor(r);
+            // std::clog << "ctor: " << c->name << std::endl;
             try {
-              auto sig = s->sigs->find(self.type);
-              return s->instantiate(sig);
+              auto sig = s->sigs->at(c);
+              // std::clog << "sig: " << sig << std::endl;
+              return sub->instantiate(sig);
+              
             } catch(std::out_of_range&) {
-              throw error("unknown constructor " + tool::quote(self.type.get()));
+              // TODO wtf
+              throw error("unknown signature " + tool::quote(c->name.get()));
             }
           });
       
@@ -305,6 +349,8 @@ struct infer_visitor {
       
       sub->unify(outer >>= inner, sig);
       sub->def(arg.name(), inner);
+
+      // std::clog << "inner: " << sub->vars->find(arg.name()) << std::endl;
       
       return outer >>= tail;
     });
@@ -584,7 +630,7 @@ state::state()
 state::state(const ref<state>& parent)
   : level(parent->level + 1),
     vars(make_ref<vars_type>(parent->vars)),
-    sigs(make_ref<sigs_type>(parent->sigs)),
+    sigs(parent->sigs),
     sub(parent->sub)
 {
 

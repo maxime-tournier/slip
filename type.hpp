@@ -39,7 +39,7 @@ using app = ref<application>;
 // type state
 struct state {
   using vars_type = environment<poly>;
-  using sigs_type = environment<poly>;
+  using sigs_type = std::map<cst, poly>;
   
   const std::size_t level;
   
@@ -128,9 +128,6 @@ struct poly {
 
   // type as value reification
   const extern mono ty;
-  
-  // module signature
-  const extern mono sig;
   
   mono ext(symbol attr);
 

@@ -78,34 +78,89 @@ package package::core() {
 
 
   using type::ty;
-
+  auto ctor_value = closure(+[](const unit&) { return unit();});
+  auto ctor2_value = closure(+[](const unit&, const unit& ) { return unit();});
+  
+  
   {
-    self.def("list", ty >>= ty, unit());
-
     const mono a = self.ts->fresh(kind::term());
-
-    const mono sig = list(a) >>= list(a);
-    self.ts->sigs->locals.emplace("list", self.ts->generalize(sig));
+    self.def("list", ty(a) >>= ty(list(a)), ctor_value);
   }
 
-  // TODO make this infix for great justice
-  self.def("->", ty >>= ty >>= ty, unit());
+  {
+    const mono a = self.ts->fresh(kind::term());
+    const mono sig = list(a) >>= list(a);
+    self.ts->sigs->emplace(*list.get<type::cst>(), self.ts->generalize(sig));
+  }
 
   {
-    self.def("functor", (ty >>= ty) >>= ty, unit());
+    const mono a = self.ts->fresh(kind::term());
+    const mono b = self.ts->fresh(kind::term());    
+    self.def("->", ty(a) >>= ty(b) >>= ty(a >>= b), ctor2_value);
+  }
 
-    const mono f = self.ts->fresh(kind::term() >>= kind::term());
+  {
     const mono a = self.ts->fresh(kind::term());
     const mono b = self.ts->fresh(kind::term());    
 
-    const mono functor =
-      make_ref<type::constant>("functor", f.kind() >>= kind::term());
-
-    const mono sig = functor(f) >>=
-      type::record(row("map", a >>= b >>= f(a) >>= f(b)) |= type::empty);
-    
-    self.ts->sigs->locals.emplace("functor", self.ts->generalize(sig));
+    const mono sig = (a >>= b) >>= (a >>= b);
+    self.ts->sigs->emplace(*type::func.get<type::cst>(),
+                           self.ts->generalize(sig));
   }
+
+
+  {
+    const mono a = self.ts->fresh(kind::term());
+    const mono sig = ty(a) >>= ty(a);
+
+    self.ts->sigs->emplace(*type::ty.get<type::cst>(),
+                           self.ts->generalize(sig));
+  }
+
+
+  {
+    const mono a = self.ts->fresh(kind::term());
+
+    self.def("type", ty(a) >>= ty(ty(a)), ctor_value);
+
+  }
+
+  const mono ctor =
+    make_ref<type::constant>("ctor",
+                             (kind::term() >>= kind::term()) >>= kind::term());
+  
+  {
+    const mono c = self.ts->fresh(kind::term() >>= kind::term());
+    const mono a = self.ts->fresh(kind::term());
+
+    const mono sig = ctor(c) >>= (ty(a) >>= ty(c(a)));
+    
+    self.ts->sigs->emplace(*ctor.get<type::cst>(), self.ts->generalize(sig));
+  }
+
+  {
+    const mono c = self.ts->fresh(kind::term() >>= kind::term());    
+    self.def("ctor", ctor(c) >>= ty(ctor(c)), ctor_value);
+  }
+
+  self.def("integer", ty(type::integer), unit());
+  self.def("boolean", ty(type::boolean), unit());    
+  // {
+    
+  //   self.def("functor", (ty >>= ty) >>= ty, unit());
+    
+  //   const mono f = self.ts->fresh(kind::term() >>= kind::term());
+  //   const mono a = self.ts->fresh(kind::term());
+  //   const mono b = self.ts->fresh(kind::term());    
+
+  //   const mono functor =
+  //     make_ref<type::constant>("functor", f.kind() >>= kind::term());
+
+  //   const mono sig = functor(f) >>=
+  //     type::record(row("map", a >>= b >>= f(a) >>= f(b)) |= type::empty);
+    
+  //   self.ts->sigs->emplace(*functor.get<type::cst>(), self.ts->generalize(sig));
+  // }
 
   
   return self;
