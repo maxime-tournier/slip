@@ -123,7 +123,7 @@ struct poly {
   const extern mono unit, boolean, integer, real;
 
   // constructors
-  const extern mono func, list, io;
+  const extern mono func, io;
   const extern mono record, empty;
 
   // type as value reification
