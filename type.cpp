@@ -257,6 +257,16 @@ kind::any mono::kind() const {
     }
   };
 
+
+  // rewrite app as nested unary applications
+  static ast::app rewrite(const ast::app& self) {
+    const ast::expr& init = *self.func;
+    return foldl(init, self.args, [](ast::expr func, ast::expr arg) {
+      return ast::app(func, arg >>= list<ast::expr>());
+      }).cast<ast::app>();
+  }
+
+  
 struct infer_visitor {
   using type = mono;
   
@@ -327,19 +337,23 @@ struct infer_visitor {
           return a >>= a;
         },
           [&](ast::abs::typed self) {
-            // TODO reconstruct type
+            // obtain reified type from annoatation
             const mono t = infer(s, self.type);
+
+            // extract actual type from reified
             const mono r = reconstruct(s, s->substitute(t));
-            
+
+            // obtain type constructor from type
             const cst c = constructor(r);
-            // std::clog << "ctor: " << c->name << std::endl;
+
             try {
+              // fetch associated signature, if any
               auto sig = s->sigs->at(c);
-              // std::clog << "sig: " << sig << std::endl;
+
+              // instantiate signature
               return sub->instantiate(sig);
               
             } catch(std::out_of_range&) {
-              // TODO wtf
               throw error("unknown signature " + tool::quote(c->name.get()));
             }
           });
@@ -366,15 +380,18 @@ struct infer_visitor {
 
   // app
   mono operator()(const ast::app& self, const ref<state>& s) const {
-    const mono func = infer(s, *self.func);
-    const mono result = s->fresh();
+    // normalize application as unary
+    const ast::app rw = rewrite(self);
+    assert(size(rw.args) == 1);
+    
+    const mono func = infer(s, *rw.func);
 
-    const mono sig = foldr(result, self.args, [&](ast::expr e, mono t) {
-        return infer(s, e) >>= t;
-      });
-
-    s->unify(sig, func);
-    return result;
+    const mono arg = infer(s, rw.args->head);
+    const mono ret = s->fresh();
+    
+    s->unify(arg >>= ret, func);
+    
+    return ret;
   }
 
 
