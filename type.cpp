@@ -11,6 +11,10 @@
 
 namespace type {
 
+  struct unification_error : error {
+    using error::error;
+  };
+  
 static const bool debug = false;
   
 static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
@@ -334,7 +338,7 @@ struct infer_visitor {
         ([&](symbol self) {
           // untyped arguments: trivial signature
           const mono a = sub->fresh();
-          return a >>= a;
+          return a;
         },
           [&](ast::abs::typed self) {
             // obtain reified type from annoatation
@@ -348,7 +352,7 @@ struct infer_visitor {
 
             try {
               // fetch associated signature, if any
-              auto sig = s->sigs->at(c);
+              const auto sig = s->sigs->at(c);
 
               // instantiate signature
               return sub->instantiate(sig);
@@ -362,7 +366,7 @@ struct infer_visitor {
       const mono inner = sub->fresh();
       
       sub->unify(outer >>= inner, sig);
-      sub->def(arg.name(), inner);
+      sub->def(arg.name(), outer);
 
       // std::clog << "inner: " << sub->vars->find(arg.name()) << std::endl;
       
@@ -383,15 +387,80 @@ struct infer_visitor {
     // normalize application as unary
     const ast::app rw = rewrite(self);
     assert(size(rw.args) == 1);
-    
-    const mono func = infer(s, *rw.func);
 
-    const mono arg = infer(s, rw.args->head);
-    const mono ret = s->fresh();
+    // infer func/arg types for application
+    const auto with_inferred = [&](auto cont) {
+      const mono func = infer(s, *rw.func);
+      const mono arg = infer(s, rw.args->head);
+
+      return cont(func, arg);
+    };
+
+    // obtain inner type from a type with associated signature
+    const auto inner_type = [&](mono t) {
+      // obtain type constructor from argument type
+      const cst c = constructor(s->substitute(t));
+
+      try {
+        auto sig = s->sigs->at(c);
+        
+        const mono inner = s->fresh();
+        s->unify(t >>= inner, s->instantiate(sig));
+        
+        return inner;
+      } catch(std::out_of_range&) {
+        throw error("unknown signature");
+      }
+    };
+
+    // check if application works with given func/arg type
+    const auto check = [&](mono func, mono arg) {
+      const mono ret = s->fresh();
+      s->unify(func , arg >>= ret);
+      return ret;
+    };
+
+    // TODO find a less stupid way of trying all cases?
+    try {
+      // normal case
+      return with_inferred([&](mono func, mono arg) {
+        return check(func, arg);
+      });
+      
+    } catch(unification_error& e) {
+
+      try {
+        // open func type and retry
+        return with_inferred([&](mono func, mono arg) {
+          const mono inner_func = inner_type(func);
+          return check(inner_func, arg);
+        });
+      }
+      catch(error& ) {  }
+
+      try {
+        // open arg type and retry        
+        return with_inferred([&](mono func, mono arg) {
+          const mono inner_arg = inner_type(arg);
+          return check(func, inner_arg);
+        });
+      }
+      catch(error& ) {  }
+
+      try {
+        // open both func and arg types and retry        
+        return with_inferred([&](mono func, mono arg) {
+          const mono inner_func = inner_type(func);          
+          const mono inner_arg = inner_type(arg);
+          return check(inner_func, inner_arg);
+        });
+      }
+      catch(error& ) {  }
+      
+      throw e;
+    }
+
     
-    s->unify(arg >>= ret, func);
-    
-    return ret;
   }
 
 
@@ -918,7 +987,7 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
     to = self->substitute(to);
 
     if(from.kind() != to.kind()) {
-      throw kind::error("cannot unify types of different kinds");
+      throw unification_error("cannot unify types of different kinds");
     }
 
     const kind::any k = from.kind();
@@ -958,7 +1027,7 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
       std::stringstream ss;
       ss << "cannot unify types \"" << show(map, self->generalize(from))
          << "\" and \"" << show(map, self->generalize(to)) << "\"";
-      throw error(ss.str());
+      throw unification_error(ss.str());
     }
   }
   
