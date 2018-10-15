@@ -16,5 +16,6 @@ executable('slap',
 		   'kind.cpp',
 		   'package.cpp',
 		   'core.cpp',
+                   'infer.cpp',
 		   dependencies: [readline])
 

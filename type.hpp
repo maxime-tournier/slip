@@ -12,10 +12,6 @@
 #include "kind.hpp"
 
 
-namespace ast {
-struct expr;
-};
-
 
 namespace type {
 
@@ -84,7 +80,6 @@ struct mono : variant<cst, var, app> {
   mono operator()(mono arg) const;
 };
 
-mono infer(const ref<state>& s, const ast::expr& self);
 
   
 
@@ -134,19 +129,48 @@ struct poly {
   // convenience: build function types
   mono operator>>=(mono lhs, mono rhs);
 
-// convenience: build record types
-struct row {
-  const symbol attr;
-  const mono head;
+  
+  // convenience: build record types
+  struct row {
+    const symbol attr;
+    const mono head;
 
-  row(symbol attr, mono head) : attr(attr), head(head) { }
+    row(symbol attr, mono head) : attr(attr), head(head) { }
 
-  mono operator|=(mono tail) const {
-    return ext(attr)(head)(tail);
-  }
-};
+    mono operator|=(mono tail) const {
+      return ext(attr)(head)(tail);
+    }
+  };
 
+  
+  // convenience: unpack record types
+  struct extension {
+    const symbol attr;
+    const mono head;
+    const mono tail;
+    
+    static extension unpack(const app& self);
+  };  
 
+  
+  struct logger {
+    std::ostream& out;
+
+    struct pimpl_type;
+    std::unique_ptr<pimpl_type> pimpl;
+
+    logger(std::ostream& out);
+    ~logger();
+    
+    template<class T>
+    logger& operator<<(const T& x) {
+      out << x;
+      return *this;
+    }
+
+    logger& operator<<(std::ostream& (*)(std::ostream&));
+    logger& operator<<(const poly& p);
+  };
 }
 
 

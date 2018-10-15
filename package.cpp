@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "tool.hpp"
+#include "infer.hpp"
 
 package& package::def(symbol name, type::mono t, eval::value v) {
   ts->def(name, t);

@@ -15,21 +15,17 @@ namespace type {
     using error::error;
   };
   
-static const bool debug = false;
+  static const bool debug = false;
   
-static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
-  return make_ref<constant>(constant{name, k});
-};
+  static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
+    return make_ref<constant>(constant{name, k});
+  };
 
   
-static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
-  return make_ref<variable>(variable{level, k});
-};
+  static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
+    return make_ref<variable>(variable{level, k});
+  };
 
-template<class Func>
-static void iter_rows(mono self, Func func);
-  
-  
   // constants
   const mono unit = make_constant("unit");
   const mono boolean = make_constant("boolean");
@@ -61,23 +57,23 @@ static void iter_rows(mono self, Func func);
   const mono ty = make_constant("type", kind::term() >>= kind::term());
   
   
-state& state::def(symbol name, mono t) {
-  if(!vars->locals.emplace(name, generalize(t)).second) {
-    throw error("redefined variable " + tool::quote(name.get()));
+  state& state::def(symbol name, mono t) {
+    if(!vars->locals.emplace(name, generalize(t)).second) {
+      throw error("redefined variable " + tool::quote(name.get()));
+    }
+  
+    return *this;
   }
   
-  return *this;
-}
-  
 
 
-mono mono::operator()(mono arg) const {
-  return make_ref<application>(*this, arg);
-}
+  mono mono::operator()(mono arg) const {
+    return make_ref<application>(*this, arg);
+  }
 
-mono operator>>=(mono from, mono to) {
-  return mono(func)(from)(to);
-}
+  mono operator>>=(mono from, mono to) {
+    return mono(func)(from)(to);
+  }
 
 
 
@@ -183,479 +179,44 @@ struct ostream_visitor {
 };
 
 
-struct show {
-  ostream_visitor::map_type& map;
-  const poly& p;
-
-  show(ostream_visitor::map_type& map, const poly& p)
-    : map(map), p(p) { }
-  
-  friend std::ostream& operator<<(std::ostream& out, const show& self) {
-    self.p.type.visit(ostream_visitor{self.map}, out, self.p.forall, false);
+  std::ostream& operator<<(std::ostream& out, const poly& self) {
+    logger(out) << self;
     return out;
   }
-};
 
 
   
-
-std::ostream& operator<<(std::ostream& out, const poly& self) {
-  ostream_visitor::map_type map;
-  self.type.visit(ostream_visitor{map}, out, self.forall, false);
-  return out;
-}
-
-
+  struct kind_visitor {
+    using type = kind::any;
   
-struct kind_visitor {
-  using type = kind::any;
-  
-  kind::any operator()(const ref<constant>& self) const {
-    return self->kind;
-  }
-
-  kind::any operator()(const ref<variable>& self) const {
-    return self->kind;
-  }
-
-  kind::any operator()(const ref<application>& self) const {
-    const kind::any k = self->ctor.kind();
-    if(auto c = k.get<kind::constructor>()) {
-      return *c->to;
-    } else {
-      throw std::logic_error("derp");
+    kind::any operator()(const ref<constant>& self) const {
+      return self->kind;
     }
-  }
+
+    kind::any operator()(const ref<variable>& self) const {
+      return self->kind;
+    }
+
+    kind::any operator()(const ref<application>& self) const {
+      const kind::any k = self->ctor.kind();
+      if(auto c = k.get<kind::constructor>()) {
+        return *c->to;
+      } else {
+        throw std::logic_error("derp");
+      }
+    }
       
-};
-
-kind::any mono::kind() const {
-  return visit(kind_visitor());
-}
-
-
-
-  
-  struct let {
-    const ::list<ast::bind> defs;
-    const ast::expr body;
-
-    static symbol fix() { return "__fix__"; }
-    
-    // rewrite let as non-recursive let + fix **when defining functions**
-    static let rewrite(const ast::let& self) {
-      using ::list;
-      const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
-          return self.value.match<ast::bind>
-          ([&](const ast::abs& abs) { 
-            return ast::bind{self.name,
-                             ast::app{ast::var{fix()},
-                                      ast::abs{self.name >>= list<ast::abs::arg>(),
-                                          self.value}
-                                      >>= list<ast::expr>()}};
-          }, 
-            [&](const ast::expr& expr) { return self; });
-        });
-
-      return {defs, *self.body};
-    }
   };
 
-
-  // rewrite app as nested unary applications
-  static ast::app rewrite(const ast::app& self) {
-    const ast::expr& init = *self.func;
-    return foldl(init, self.args, [](ast::expr func, ast::expr arg) {
-      return ast::app(func, arg >>= list<ast::expr>());
-      }).cast<ast::app>();
-  }
-
-  
-struct infer_visitor {
-  using type = mono;
-  
-  template<class T>
-  mono operator()(const T& self, const ref<state>&) const {
-    throw std::logic_error("infer unimplemented: " + tool::type_name(typeid(T)));
+  kind::any mono::kind() const {
+    return visit(kind_visitor());
   }
 
 
-  // var
-  mono operator()(const ast::var& self, const ref<state>& s) const {
-    try {
-      return s->instantiate(s->vars->find(self.name));
-    } catch(std::out_of_range& e) {
-      throw error("unbound variable " + tool::quote(self.name.get()));
-    }
-  }
-
-
-  // reconstruct actual type from reified type: ... -> (type 'a) yields 'a
-  // note: t must be substituted
-  static mono reconstruct(ref<state> s, mono t) {
-    // std::clog << "reconstructing: " << s->generalize(t) << std::endl;
-    
-    if(auto self = t.get<app>()) {
-      // std::clog << "ctor: " << s->generalize((*self)->ctor) << std::endl;
-      
-      if((*self)->ctor == ty) {
-        return (*self)->arg;
-      }
-    }
-    
-    auto from = s->fresh();
-    auto to = s->fresh();
-    
-    s->unify(from >>= to, t);
-    return reconstruct(s, s->substitute(to));
-  }
-  
-  static cst constructor(mono t) {
-    if(auto self = t.get<app>()) {
-      return constructor((*self)->ctor);
-    }
-
-    if(auto self = t.get<cst>()) {
-      return *self;
-    }
-
-    // TODO restrictive?
-    throw error("constructor must be a constant");
-  }
-  
-  
-  // abs
-  mono operator()(const ast::abs& self, const ref<state>& s) const {
-
-    // function scope
-    const auto sub = scope(s);
-
-    // construct function type
-    const mono result = s->fresh();
-    
-    const mono res = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
-      const mono sig = arg.match<mono>
-        ([&](symbol self) {
-          // untyped arguments: trivial signature
-          const mono a = sub->fresh();
-          return a;
-        },
-          [&](ast::abs::typed self) {
-            // obtain reified type from annoatation
-            const mono t = infer(s, self.type);
-
-            // extract actual type from reified
-            const mono r = reconstruct(s, s->substitute(t));
-
-            // obtain type constructor from type
-            const cst c = constructor(r);
-
-            try {
-              // fetch associated signature, if any
-              const auto sig = s->sigs->at(c);
-
-              // instantiate signature
-              return sub->instantiate(sig);
-              
-            } catch(std::out_of_range&) {
-              throw error("unknown signature " + tool::quote(c->name.get()));
-            }
-          });
-      
-      const mono outer = s->fresh();
-      const mono inner = sub->fresh();
-      
-      sub->unify(outer >>= inner, sig);
-      sub->def(arg.name(), outer);
-
-      // std::clog << "inner: " << sub->vars->find(arg.name()) << std::endl;
-      
-      return outer >>= tail;
-    });
-
-    
-    
-    // infer lambda body with augmented environment
-    s->unify(result, infer(sub, *self.body));
-    
-    return res;
-  }
-
-
-  // app
-  mono operator()(const ast::app& self, const ref<state>& s) const {
-    // normalize application as unary
-    const ast::app rw = rewrite(self);
-    assert(size(rw.args) == 1);
-
-    // infer func/arg types for application
-    const auto with_inferred = [&](auto cont) {
-      const mono func = infer(s, *rw.func);
-      const mono arg = infer(s, rw.args->head);
-
-      return cont(func, arg);
-    };
-
-    // obtain inner type from a type with associated signature
-    const auto inner_type = [&](mono t) {
-      // obtain type constructor from argument type
-      const cst c = constructor(s->substitute(t));
-
-      try {
-        auto sig = s->sigs->at(c);
-        
-        const mono inner = s->fresh();
-        s->unify(t >>= inner, s->instantiate(sig));
-        
-        return inner;
-      } catch(std::out_of_range&) {
-        throw error("unknown signature");
-      }
-    };
-
-    // check if application works with given func/arg type
-    const auto check = [&](mono func, mono arg) {
-      const mono ret = s->fresh();
-      s->unify(func , arg >>= ret);
-      return ret;
-    };
-
-    // TODO find a less stupid way of trying all cases?
-    try {
-      // normal case
-      return with_inferred([&](mono func, mono arg) {
-        return check(func, arg);
-      });
-      
-    } catch(unification_error& e) {
-
-      try {
-        // open func type and retry
-        return with_inferred([&](mono func, mono arg) {
-          const mono inner_func = inner_type(func);
-          return check(inner_func, arg);
-        });
-      }
-      catch(error& ) {  }
-
-      try {
-        // open arg type and retry        
-        return with_inferred([&](mono func, mono arg) {
-          const mono inner_arg = inner_type(arg);
-          return check(func, inner_arg);
-        });
-      }
-      catch(error& ) {  }
-
-      try {
-        // open both func and arg types and retry        
-        return with_inferred([&](mono func, mono arg) {
-          const mono inner_func = inner_type(func);          
-          const mono inner_arg = inner_type(arg);
-          return check(inner_func, inner_arg);
-        });
-      }
-      catch(error& ) {  }
-      
-      throw e;
-    }
-
-    
-  }
-
-
-  // non-recursive let
-  mono operator()(const let& self, const ref<state>& s) const {
-    auto sub = scope(s);
-
-    for(ast::bind def : self.defs) {
-      sub->vars->locals.emplace(def.name, s->generalize(infer(s, def.value)));
-    }
-    
-    return infer(sub, self.body);
-  }
-  
-  // recursive let
-  mono operator()(const ast::let& self, const ref<state>& s) const {
-    auto sub = scope(s);
-
-    const mono a = sub->fresh();
-    sub->def(let::fix(), (a >>= a) >>= a);
-    
-    return operator()(let::rewrite(self), sub);
-  }
-
-
-  // sel
-  mono operator()(const ast::sel& self, const ref<state>& s) const {
-    const mono tail = s->fresh(kind::row());
-    const mono head = s->fresh(kind::term());
-    
-    const mono row = ext(self.name)(head)(tail);
-    return record(row) >>= head;
-  }
-
-  // record
-  mono operator()(const ast::record& self, const ref<state>& s) const {
-    const mono init = empty;
-    const mono row = foldr(init, self.attrs, [&](ast::record::attr attr, mono tail) {
-        return ext(attr.name)(infer(s, attr.value))(tail);
-      });
-
-    return record(row);
-  }
 
   
 
-
-  // make
-  mono operator()(const ast::make& self, const ref<state>& s) const {
-    // get signature type
-    const poly sig = s->vars->find(self.type);
-
-    auto sub = scope(s);
-    
-    const mono outer = s->fresh();
-    const mono inner = sub->fresh();
-
-    // instantiate signature at sub level prevents generalization of
-    // contravariant side (variables only appearing in the covariant side will
-    // be generalized)
-    s->unify(ty(outer) >>= ty(inner), sub->instantiate(sig));
-    
-    // vanilla covariant type
-    const poly reference = sub->generalize(inner);
-    
-    // build provided type
-    const mono init = empty;
-    const mono provided =
-      record(foldr(init, self.attrs,
-                [&](const ast::record::attr attr, mono tail) {
-                  return row(attr.name, infer(sub, attr.value)) |= tail;
-                }));
-
-    // now also unify inner with provided type
-    s->unify(inner, provided);
-
-    // now generalize the provided type
-    const poly gen = sub->generalize(inner);
-
-    // generalization check: quantified variables in reference/gen should
-    // substitute to the same variables
-    std::set<var> quantified;
-    for(const var& v : gen.forall) {
-      assert(sub->substitute(v) == v);
-      quantified.insert(v);
-    }
-
-    // make sure all reference quantified references substitute to quantified
-    // variables
-    for(const var& v : reference.forall) {
-      const mono vs = sub->substitute(v);
-      if(auto u = vs.get<var>()) {
-        auto it = quantified.find(*u);
-        if(it != quantified.end()) {
-          continue;
-        }
-      }
-
-      ostream_visitor::map_type map;
-      std::stringstream ss;
-      ss << "failed to generalize "
-         << show(map, gen)
-         << " as " 
-         << show(map, reference);
-        throw error(ss.str());
-    }
-
-    return outer;
-  }
   
-
-  // cond
-  mono operator()(const ast::cond& self, const ref<state>& s) const {
-    const mono test = infer(s, *self.test);
-    s->unify(test, boolean);
-
-    const mono conseq = infer(s, *self.conseq);
-    const mono alt = infer(s, *self.alt);    
-
-    const mono result = s->fresh();
-    s->unify(result, conseq);
-    s->unify(result, alt);
-
-    return result;    
-  }
-
-  
-  // def
-  mono operator()(const ast::def& self, const ref<state>& s) const {
-    using ::list;
-    const mono value =
-      infer(s, ast::let(ast::bind{self.name, *self.value} >>= list<ast::bind>(),
-                              ast::var{self.name}));
-    try {
-      s->def(self.name, value);
-      return io(unit);
-    } catch(std::runtime_error& e) {
-      throw error(e.what());
-    }
-  }
-
-
-  // use
-  mono operator()(const ast::use& self, const ref<state>& s) const {
-    // infer value type
-    const mono value = infer(s, *self.env);
-
-    // make sure value type is a record
-    const mono row = s->fresh(kind::row());
-    s->unify(value, record(row));
-
-    auto sub = scope(s);
-    
-    // fill sub scope with record contents
-    iter_rows(s->substitute(row), [&](symbol attr, mono t) {
-        // TODO generalization issue?
-        sub->def(attr, t);
-      });
-
-    return infer(sub, *self.body);
-  }
-
-
-  // import
-  mono operator()(const ast::import& self, const ref<state>& s) const {
-    auto it = s->vars->locals.find(self.package);
-    if(it != s->vars->locals.end()) {
-      throw error("variable " + tool::quote(self.package.get()) + " already defined");
-    }
-    
-    const package pkg = package::import(self.package);
-    
-    s->vars->locals.emplace(self.package, pkg.sig());
-    return io(unit);
-  }
-  
-  
-  // lit
-  mono operator()(const ast::lit<::unit>& self, const ref<state>&) const {
-    return unit;
-  }
-
-  mono operator()(const ast::lit<::boolean>& self, const ref<state>&) const {
-    return boolean;
-  }
-
-  mono operator()(const ast::lit<::integer>& self, const ref<state>&) const {
-    return integer;
-  }
-
-  mono operator()(const ast::lit<::real>& self, const ref<state>&) const {
-    return real;
-  }
-  
-};
 
 
 // polytype instantiation
@@ -698,9 +259,6 @@ mono state::instantiate(const poly& self) const {
 }
 
 
-mono infer(const ref<state>& s, const ast::expr& self) {
-  return self.visit(infer_visitor(), s);
-}
 
 
 // type state
@@ -809,13 +367,7 @@ static void link(state* self, const var& from, const mono& to) {
   }
 }
 
-// helper structure for destructuring row extensions
-struct extension {
-  const symbol attr;
-  const mono head;
-  const mono tail;
-  
-  static extension unpack(const app& self) {
+  extension extension::unpack(const app& self) {
     // peel application of the form: ext(name)(head)(tail)
     const mono tail = self->arg;
     const app ctor = self->ctor.cast<app>();
@@ -826,18 +378,7 @@ struct extension {
     const symbol attr(name.substr(0, name.size() - 1));
     return {attr, head, tail};
   }
-};
 
-template<class Func>
-static void iter_rows(mono self, Func func) {
-  assert(self.kind() == kind::row());
-  self.match
-    ([&](const app& self) {
-      const auto e = extension::unpack(self);
-      func(e.attr, e.head);
-      iter_rows(e.tail, func);
-    }, [](const mono& ) { });
-}
 
 static maybe<extension> rewrite(state* s, symbol attr, mono row);
 
@@ -883,11 +424,11 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
   if(auto rw = rewrite(self, e.attr, to)) {
 
     if(debug) {
-      std::clog << std::string(2 * indent, '.')
-                << "rewrote: " << show(map, self->generalize(to))
-                << " as: " << show(map, self->generalize(rw.get().head)) << "; "
-                << show(map, self->generalize(rw.get().tail))
-                << std::endl;
+      logger(std::clog) << std::string(2 * indent, '.')
+                        << "rewrote: " << self->generalize(to)
+                        << " as: " << self->generalize(rw.get().head) << "; "
+                        << self->generalize(rw.get().tail)
+                        << std::endl;
     }
     
     // rewriting succeeded, unify rewritten terms
@@ -960,8 +501,9 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
     if(t.visit(occurs_visitor(), v)) {
       ostream_visitor::map_type map;
       std::stringstream ss;
-      ss << "type variable " << show(map, self->generalize(v))
-         << " occurs in type " << show(map, self->generalize(t));
+      
+      logger(ss) << "type variable " << self->generalize(v)
+                 << " occurs in type " << self->generalize(t);
       
       throw error(ss.str());
     }
@@ -976,10 +518,10 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
     using app = ref<application>;
 
     if(debug) {
-      std::clog << std::string(2 * indent, '.')
-                << "unifying: " << show(map, self->generalize(from))
-                << " with: " << show(map, self->generalize(to))
-                << std::endl;
+      logger(std::clog) << std::string(2 * indent, '.')
+                        << "unifying: " << self->generalize(from)
+                        << " with: " << self->generalize(to)
+                        << std::endl;
     }
   
     // resolve
@@ -1023,10 +565,10 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
     }
   
     if(from != to) {
-      ostream_visitor::map_type map;
       std::stringstream ss;
-      ss << "cannot unify types \"" << show(map, self->generalize(from))
-         << "\" and \"" << show(map, self->generalize(to)) << "\"";
+      logger(ss) << "cannot unify types \"" << self->generalize(from)
+                 << "\" and \"" << self->generalize(to) << "\"";
+      
       throw unification_error(ss.str());
     }
   }
@@ -1037,4 +579,24 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
   }
 
 
+
+  struct logger::pimpl_type {
+    ostream_visitor::map_type map;
+  };
+
+  logger::logger(std::ostream& out) :
+    out(out), pimpl(new pimpl_type) { }
+
+  logger::~logger() { }
+  
+  logger& logger::operator<<(const poly& p) {
+    p.type.visit(ostream_visitor{pimpl->map}, out, p.forall, false);
+    return *this;
+  }
+
+  logger& logger::operator<<(std::ostream& (*x)(std::ostream&)) {
+    out << x;
+    return *this;
+  }
+  
 };
