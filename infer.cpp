@@ -6,6 +6,11 @@
 
 namespace type {
 
+
+  // try to open type `self` from signatures in `s`
+  static mono open(const ref<state>& s, const mono& self);
+
+  
   template<class Func>
   static void iter_rows(mono self, Func func) {
     assert(self.kind() == kind::row());
@@ -89,6 +94,28 @@ namespace type {
     throw error("constructor must be a constant");
   }
 
+  
+  // try to open type `self` from signatures in `s`
+  static mono open(const ref<state>& s, const mono& self) {
+    // obtain type constructor from argument type
+    const cst c = constructor(s->substitute(self));
+    
+    try {
+      auto sig = s->sigs->at(c);
+        
+      const mono inner = s->fresh();
+      s->unify(self >>= inner, s->instantiate(sig));
+      
+      return inner;
+    } catch(std::out_of_range&) {
+      std::stringstream ss;
+      ss << "constructor " << tool::quote(c->name.get()) << " has not associated signature";
+      throw error(ss.str());
+    }
+  }
+  
+
+  
 
   template<class T>
   static mono infer(const ref<T>& s, const T& self) {
@@ -114,52 +141,33 @@ namespace type {
     const mono result = s->fresh();
     
     const mono res = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
-        const mono sig = arg.match<mono>([&](symbol self) {
-            // untyped arguments: trivial signature
-            const mono a = sub->fresh();
-            return a;
+        const mono type = arg.match<mono>([&](symbol self) {
+            return s->fresh();
           },
           [&](ast::abs::typed self) {
             // obtain reified type from annoatation
-            const mono t = infer(s, self.type);
+            const mono reified = infer(s, self.type);
 
-            // extract actual type from reified
-            const mono r = reconstruct(s, s->substitute(t));
-
-            // obtain type constructor from type
-              const cst c = constructor(r);
-
-              try {
-                // fetch associated signature, if any
-                const auto sig = s->sigs->at(c);
-
-                // instantiate signature
-                return sub->instantiate(sig);
-              
-              } catch(std::out_of_range&) {
-                throw error("unknown signature " + tool::quote(c->name.get()));
-              }
+            // TODO do we need gen/inst here?
+            
+            // extract concrete type from reified type
+            const mono concrete = reconstruct(s, s->substitute(reified));
+            
+            return concrete;
           });
       
-        const mono outer = s->fresh();
-        const mono inner = sub->fresh();
-      
-        sub->unify(outer >>= inner, sig);
-        sub->def(arg.name(), outer);
-
-        // std::clog << "inner: " << sub->vars->find(arg.name()) << std::endl;
-      
-        return outer >>= tail;
+        sub->def(arg.name(), type);
+        return type >>= tail;
       });
     
-      // infer lambda body with augmented environment
-      s->unify(result, infer(sub, *self.body));
+    // infer lambda body with augmented environment
+    s->unify(result, infer(sub, *self.body));
     
-      return res;
-    }
+    return res;
+  }
+  
+  
 
-  
-  
 
   // app
   static mono infer(const ref<state>& s, const ast::app& self) {
@@ -173,23 +181,6 @@ namespace type {
       const mono arg = infer(s, rw.args->head);
 
       return cont(func, arg);
-    };
-
-    // obtain inner type from a type with associated signature
-    const auto inner_type = [&](mono t) {
-      // obtain type constructor from argument type
-      const cst c = constructor(s->substitute(t));
-
-      try {
-        auto sig = s->sigs->at(c);
-        
-        const mono inner = s->fresh();
-        s->unify(t >>= inner, s->instantiate(sig));
-        
-        return inner;
-      } catch(std::out_of_range&) {
-        throw error("unknown signature");
-      }
     };
 
     // check if application works with given func/arg type
@@ -211,8 +202,7 @@ namespace type {
       try {
         // open func type and retry
         return with_inferred([&](mono func, mono arg) {
-            const mono inner_func = inner_type(func);
-            return check(inner_func, arg);
+            return check(open(s, func), arg);
           });
       }
       catch(error& ) {  }
@@ -220,8 +210,7 @@ namespace type {
       try {
         // open arg type and retry        
         return with_inferred([&](mono func, mono arg) {
-            const mono inner_arg = inner_type(arg);
-            return check(func, inner_arg);
+            return check(func, open(s, arg));
           });
       }
       catch(error& ) {  }
@@ -229,9 +218,7 @@ namespace type {
       try {
         // open both func and arg types and retry        
         return with_inferred([&](mono func, mono arg) {
-            const mono inner_func = inner_type(func);          
-            const mono inner_arg = inner_type(arg);
-            return check(inner_func, inner_arg);
+            return check(open(s, func), open(s, arg));
           });
       }
       catch(error& ) {  }
