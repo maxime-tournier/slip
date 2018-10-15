@@ -15,103 +15,106 @@
 
 namespace type {
 
-struct error : std::runtime_error {
-  using std::runtime_error::runtime_error;
-};
+  struct error : std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
 
-struct mono;
-struct poly;
+  struct mono;
+  struct poly;
 
-struct constant;
-struct variable;
-struct application;
+  struct constant;
+  struct variable;
+  struct application;
 
-// monotypes
-using cst = ref<constant>;
-using var = ref<variable>;
-using app = ref<application>;
+  // monotypes
+  using cst = ref<constant>;
+  using var = ref<variable>;
+  using app = ref<application>;
 
 
-// type state
-struct state {
-  using vars_type = environment<poly>;
-  using sigs_type = std::map<cst, poly>;
+  // type state
+  struct state {
+    using vars_type = environment<poly>;
+    using sigs_type = std::map<cst, poly>;
   
-  const std::size_t level;
+    const std::size_t level;
   
-  const ref<vars_type> vars;
-  const ref<sigs_type> sigs;
+    const ref<vars_type> vars;
+    const ref<sigs_type> sigs;
   
-  using substitution = std::map<ref<variable>, mono>;
+    using substitution = std::map<ref<variable>, mono>;
   
-  const ref<substitution> sub;
+    const ref<substitution> sub;
 
-  state();
-  state(const ref<state>& parent);
+    state();
+    state(const ref<state>& parent);
 
-  ref<variable> fresh(kind::any k=kind::term()) const;
+    ref<variable> fresh(kind::any k=kind::term()) const;
   
-  mono substitute(const mono& t) const;
+    mono substitute(const mono& t) const;
   
-  poly generalize(const mono& t) const;
-  mono instantiate(const poly& p) const;
+    poly generalize(const mono& t) const;
+    mono instantiate(const poly& p) const;
   
-  void unify(mono from, mono to);
+    void unify(mono from, mono to);
 
-  // define variable, generalizing t at current depth before inserting
-  state& def(symbol name, mono t);
+    // define variable, generalizing t at current depth before inserting
+    state& def(symbol name, mono t);
 
-  // TODO deftype(name, sig)
+    // TODO deftype(name, sig)
   
-  // 
-  friend ref<state> scope(ref<state> parent) {
-    return make_ref<state>(parent);
-  }
+    // 
+    friend ref<state> scope(ref<state> parent) {
+      return make_ref<state>(parent);
+    }
   
-};
-
-
-struct mono : variant<cst, var, app> {
-  using mono::variant::variant;
-
-  ::kind::any kind() const;
-  
-  // convenience constructor for applications
-  mono operator()(mono arg) const;
-};
-
+  };
 
   
+  struct mono : variant<cst, var, app> {
+    using mono::variant::variant;
 
-struct constant {
-  const symbol name;
-  const ::kind::any kind;
-  constant(symbol name, ::kind::any k) : name(name), kind(k) { }
-};
-
-
-struct variable {
-  const std::size_t level;
-  const ::kind::any kind;
-};
+    ::kind::any kind() const;
+  
+    // convenience constructor for applications
+    mono operator()(mono arg) const;
+  };
 
 
-struct application {
-  const mono ctor;
-  const mono arg;
+  
 
-  application(mono ctor, mono arg);
-};
+  struct constant {
+    const symbol name;
+    const ::kind::any kind;
+    
+    constant(symbol name, ::kind::any k);
+  };
 
 
-// polytypes
-struct poly {
-  using forall_type = std::set<ref<variable>>;
-  const forall_type forall;
-  const mono type;
+  struct variable {
+    const std::size_t level;
+    const ::kind::any kind;
 
-  friend std::ostream& operator<<(std::ostream& out, const poly& self);
-};
+    variable(std::size_t level, const ::kind::any kind);
+  };
+
+
+  struct application {
+    const mono ctor;
+    const mono arg;
+
+    application(mono ctor, mono arg);
+  };
+
+
+  // polytypes
+  struct poly {
+    using forall_type = std::set<ref<variable>>;
+    const forall_type forall;
+    const mono type;
+
+    friend std::ostream& operator<<(std::ostream& out, const poly& self);
+  };
 
 
   // constants
