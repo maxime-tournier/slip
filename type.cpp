@@ -11,11 +11,11 @@
 
 namespace type {
 
+  static constexpr bool debug = false;
+
   struct unification_error : error {
     using error::error;
   };
-  
-  static const bool debug = false;
   
   static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
     return make_ref<constant>(constant{name, k});
@@ -411,41 +411,40 @@ struct rewrite_visitor {
 };
 
 
-static maybe<extension> rewrite(state* s, symbol attr, mono row) {
-  return row.visit(rewrite_visitor(), attr, s);
-};
-
-  static void unify(state* self, mono from, mono to, ostream_visitor::map_type& map);
+  static maybe<extension> rewrite(state* s, symbol attr, mono row) {
+    return row.visit(rewrite_visitor(), attr, s);
+  };
   
-  static void unify_rows(state* self, const app& from, const app& to,
-                         ostream_visitor::map_type& map) {
-  const extension e = extension::unpack(from);
+  static void unify(state* self, mono from, mono to, logger* log=nullptr);
+  
+  static void unify_rows(state* self, const app& from, const app& to, logger* log=nullptr) {
+    const extension e = extension::unpack(from);
 
-  // try rewriting 'to' like 'from'
-  if(auto rw = rewrite(self, e.attr, to)) {
+    // try rewriting 'to' like 'from'
+    if(auto rw = rewrite(self, e.attr, to)) {
 
-    if(debug) {
-      logger(std::clog) << std::string(2 * indent, '.')
-                        << "rewrote: " << self->generalize(to)
-                        << " as: " << self->generalize(rw.get().head) << "; "
-                        << self->generalize(rw.get().tail)
-                        << std::endl;
-    }
+      if(log) {
+        *log << std::string(2 * indent, '.')
+             << "rewrote: " << self->generalize(to)
+             << " as: " << self->generalize(rw.get().head) << "; "
+             << self->generalize(rw.get().tail)
+             << std::endl;
+      }
     
-    // rewriting succeeded, unify rewritten terms
-    unify(self, e.head, rw.get().head, map);
+      // rewriting succeeded, unify rewritten terms
+      unify(self, e.head, rw.get().head, log);
 
-    // TODO switch tail order so that we don't always rewrite the same side
-    unify(self, e.tail, rw.get().tail, map);
-    return;
+      // TODO switch tail order so that we don't always rewrite the same side
+      unify(self, e.tail, rw.get().tail, log);
+      return;
+    }
+
+    // rewriting failed: attribute error
+    std::stringstream ss;
+    ss << "expected attribute " << tool::quote(e.attr.get())
+       << " in record type \"" << self->generalize(to) << "\"";
+    throw error(ss.str());
   }
-
-  // rewriting failed: attribute error
-  std::stringstream ss;
-  ss << "expected attribute " << tool::quote(e.attr.get())
-     << " in record type \"" << self->generalize(to) << "\"";
-  throw error(ss.str());
-}
 
 
   struct upgrade_visitor {
@@ -512,17 +511,17 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 
 
 
-  static void unify(state* self, mono from, mono to, ostream_visitor::map_type& map) {
+  static void unify(state* self, mono from, mono to, logger* log) {
     const lock instance;
 
     using var = ref<variable>;
     using app = ref<application>;
 
-    if(debug) {
-      logger(std::clog) << std::string(2 * indent, '.')
-                        << "unifying: " << self->generalize(from)
-                        << " with: " << self->generalize(to)
-                        << std::endl;
+    if(log) {
+      *log << std::string(2 * indent, '.')
+           << "unifying: " << self->generalize(from)
+           << " with: " << self->generalize(to)
+           << std::endl;
     }
   
     // resolve
@@ -556,12 +555,12 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
 
       // row polymorphism
       if(k == kind::row()) {
-        unify_rows(self, from.cast<app>(), to.cast<app>(), map);
+        unify_rows(self, from.cast<app>(), to.cast<app>(), log);
         return;
       }
 
-      unify(self, from.cast<app>()->arg, to.cast<app>()->arg, map);
-      unify(self, from.cast<app>()->ctor, to.cast<app>()->ctor, map);
+      unify(self, from.cast<app>()->arg, to.cast<app>()->arg, log);
+      unify(self, from.cast<app>()->ctor, to.cast<app>()->ctor, log);
       return;
     }
   
@@ -569,14 +568,13 @@ static maybe<extension> rewrite(state* s, symbol attr, mono row) {
       std::stringstream ss;
       logger(ss) << "cannot unify types \"" << self->generalize(from)
                  << "\" and \"" << self->generalize(to) << "\"";
-      
       throw unification_error(ss.str());
     }
   }
   
   void state::unify(mono from, mono to) {
-    ostream_visitor::map_type map;
-    type::unify(this, from, to, map);
+    logger log(std::clog);
+    type::unify(this, from, to, debug ? &log : nullptr);
   }
 
 
