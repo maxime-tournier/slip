@@ -146,12 +146,13 @@ struct ostream_visitor {
       out << " ";
       self->ctor.visit(*this, out, forall, false);
     } else if(mono(self).kind() == kind::row()) {
+
       // print row types: ctor is (attr: type) so we want parens
-      self->ctor.visit(*this, out, forall, true);
+      self->ctor.visit(*this, out, forall, false);
 
       // skip trailing empty record type
       if(self->arg != empty) {
-        out << " ";
+        out << "; ";
         self->arg.visit(*this, out, forall, false);
       }
     } else {
