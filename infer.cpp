@@ -177,7 +177,7 @@ namespace type {
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
     
-    return result;
+    return sig;
   }
   
   
