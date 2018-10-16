@@ -279,7 +279,7 @@ namespace ast {
     if(!name) return fail<expr>();
 
     const auto args = sig.match<maybe<args_type>>([&](sexpr::list self) {
-        return check_args(self);
+        return check_args(self->tail);
       },
       [&](symbol) { return just(args_type()); },
       [&](sexpr) -> maybe<args_type> { return {}; });

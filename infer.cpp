@@ -443,7 +443,7 @@ namespace type {
     // TODO create a new type constructor with given name/computed kind
 
     // in the meantime, return signature
-    s->unify(result, attrs);
+    s->unify(result, record(attrs));
     return sig;
   }
 
