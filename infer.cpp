@@ -10,17 +10,16 @@ namespace type {
   // try to open type `self` from signatures in `s`
   static mono open(const ref<state>& s, const mono& self);
 
-  
-  template<class Func>
-  static void iter_rows(mono self, Func func) {
+
+  template<class Init, class Func>
+  static Init foldr_rows(const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::row());
-    self.match
-      ([&](const app& self) {
-        const auto e = extension::unpack(self);
-        func(e.attr, e.head);
-        iter_rows(e.tail, func);
-      }, [](const mono& ) { });
+    return self.match<Init>([&](const app& self) {
+      const auto e = extension::unpack(self);
+      return func(e.attr, e.head, foldr_rows(init, e.tail, func));
+    }, [&](const mono& ) { return init; });
   }
+
   
  
   struct let {
@@ -109,7 +108,9 @@ namespace type {
       return inner;
     } catch(std::out_of_range&) {
       std::stringstream ss;
-      ss << "constructor " << tool::quote(c->name.get()) << " has not associated signature";
+      ss << "constructor " << tool::quote(c->name.get())
+         << " has no associated signature";
+      
       throw error(ss.str());
     }
   }
@@ -135,7 +136,8 @@ namespace type {
 
 
   // initialize function scope with argument types
-  static ref<state> function_scope(const ref<state>& s, const list<ast::abs::arg>& args) {
+  static ref<state> function_scope(const ref<state>& s,
+                                   const list<ast::abs::arg>& args) {
     auto sub = scope(s);
     
     for(auto arg: args) {
@@ -275,6 +277,7 @@ namespace type {
     return record(row) >>= head;
   }
 
+  
   // record attrs
   static mono infer(const ref<state>& s, const list<ast::record::attr>& attrs) {
     const mono init = empty;
@@ -282,6 +285,7 @@ namespace type {
         return ext(attr.name)(infer(s, attr.value))(tail);
       });
   }
+
   
   // record
   static mono infer(const ref<state>& s, const ast::record& self) {
@@ -395,11 +399,13 @@ namespace type {
     auto sub = scope(s);
     
     // fill sub scope with record contents
-    iter_rows(s->substitute(row), [&](symbol attr, mono t) {
+    using ::unit;
+    foldr_rows(unit(), s->substitute(row), [&](symbol attr, mono t, unit) {
         // TODO generalization issue?
         sub->def(attr, t);
+        return unit();
       });
-
+    
     return infer(sub, *self.body);
   }
 
@@ -408,6 +414,7 @@ namespace type {
   static mono infer(const ref<state>& s, const ast::import& self) {
     auto it = s->vars->locals.find(self.package);
     if(it != s->vars->locals.end()) {
+      // TODO delegate to def
       throw error("variable " + tool::quote(self.package.get()) + " already defined");
     }
     
@@ -430,14 +437,15 @@ namespace type {
         return type >>= rhs;
       });
 
-    // infer type for module attributes in module scope
+    // infer attribute types in module scope
     const mono attrs = infer(sub, self.attrs);
 
-    iter_rows(attrs, [&](symbol attr, mono reified) {
-        // make sure each attribute has a reified type
-        const mono type = reconstruct(sub, reified);
-      });
-
+    // recover inner type from reified types
+    const mono inner =
+      record(foldr_rows(empty, attrs, [&](symbol name, mono reified, mono rhs) {
+        return row(name, reconstruct(sub, reified)) |= rhs;
+      }));
+    
     // TODO compute kind from signature
 
     // TODO create a new type constructor with given name/computed kind
