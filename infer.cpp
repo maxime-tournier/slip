@@ -63,20 +63,20 @@ namespace type {
   // note: t must be substituted
   static mono reconstruct(ref<state> s, mono t) {
     // std::clog << "reconstructing: " << s->generalize(t) << std::endl;
-    
-    if(auto self = t.get<app>()) {
-      // std::clog << "ctor: " << s->generalize((*self)->ctor) << std::endl;
+    auto a = s->fresh();
+
+    try {
+      s->unify(ty(a), t);
+      return a;
+      // TODO don't use exceptions for control flow lol
+    } catch(error& e) {
+      auto from = s->fresh();
+      auto to = s->fresh();
       
-      if((*self)->ctor == ty) {
-        return (*self)->arg;
-      }
+      s->unify(from >>= to, t);
+      return reconstruct(s, s->substitute(to));
     }
     
-    auto from = s->fresh();
-    auto to = s->fresh();
-    
-    s->unify(from >>= to, t);
-    return reconstruct(s, s->substitute(to));
   }
 
 
@@ -435,7 +435,7 @@ namespace type {
 
     iter_rows(attrs, [&](symbol attr, mono reified) {
         // make sure each attribute has a reified type
-        // const mono type = reconstruct(sub, reified);
+        const mono type = reconstruct(sub, reified);
       });
 
     // TODO compute kind from signature
