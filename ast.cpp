@@ -11,12 +11,79 @@
 #include "tool.hpp"
 #include "unpack.hpp"
 
-
-
 #include "slice.hpp"
 
 
 namespace ast {
+
+  struct unimplemented : std::runtime_error {
+    unimplemented(std::string what)
+      : std::runtime_error("unimplemented: " + what) { }
+  };
+  
+  symbol abs::arg::name() const {
+    return match<symbol>
+      ([](symbol self) { return self; },
+       [](typed self) { return self.name; });
+  }
+
+  static const symbol arrow = "->";
+  
+  static sexpr::list rewrite_arrows(sexpr::list args) {
+    if(!args) return args;
+
+    // (x -> ...) ~> (-> x ...)
+    if(args->tail && args->tail->head == arrow) {
+      auto tail = rewrite_arrows(args->tail->tail);
+      if(tail->tail) {
+        return arrow >>= args->head >>= tail >>= sexpr::list();        
+      } else {
+        return arrow >>= args->head >>= tail;
+      }
+    }
+    
+    return args->head >>= rewrite_arrows(args->tail);
+  }
+
+  
+  namespace test {
+    
+    template<class U>
+    using monad = slice::monad<sexpr, U>;
+
+    template<class U>
+    using slice = slice::slice<sexpr, U>;
+    
+    using namespace slice;
+
+    // pop if head is of given type
+    template<class U>
+    static slice<U> pop_as(const list<sexpr>& self) {
+      if(!self || !self->head.template get<U>()) {
+        return {{}, self};
+      }
+
+      return {self->head.cast<U>(), self->tail};
+    }
+    
+    
+    // check application
+    static maybe<expr> check_app(sexpr::list args) {
+      if(!args) throw error("empty list in application");
+      
+      // TODO don't rewrite **all the time
+      sexpr::list rw = rewrite_arrows(args);
+      
+      const auto func = expr::check(rw->head);
+      const expr res = app{func, map(rw->tail, expr::check)};
+      
+      return res;
+    }
+
+    
+      
+  }
+
   
   template<class U>
   using monad = unpack::monad<sexpr, U>;
@@ -39,28 +106,7 @@ namespace ast {
     };
   }
     
-  struct unimplemented : std::runtime_error {
-    unimplemented(std::string what)
-      : std::runtime_error("unimplemented: " + what) { }
-  };
 
-  const symbol arrow = "->";
-  
-  static sexpr::list rewrite_arrows(sexpr::list args) {
-    if(!args) return args;
-
-    // (x -> ...) ~> (-> x ...)
-    if(args->tail && args->tail->head == arrow) {
-      auto tail = rewrite_arrows(args->tail->tail);
-      if(tail->tail) {
-        return arrow >>= args->head >>= tail >>= sexpr::list();        
-      } else {
-        return arrow >>= args->head >>= tail;
-      }
-    }
-    
-    return args->head >>= rewrite_arrows(args->tail);
-  }
   
   
   // check function calls
@@ -76,11 +122,6 @@ namespace ast {
     return res;
   }
 
-  symbol abs::arg::name() const {
-    return match<symbol>
-      ([](symbol self) { return self; },
-       [](typed self) { return self.name; });
-  }
   
 // struct typed_argument {
 //   const symbol type;

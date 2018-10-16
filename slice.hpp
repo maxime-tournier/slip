@@ -99,7 +99,7 @@ namespace slice {
     template<class T>
     slice<T, T> operator()(const list<T>& self) const {
       if(!self || !pred(self->head)) return {{}, self};
-      return {self->head, self-tail};
+      return {self->head, self->tail};
     }
   };
 
