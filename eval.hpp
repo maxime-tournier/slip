@@ -10,17 +10,21 @@
 #include "ast.hpp"
 
 namespace eval {
+
   struct value;
 
+  
   struct state : environment<value> {
     using state::environment::environment;
     // ~env();
   };
 
+  
   struct record {
     std::map<symbol, value> attrs;
   };
 
+  
   struct closure {
     using func_type = std::function<value (const value* args)>;
     const func_type func;
@@ -36,6 +40,7 @@ namespace eval {
     closure(Ret (*impl) (const Args&...) );
   };
 
+  
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
                          closure, record> {
     using value::variant::variant;
@@ -44,6 +49,7 @@ namespace eval {
     friend std::ostream& operator<<(std::ostream& out, const value& self);
   };
 
+  
   template<class Ret, class ... Args>
   closure::closure(Ret (*impl) (const Args&...) )
     : func( [impl](const value* args) -> value {
@@ -54,10 +60,9 @@ namespace eval {
       argc(sizeof...(Args)) { }
 
 
-
   value apply(const value& func, const value* first, const value* last);
-
   value expr(const ref<state>& e, const ast::expr& expr);
+  
 }
 
 

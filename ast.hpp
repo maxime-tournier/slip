@@ -85,6 +85,7 @@ namespace ast {
     struct attr;
 
     const list<attr> attrs;
+    
   };
 
 
@@ -187,7 +188,6 @@ namespace ast {
     static io check(const sexpr& e);
     friend std::ostream& operator<<(std::ostream& out, const io& self);    
   };
-
 
   struct error : std::runtime_error {
     using runtime_error::runtime_error;

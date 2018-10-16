@@ -59,25 +59,28 @@ value apply(const value& self, const value* first, const value* last) {
 }
 
 
-struct expr_visitor {
-  using type = value;
+  template<class T>
+  static value eval(const ref<state>&, const T& ) {
+    throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
+  }
+
   
   template<class T>
-  T operator()(const ast::lit<T>& self, const ref<state>& ) const {
-	return self.value;
+  static value eval(const ref<state>&, const ast::lit<T>& self) {
+    return self.value;
+  }
+
+
+  static value eval(const ref<state>& e,const ast::var& self) {
+    try {
+      return e->find(self.name);
+    } catch(std::out_of_range& e) {
+      throw std::runtime_error(e.what());
+    }
   }
 
   
-  value operator()(const ast::var& self, const ref<state>& e) const {
-	try {
-	  return e->find(self.name);
-	} catch(std::out_of_range& e) {
-	  throw std::runtime_error(e.what());
-	}
-  }
-
-  
-  value operator()(const ast::app& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::app& self) {
     const value func = expr(e, *self.func);
 
     std::vector<value> args;
@@ -88,8 +91,9 @@ struct expr_visitor {
     
     return apply(func, args.data(), args.data() + args.size());
   }
+
   
-  value operator()(const ast::abs& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::abs& self) {
     const list<symbol> args = map(self.args, [](const ast::abs::arg& arg) {
         return arg.name();
       });
@@ -106,17 +110,31 @@ struct expr_visitor {
     });
   }
 
+  static value eval(const ref<state>& e, const ast::io& self) {
+    return self.match<value>([&](const ast::expr& self) {
+        return expr(e, self);
+      },
+      [&](const ast::bind& self) {
+        return eval(e, self);
+      });
+  }
+
   
-  value operator()(const ast::seq& self, const ref<state>& e) const {
-	const value init = unit();
-	return foldl(init, self.items,
-				 [&](const value&, const ast::io& self) -> value {
-				   return self.visit(expr_visitor(), e);
-				 });
+
+  static value eval(const ref<state>& e, const ast::seq& self) {
+    const value init = unit();
+    return foldl(init, self.items,
+                 [&](const value&, const ast::io& self) -> value {
+                   return eval(e, self);
+                 });
   }
 
 
-  value operator()(const ast::def& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::module& self) {
+    return unit();
+  }
+
+  static value eval(const ref<state>& e, const ast::def& self) {
     // note: the type system will keep us from evaluating side effects if the
     // variable is already defined
     if(!e->locals.emplace(self.name, expr(e, *self.value)).second) {
@@ -127,7 +145,7 @@ struct expr_visitor {
   }
   
   
-  value operator()(const ast::let& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::let& self) {
     auto sub = scope(e);
     state::locals_type locals;
     
@@ -140,7 +158,7 @@ struct expr_visitor {
   }
 
   
-  value operator()(const ast::cond& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::cond& self) {
     const value test = expr(e, *self.test);
     if(auto b = test.get<boolean>()) {
       if(*b) return expr(e, *self.conseq);
@@ -149,25 +167,23 @@ struct expr_visitor {
   }
 
 				   
-  value operator()(const ast::io& self, const ref<state>& e) const {
-	return self.visit(expr_visitor(), e);
-  }
+  
 
-  value operator()(const ast::expr& self, const ref<state>& e) const {
-	return self.visit(expr_visitor(), e);
-  }
+  // static value eval(const ref<state>& e, const ast::expr& self) {
+  //   return self.visit(expr_visitor(), e);
+  // }
 
-  value operator()(const ast::record& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::record& self) {
     record res;
     foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
-      res.attrs.emplace(attr.name, expr(e, attr.value));
-      return unit();
-    });
+        res.attrs.emplace(attr.name, expr(e, attr.value));
+        return unit();
+      });
     return res;
   }
 
 
-  value operator()(const ast::sel& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::sel& self) {
     const symbol name = self.name;
     return closure(1, [name](const value* args) -> value {
       return args[0].cast<record>().attrs.at(name);      
@@ -176,11 +192,11 @@ struct expr_visitor {
   }
 
 
-  value operator()(const ast::make& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::make& self) {
     return expr(e, ast::record{self.attrs});
   }
 
-  value operator()(const ast::use& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::use& self) {
     auto r = expr(e, *self.env);
     auto s = scope(e);
     if(auto rr = r.get<record>()) {
@@ -195,27 +211,32 @@ struct expr_visitor {
   }
   
 
-  value operator()(const ast::import& self, const ref<state>& e) const {
+  static value eval(const ref<state>& e, const ast::import& self) {
     const package pkg = package::import(self.package);
     e->def(self.package, pkg.dict());
     return unit();
   }
   
-  template<class T>
-  value operator()(const T& self, const ref<state>& e) const {
-	throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
-  }
   
-};
+  struct expr_visitor {
+    using type = value;
+  
+    template<class T>
+    value operator()(const T& self, const ref<state>& e) const {
+      return eval(e, self);
+    }
+  
+  };
 
 
-value expr(const ref<state>& e, const ast::expr& self) {
-  return self.visit(expr_visitor(), e);
-}
+  value expr(const ref<state>& e, const ast::expr& self) {
+    return self.visit(expr_visitor(), e);
+  }
 
   
 namespace {
-struct ostream {
+  
+struct ostream_visitor {
   using type = void;
   
   template<class T>
@@ -258,7 +279,7 @@ struct ostream {
 }
 
 std::ostream& operator<<(std::ostream& out, const value& self) {
-  self.visit(ostream(), out);
+  self.visit(ostream_visitor(), out);
   return out;
 }
 

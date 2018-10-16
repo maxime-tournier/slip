@@ -114,11 +114,11 @@ namespace type {
     }
   }
   
-
+  ////////////////////////////////////////////////////////////////////////////////
   
-
+  // error: unimplemented
   template<class T>
-  static mono infer(const ref<T>& s, const T& self) {
+  static mono infer(const ref<state>& s, const T& self) {
     throw std::logic_error("infer unimplemented: " + tool::type_name(typeid(T)));
   }
 
@@ -401,6 +401,23 @@ namespace type {
     return io(unit);
   }
   
+
+  // module
+  static mono infer(const ref<state>& s, const ast::module& self) {
+
+    // build a lambda with same parameters, returning record with same
+    // attributes
+    const ast::abs lambda{self.args, ast::record{self.attrs}};
+
+    // build reified signature type
+    const mono reified = infer(s, lambda);
+
+    // TODO check/build actual signature
+    
+    return reified;
+  }
+
+
   
   // lit
   static mono infer(const ref<state>&, const ast::lit<::boolean>& self) {
@@ -414,9 +431,10 @@ namespace type {
   static mono infer(const ref<state>&, const ast::lit<::real>& self) {
     return real;
   }
-  
 
   
+
+  ////////////////////////////////////////////////////////////////////////////////
   
   struct infer_visitor {
     using type = mono;

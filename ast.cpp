@@ -88,25 +88,25 @@ namespace ast {
 
   using args_type = list<abs::arg>;
 
-static maybe<args_type> check_args(sexpr::list self) {
-  maybe<args_type> init(nullptr);
-  return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
-    return rhs >> [&](args_type tail) -> maybe<args_type> {
+  static maybe<args_type> check_args(sexpr::list self) {
+    maybe<args_type> init(nullptr);
+    return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
+        return rhs >> [&](args_type tail) -> maybe<args_type> {
           
-      if(auto res = lhs.get<symbol>()) {
-        return *res >>= tail;
-      }
-      if(auto res = lhs.get<sexpr::list>()) {
-        return (pop() >> [tail](sexpr type) {
-          return pop_as<symbol>() >> [tail, type](symbol name) {
-            return pure(abs::typed{expr::check(type), name} >>= tail);
-          };
-          })(*res);
-      }
-      return {};
-    };
-  });
-}
+          if(auto res = lhs.get<symbol>()) {
+            return *res >>= tail;
+          }
+          if(auto res = lhs.get<sexpr::list>()) {
+            return (pop() >> [tail](sexpr type) {
+                return pop_as<symbol>() >> [tail, type](symbol name) {
+                  return pure(abs::typed{expr::check(type), name} >>= tail);
+                };
+              })(*res);
+          }
+          return {};
+        };
+      });
+  }
 
 
 // 
@@ -232,19 +232,42 @@ static maybe<expr> check_seq(sexpr::list args) {
     };
 
 
-  static const auto check_module =
-    pop_as<symbol>() >> [](symbol name) {
-      return pop_as<sexpr::list>() >> [=](sexpr::list args) {
-        return check_record_attrs >> [=](record::attr::list attrs) -> monad<expr> {
-          if(auto a = check_args(args)) {
-            const expr res = module{name, a.get(), attrs};
-            return done(pure(res));
-          };
+  static const auto check_module = pop() >> [](sexpr sig) -> monad<expr> {
+    const auto name = sig.match<maybe<symbol>>([&](symbol self) {
+        return just(self);
+      },
+      [&](sexpr::list self) {
+        return pop_as<symbol>()(self);
+      },
+      [&](sexpr) -> maybe<symbol> { return {}; });
 
-          return fail<expr>();
-        };
-      };
+    if(!name) return fail<expr>();
+
+    const auto args = sig.match<maybe<args_type>>([&](sexpr::list self) {
+        return (check_args >> [](auto args) {
+            return done(pure(args));
+          })(self->tail);
+      },
+      [&](symbol) { return just(args_type()); },
+      [&](sexpr) -> maybe<args_type> { return {}; });
+    
+    return check_record_attrs >> [=](record::attr::list attrs) {
+      const expr res = module{name.get(), args.get(), attrs};
+      return done(pure(res));
     };
+  };
+  
+    //   return pop_as<sexpr::list>() >> [=](sexpr::list args) {
+    //     return check_record_attrs >> [=](record::attr::list attrs) -> monad<expr> {
+    //       if(auto a = check_args(args)) {
+    //         const expr res = module{name, a.get(), attrs};
+    //         return done(pure(res));
+    //       };
+
+    //       return fail<expr>();
+    //     };
+    //   };
+    // };
 
   
   namespace kw {
