@@ -132,38 +132,52 @@ namespace type {
     }
   }
 
+
+
+  // initialize function scope with argument types
+  static ref<state> function_scope(const ref<state>& s, const list<ast::abs::arg>& args) {
+    auto sub = scope(s);
+    
+    for(auto arg: args) {
+      const mono type = arg.match<mono>([&](symbol self) {
+          return s->fresh();
+        },
+        [&](ast::abs::typed self) {
+          // obtain reified type from annoatation
+          const mono reified = infer(s, self.type);
+          
+          // TODO do we need gen/inst here?
+          
+          // extract concrete type from reified type
+          const mono concrete = reconstruct(s, s->substitute(reified));
+          
+          return concrete;
+        });
+      
+      sub->def(arg.name(), type);
+    }
+    
+    return sub;
+  }
+
+  
+  
   // abs
   static mono infer(const ref<state>& s, const ast::abs& self) {
+
     // function scope
-    const auto sub = scope(s);
+    const auto sub = function_scope(s, self.args);
 
-    // construct function type
-    const mono result = s->fresh();
-    
-    const mono res = foldr(result, self.args, [&](ast::abs::arg arg, mono tail) {
-        const mono type = arg.match<mono>([&](symbol self) {
-            return s->fresh();
-          },
-          [&](ast::abs::typed self) {
-            // obtain reified type from annoatation
-            const mono reified = infer(s, self.type);
-
-            // TODO do we need gen/inst here?
-            
-            // extract concrete type from reified type
-            const mono concrete = reconstruct(s, s->substitute(reified));
-            
-            return concrete;
-          });
-      
-        sub->def(arg.name(), type);
-        return type >>= tail;
+    const mono result = s->fresh();    
+    const mono sig = foldr(result, self.args, [&](auto arg, mono rhs) {
+        const mono type = s->instantiate(sub->vars->find(arg.name()));
+        return type >>= rhs;
       });
     
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
     
-    return res;
+    return result;
   }
   
   
@@ -261,15 +275,17 @@ namespace type {
     return record(row) >>= head;
   }
 
+  // record attrs
+  static mono infer(const ref<state>& s, const list<ast::record::attr>& attrs) {
+    const mono init = empty;
+    return foldr(init, attrs, [&](ast::record::attr attr, mono tail) {
+        return ext(attr.name)(infer(s, attr.value))(tail);
+      });
+  }
   
   // record
   static mono infer(const ref<state>& s, const ast::record& self) {
-    const mono init = empty;
-    const mono row = foldr(init, self.attrs, [&](ast::record::attr attr, mono tail) {
-        return ext(attr.name)(infer(s, attr.value))(tail);
-      });
-
-    return record(row);
+    return record(infer(s, self.attrs));
   }
 
   
@@ -405,16 +421,30 @@ namespace type {
   // module
   static mono infer(const ref<state>& s, const ast::module& self) {
 
-    // build a lambda with same parameters, returning record with same
-    // attributes
-    const ast::abs lambda{self.args, ast::record{self.attrs}};
+    // module scope
+    const auto sub = function_scope(s, self.args);
 
-    // build reified signature type
-    const mono reified = infer(s, lambda);
+    const mono result = s->fresh();    
+    const mono sig = foldr(result, self.args, [&](auto arg, mono rhs) {
+        const mono type = s->instantiate(sub->vars->find(arg.name()));
+        return type >>= rhs;
+      });
 
-    // TODO check/build actual signature
-    
-    return reified;
+    // infer type for module attributes in module scope
+    const mono attrs = infer(sub, self.attrs);
+
+    iter_rows(attrs, [&](symbol attr, mono reified) {
+        // make sure each attribute has a reified type
+        // const mono type = reconstruct(sub, reified);
+      });
+
+    // TODO compute kind from signature
+
+    // TODO create a new type constructor with given name/computed kind
+
+    // in the meantime, return signature
+    s->unify(result, attrs);
+    return sig;
   }
 
 
