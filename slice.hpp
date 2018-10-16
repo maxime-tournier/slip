@@ -40,31 +40,41 @@ namespace slice {
 
     // type helpers
     template<class T>
-    auto source_slice_type(const list<T>& self) const -> decltype(ma(self));
+    auto source_slice(const list<T>& self) const -> decltype(ma(self));
 
     template<class T, class A>
-    A result_type(const slice<T, A>&) const;
+    A result(const slice<T, A>&) const;
     
     template<class A>
-    auto target_slice_type(const A& self) const -> decltype(func(self));
+    auto target_monad(const A& self) const -> decltype(func(self));
     
     template<class T>
     auto operator()(const list<T>& self) const {
-      using type = decltype(target_slice_type(result_type(source_slice_type(self))));
+      using target_slice_type = decltype(target_monad(result(source_slice(self)))(self));
       
       const auto ra = ma(self);
       if(!ra.result) {
-        return type{{}, self};
+        return target_slice_type{{}, self};
+      }
+
+      // note: backtrack all the way in case second fails
+      const auto rb = func(ra.result.get())(ra.rest);
+      if(!rb.result) {
+        return target_slice_type{{}, self};
       }
       
-      return func(ra.result.get())(ra.rest);
+      return rb;
     }
     
   };
 
+  template<class MA, class Func>
+  static bind_type<MA, Func> operator>>(MA ma, Func func) { return {ma, func}; }
+  
+
   // abort computation
   template<class A>
-  struct fail_type {
+  struct fail {
     template<class T>
     slice<T, A> operator()(const list<T>& self) const {
       return {{}, self};
@@ -77,6 +87,9 @@ namespace slice {
   struct coproduct_type {
     const LHS lhs;
     const RHS rhs;
+
+    template<class T, class A>
+    static void check_types(slice<T, A>, slice<T, A>);
 
     template<class T>
     auto operator()(const list<T>& self) const {
@@ -132,6 +145,7 @@ namespace slice {
       return {self, self};
     }
   };
+
   
 }
 

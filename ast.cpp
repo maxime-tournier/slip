@@ -46,61 +46,64 @@ namespace ast {
   }
 
   
-  namespace test {
-    
-    template<class U>
-    using monad = slice::monad<sexpr, U>;
-
-    template<class U>
-    using slice = slice::slice<sexpr, U>;
-    
-    using namespace slice;
-
-    // pop if head is of given type
-    template<class U>
-    static slice<U> pop_as(const list<sexpr>& self) {
-      if(!self || !self->head.template get<U>()) {
-        return {{}, self};
-      }
-
-      return {self->head.cast<U>(), self->tail};
-    }
-    
-    
-    // check application
-    static maybe<expr> check_app(sexpr::list args) {
-      if(!args) throw error("empty list in application");
-      
-      // TODO don't rewrite **all the time
-      sexpr::list rw = rewrite_arrows(args);
-      
-      const auto func = expr::check(rw->head);
-      const expr res = app{func, map(rw->tail, expr::check)};
-      
-      return res;
-    }
-
-    
-      
-  }
+  template<class U>
+  using monad = slice::monad<sexpr, U>;
 
   
   template<class U>
-  using monad = unpack::monad<sexpr, U>;
+  using slice = slice::slice<sexpr, U>;
+
   
-  using namespace unpack;
+  using namespace slice;
+
   
+  // pop if head is of given type
+  template<class U>
+  static slice<U> pop_as(const list<sexpr>& self) {
+    if(!self || !self->head.template get<U>()) {
+      return {{}, self};
+    }
+    
+    return {self->head.cast<U>(), self->tail};
+  }
+
+  
+  // throw on error
+  template<class U, class Exc>
+  static monad<U> raise(Exc exc) {
+    return [exc](sexpr::list) -> slice<U> {
+      throw exc;
+    };
+  }
+
+  
+  // check application
+  static slice<expr> check_app(sexpr::list args) {
+    if(!args) throw error("empty list in application");
+      
+    // TODO don't rewrite **all the time
+    sexpr::list rw = rewrite_arrows(args);
+      
+    const auto func = expr::check(rw->head);
+    const expr res = app{func, map(rw->tail, expr::check)};
+      
+    return {res, nullptr};
+  }
+
+
+  
+    
   // validate sexpr against a special forms table
   template<class U>
   using special_type = std::map<symbol, std::pair<monad<U>, std::string> >;
       
   template<class U>
   static monad<U> check_special(const special_type<U>& table) {
-    return pop_as<symbol>() >> [&](symbol s) -> monad<U> {
+    return pop_as<symbol> >> [&](symbol s) -> monad<U> {
       const auto it = table.find(s);
       if(it != table.end()) {
         const error err(it->second.second);
-        return it->second.first | unpack::error<U>(err);
+        return it->second.first | raise<U>(err);
       }
       return fail<U>();
     };
@@ -109,19 +112,7 @@ namespace ast {
 
   
   
-  // check function calls
-  static maybe<expr> check_call(sexpr::list args) {
-    if(!args) throw error("empty list in application");
-
-    // TODO don't rewrite **all the time
-    sexpr::list rw = rewrite_arrows(args);
-    
-    const auto func = expr::check(rw->head);
-    const expr res = app{func, map(rw->tail, expr::check)};
-    
-    return res;
-  }
-
+ 
   
 // struct typed_argument {
 //   const symbol type;
@@ -135,7 +126,8 @@ namespace ast {
   using args_type = list<abs::arg>;
 
   static maybe<args_type> check_args(sexpr::list self) {
-    maybe<args_type> init(nullptr);
+    maybe<args_type> init{nullptr};
+    
     return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
         return rhs >> [&](args_type tail) -> maybe<args_type> {
           
@@ -144,10 +136,10 @@ namespace ast {
           }
           if(auto res = lhs.get<sexpr::list>()) {
             return (pop() >> [tail](sexpr type) {
-                return pop_as<symbol>() >> [tail, type](symbol name) {
+                return pop_as<symbol> >> [tail, type](symbol name) {
                   return pure(abs::typed{expr::check(type), name} >>= tail);
                 };
-              })(*res);
+              })(*res).result;
           }
           return {};
         };
@@ -155,73 +147,69 @@ namespace ast {
   }
 
 
-// 
-  static const auto check_abs = pop_as<sexpr::list>() 
-    >> [](sexpr::list self) {
+  // check fundefs
+  static const auto check_abs = pop_as<sexpr::list> >> [](sexpr::list self) {
     return pop() >> [&](const sexpr& body) -> monad<expr> {
       if(const auto args = check_args(self)) {
         const expr e = abs{args.get(), expr::check(body)};
-        return done(pure(e));
+        return done(e);
       } else {
         return fail<expr>();
       }
     };
   };
 
-// check a binding (`symbol`, `expr`)
-static const auto check_bind =
-  pop_as<symbol>() >> [](symbol id) {
+  // check a binding (`symbol`, `expr`)
+  static const auto check_bind = pop_as<symbol> >> [](symbol id) {
     return pop() >> [id](sexpr e) {
-      return done(pure(bind{id, expr::check(e)}));
+      return done(bind{id, expr::check(e)});
     };
   };
 
-// check a binding sequence (`binding`...)
-static const auto check_bindings = [](sexpr::list self) {
-  list<bind> defs;
-  return foldr(just(defs), self, [](sexpr lhs, maybe<list<bind>> rhs) {
-      return rhs >> [&](list<bind> tail) -> maybe<list<bind>> {
-        if(auto binding = lhs.get<sexpr::list>()) {
-          return check_bind(*binding) >> [&](bind self) {
-            return just(self >>= tail);
-          };
-        }
-        return {};
-    };
-  });
-};
+  // check a binding sequence (`binding`...)
+  static const auto check_bindings = [](sexpr::list self) {
+    list<bind> defs;
+  
+    return foldr(just(defs), self, [](sexpr lhs, maybe<list<bind>> rhs) {
+        return rhs >> [&](list<bind> tail) -> maybe<list<bind>> {
+          if(auto binding = lhs.get<sexpr::list>()) {
+            return check_bind(*binding).result >> [&](bind self) {
+              return just(self >>= tail);
+            };
+          }
+          return {};
+        };
+      });
+  };
   
 
-static const auto check_let = pop_as<sexpr::list>()
-  >> [](sexpr::list bindings) -> monad<expr> {
+  static const auto check_let = pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
     if(const auto defs = check_bindings(bindings)) {
       return pop() >> [defs](sexpr body) {
         const expr res = let{defs.get(), expr::check(body)};
-        return done(pure(res));
+        return done(res);
       };
     } else return fail<expr>();
-};
+  };
 
 
-static const auto check_def = check_bind >> [](bind self) {
-  const expr res = def{self.name, self.value};
-  return pure(res);
-};
+  static const auto check_def = check_bind >> [](bind self) {
+    const expr res = def{self.name, self.value};
+    return pure(res);
+  };
 
 
-static maybe<expr> check_seq(sexpr::list args) {
-  const expr res = seq{map(args, io::check)};
-  return res;
-}
+  static slice<expr> check_seq(sexpr::list args) {
+    const expr res = seq{map(args, io::check)};
+    return {res, nullptr};
+  }
 
-  static const auto check_cond = pop()
-  >> [](sexpr self) {
+  
+  static const auto check_cond = pop() >> [](sexpr self) {
     const auto test = expr::check(self);
-    return pop()
-    >> [=](sexpr self) {
+    return pop() >> [=](sexpr self) {
       const auto conseq = expr::check(self);
-      return pop()
-        >> [=](sexpr self) {
+      return pop() >> [=](sexpr self) {
         const auto alt = expr::check(self);
         const expr res = cond{test, conseq, alt};
         return pure(res);
@@ -230,99 +218,80 @@ static maybe<expr> check_seq(sexpr::list args) {
   };
 
 
-  static maybe<record::attr::list> check_record_attrs(sexpr::list args) {
+  static slice<record::attr::list> check_record_attrs(sexpr::list args) {
     const auto init = just(record::attr::list());
-
+    
     // build attribute list by folding args
-    return foldr(init, args, [](sexpr e, maybe<record::attr::list> tail) {
-      return tail >> [&](record::attr::list tail) {
-        if(auto self = e.get<sexpr::list>()) {
-          return check_bind(*self) >> [&](bind b) {
-            const record::attr head{b.name, b.value};
-            return just(head >>= tail);
+    if(auto res = foldr(init, args, [](sexpr e, maybe<record::attr::list> tail) {
+          return tail >> [&](record::attr::list tail) {
+            if(auto self = e.get<sexpr::list>()) {
+              return check_bind(*self).result >> [&](bind b) {
+                const record::attr head{b.name, b.value};
+                return just(head >>= tail);
+              };
+            } else {
+              return maybe<record::attr::list>();
+            }
           };
-        } else {
-          return maybe<record::attr::list>();
-        }
-      };
-    });
+        })) {
+      return {res.get(), nullptr};
+    } else {
+      return {{}, args};
+    }
+  };
+
+  
+  static const auto check_record = check_record_attrs >> [](record::attr::list attrs) {
+    const expr res = record{attrs};
+    return done(res);
   };
   
-  static maybe<expr> check_record(sexpr::list args) {
-    return check_record_attrs(args) >> [](record::attr::list attrs) {
-      const expr res = record{attrs};
-      return just(res);
+  static const auto check_make = pop_as<symbol> >> [](symbol type) {
+    return check_record >> [type](expr self) {
+      const expr res = make{type, self.cast<record>().attrs};
+      return done(res);
     };
-  }
-
-  static const auto check_make =
-    pop_as<symbol>() >> [](symbol type) {
-      return check_record >> [type](expr self) {
-        const expr res = make{type, self.cast<record>().attrs};
-        return done(pure(res));
-      };
-    };
-
-  static const auto check_use =
-    pop() >> [](sexpr env) {
-      return pop() >> [env](sexpr body) {
-        const expr res = use(expr::check(env), expr::check(body));
-        return done(pure(res));
-      };
-    };
-
-  static const auto check_import =
-    pop_as<symbol>() >> [](symbol package) {
-      const expr res = import{package};
-      return done(pure(res));
-    };
-
-
-
-  static const auto query = [](sexpr::list self) {
-    return just(self);
   };
+
   
+  static const auto check_use = pop() >> [](sexpr env) {
+    return pop() >> [env](sexpr body) {
+      const expr res = use(expr::check(env), expr::check(body));
+      return done(res);
+    };
+  };
+
+  
+  static const auto check_import = pop_as<symbol> >> [](symbol package) {
+    const expr res = import{package};
+    return done(res);
+  };
+
+
   static const auto check_module = pop() >> [](sexpr sig) -> monad<expr> {
     const auto name = sig.match<maybe<symbol>>([&](symbol self) {
         return just(self);
       },
       [&](sexpr::list self) {
-        return pop_as<symbol>()(self);
+        return pop_as<symbol>(self).result;
       },
       [&](sexpr) -> maybe<symbol> { return {}; });
 
     if(!name) return fail<expr>();
 
     const auto args = sig.match<maybe<args_type>>([&](sexpr::list self) {
-        return (check_args >> [](auto args) {
-            return done(pure(args));
-          })(self->tail);
+        return check_args(self);
       },
       [&](symbol) { return just(args_type()); },
       [&](sexpr) -> maybe<args_type> { return {}; });
-    
-    return check_record_attrs >> [=](record::attr::list attrs) {
-      return query >> [=](sexpr::list self) {
-        std::clog << "self: " << self << std::endl;
-        const expr res = module{name.get(), args.get(), attrs};
-        return done(pure(res));
-      };
+
+    return check_record_attrs >> [&](record::attr::list attrs) {
+      const expr res = module{name.get(), args.get(), attrs};
+      return done(res);
     };
+    
   }; 
   
-    //   return pop_as<sexpr::list>() >> [=](sexpr::list args) {
-    //     return check_record_attrs >> [=](record::attr::list attrs) -> monad<expr> {
-    //       if(auto a = check_args(args)) {
-    //         const expr res = module{name, a.get(), attrs};
-    //         return done(pure(res));
-    //       };
-
-    //       return fail<expr>();
-    //     };
-    //   };
-    // };
-
   
   namespace kw {
 
@@ -368,7 +337,7 @@ static maybe<expr> check_seq(sexpr::list args) {
   };
   
   expr expr::check(const sexpr& e) {
-    static const auto impl = check_special(special_expr) | check_call;
+    static const auto impl = check_special(special_expr) | check_app;
     
     return e.match<expr>
       ([](boolean b) { return make_lit(b); },
@@ -395,7 +364,7 @@ static maybe<expr> check_seq(sexpr::list args) {
          return var{s};
        },
        [](list<sexpr> f) {
-         return impl(f).get();
+         return impl(f).result.get();
        });
   }
   
@@ -405,7 +374,7 @@ static maybe<expr> check_seq(sexpr::list args) {
 
     return e.match<io>
       ([](sexpr::list self) -> io {
-        if(auto res = impl(self)) return res.get();
+        if(auto res = impl(self).result) return res.get();
         return expr::check(self);
       },[](sexpr self) -> io { return expr::check(self); });
   }
