@@ -11,6 +11,7 @@ namespace type {
   static mono open(const ref<state>& s, const mono& self);
 
 
+  // foldr over row types
   template<class Init, class Func>
   static Init foldr_rows(const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::row());
@@ -20,6 +21,28 @@ namespace type {
     }, [&](const mono& ) { return init; });
   }
 
+
+  // foldr over function argument types. func is **not** called on result
+  // type. note: you need to substitute in calls to func
+  template<class Init, class Func>
+  static Init foldr_args(const ref<state>& s,
+                         const Init& init, mono self, const Func& func) {
+    assert(self.kind() == kind::term());
+    return self.match<Init>([&](const app& self) {
+      const mono from = s->fresh();
+      const mono to = s->fresh();
+
+      try {
+        s->unify(from >>= to, self);
+      } catch(error& e) {
+        // TODO don't use exceptions for control flow
+        return init;
+      }
+      return func(from, foldr_args(s, init, s->substitute(to), func));
+              
+    }, [&](const mono& self) { return init; } );
+  }
+  
   
  
   struct let {
@@ -59,21 +82,20 @@ namespace type {
 
   
   // reconstruct actual type from reified type: ... -> (type 'a) yields 'a
-  // note: t must be substituted
-  static mono reconstruct(ref<state> s, mono t) {
-    // std::clog << "reconstructing: " << s->generalize(t) << std::endl;
+  static mono reconstruct(ref<state> s, mono self) {
+    self = s->substitute(self);
     auto a = s->fresh();
 
     try {
-      s->unify(ty(a), t);
+      s->unify(ty(a), self);
       return a;
       // TODO don't use exceptions for control flow lol
     } catch(error& e) {
       auto from = s->fresh();
       auto to = s->fresh();
       
-      s->unify(from >>= to, t);
-      return reconstruct(s, s->substitute(to));
+      s->unify(from >>= to, self);
+      return reconstruct(s, to);
     }
     
   }
@@ -151,7 +173,7 @@ namespace type {
           // TODO do we need gen/inst here?
           
           // extract concrete type from reified type
-          const mono concrete = reconstruct(s, s->substitute(reified));
+          const mono concrete = reconstruct(s, reified);
           
           return concrete;
         });
@@ -423,7 +445,16 @@ namespace type {
     s->vars->locals.emplace(self.package, pkg.sig());
     return io(unit);
   }
-  
+
+
+  // infer kind from reified type
+  static kind::any infer_kind(const ref<state>& s, mono self) {
+    std::clog << __func__ << ": " << s->generalize(self) << std::endl;
+    return foldr_args(s, kind::term(), self, [&](mono arg, kind::any k) {
+      std::clog << "open: " << s->generalize(open(s, arg)) << std::endl;
+      return infer_kind(s, open(s, s->substitute(arg))) >>= k;
+    });
+  }
 
   // module
   static mono infer(const ref<state>& s, const ast::module& self) {
@@ -431,11 +462,17 @@ namespace type {
     // module scope
     const auto sub = function_scope(s, self.args);
 
-    const mono result = s->fresh();    
-    const mono sig = foldr(result, self.args, [&](auto arg, mono rhs) {
-        const mono type = s->instantiate(sub->vars->find(arg.name()));
-        return type >>= rhs;
-      });
+    // argument types
+    const list<mono> args = map(self.args, [&](auto arg) {
+      return s->instantiate(sub->vars->find(arg.name()));      
+    });
+
+    // build module signature type
+    const mono result = s->fresh();
+    
+    const mono sig = foldr(result, args, [&](mono arg, mono rhs) {
+      return arg >>= rhs;
+    });
 
     // infer attribute types in module scope
     const mono attrs = infer(sub, self.attrs);
@@ -446,10 +483,14 @@ namespace type {
         return row(name, reconstruct(sub, reified)) |= rhs;
       }));
     
-    // TODO compute kind from signature
+    // compute kind from signature
+    const kind::any k = infer_kind(s, sig);
 
-    // TODO create a new type constructor with given name/computed kind
-
+    std::clog << "kind: " << k << std::endl;
+    
+    // create a new type constructor with given name/computed kind    
+    const cst c = make_ref<constant>(self.name, k);
+    
     // in the meantime, return signature
     s->unify(result, record(attrs));
     return sig;
