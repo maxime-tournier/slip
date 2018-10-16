@@ -3,6 +3,7 @@
 
 #include <string>
 
+
 class symbol {
   const char* name;
 public:

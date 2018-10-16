@@ -284,7 +284,9 @@ namespace ast {
       [&](symbol) { return just(args_type()); },
       [&](sexpr) -> maybe<args_type> { return {}; });
 
-    return check_record_attrs >> [&](record::attr::list attrs) {
+    if(!args) return fail<expr>();
+    
+    return check_record_attrs >> [=](record::attr::list attrs) {
       const expr res = module{name.get(), args.get(), attrs};
       return done(res);
     };
