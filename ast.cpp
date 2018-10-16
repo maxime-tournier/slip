@@ -11,11 +11,16 @@
 #include "tool.hpp"
 #include "unpack.hpp"
 
+
+
+#include "slice.hpp"
+
+
 namespace ast {
   
   template<class U>
   using monad = unpack::monad<sexpr, U>;
-
+  
   using namespace unpack;
   
   // validate sexpr against a special forms table
@@ -232,6 +237,11 @@ static maybe<expr> check_seq(sexpr::list args) {
     };
 
 
+
+  static const auto query = [](sexpr::list self) {
+    return just(self);
+  };
+  
   static const auto check_module = pop() >> [](sexpr sig) -> monad<expr> {
     const auto name = sig.match<maybe<symbol>>([&](symbol self) {
         return just(self);
@@ -252,10 +262,13 @@ static maybe<expr> check_seq(sexpr::list args) {
       [&](sexpr) -> maybe<args_type> { return {}; });
     
     return check_record_attrs >> [=](record::attr::list attrs) {
-      const expr res = module{name.get(), args.get(), attrs};
-      return done(pure(res));
+      return query >> [=](sexpr::list self) {
+        std::clog << "self: " << self << std::endl;
+        const expr res = module{name.get(), args.get(), attrs};
+        return done(pure(res));
+      };
     };
-  };
+  }; 
   
     //   return pop_as<sexpr::list>() >> [=](sexpr::list args) {
     //     return check_record_attrs >> [=](record::attr::list attrs) -> monad<expr> {

@@ -142,27 +142,28 @@ namespace unpack {
   };
 
 
-template<class F>
-struct map_type {
-  const F f;
+  // map a function returning maybe's (TODO is map the right name?)
+  template<class F>
+  struct map_type {
+    const F f;
 
-  template<class T>
-  maybe<list<typename std::result_of<F(T)>::type>>
-  operator()(const list<T>& self) const {
-    list<typename std::result_of<F(T)>::type> init;
-    return foldr(just(init), self, [&](auto lhs, const T& head) {
-      return lhs >> [&](auto tail) {
-        return just(f(head) >>= tail);
-      };
-    });
-  }
+    template<class T>
+    maybe<list<typename std::result_of<F(T)>::type>>
+    
+    operator()(const list<T>& self) const {
+      list<typename std::result_of<F(T)>::type> init;
+      return foldr(just(init), self, [&](auto lhs, const T& head) {
+          return lhs >> [&](auto tail) {
+            return just(f(head) >>= tail);
+          };
+        });
+    }
   
-};
+  };
 
 
-template<class F>
-static map_type<F> map(F f) { return {f}; }
-
+  template<class F>
+  static map_type<F> map(F f) { return {f}; }
   
   // maybe monad escape (will throw if unsuccessful)
   template<class F>
