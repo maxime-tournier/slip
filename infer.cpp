@@ -28,19 +28,21 @@ namespace type {
   static Init foldr_args(const ref<state>& s,
                          const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::term());
-    return self.match<Init>([&](const app& self) {
+    return s->substitute(self).match<Init>([&](const app& self) {
       const mono from = s->fresh();
       const mono to = s->fresh();
 
       try {
         s->unify(from >>= to, self);
       } catch(error& e) {
-        // TODO don't use exceptions for control flow
+        // TODO don't use exceptions for control flow ffs
         return init;
       }
-      return func(from, foldr_args(s, init, s->substitute(to), func));
-              
-    }, [&](const mono& self) { return init; } );
+      
+      return func(from, foldr_args(s, init, to, func));
+    }, [&](const mono& self) {
+      return init;
+    } );
   }
   
   
@@ -449,9 +451,7 @@ namespace type {
 
   // infer kind from reified type
   static kind::any infer_kind(const ref<state>& s, mono self) {
-    std::clog << __func__ << ": " << s->generalize(self) << std::endl;
     return foldr_args(s, kind::term(), self, [&](mono arg, kind::any k) {
-      std::clog << "open: " << s->generalize(open(s, arg)) << std::endl;
       return infer_kind(s, open(s, s->substitute(arg))) >>= k;
     });
   }
@@ -486,8 +486,6 @@ namespace type {
     // compute kind from signature
     const kind::any k = infer_kind(s, sig);
 
-    std::clog << "kind: " << k << std::endl;
-    
     // create a new type constructor with given name/computed kind    
     const cst c = make_ref<constant>(self.name, k);
     

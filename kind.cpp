@@ -20,19 +20,23 @@ namespace kind {
     struct ostream_visitor {
       using type = void;
   
-      void operator()(const constant& self, std::ostream& out) const {
+      void operator()(const constant& self, std::ostream& out, bool ) const {
         out << self.name;
       }
       
-      void operator()(const constructor& self, std::ostream& out) const {
-        out << *self.from << " -> " << *self.to;           
+      void operator()(const constructor& self, std::ostream& out, bool parens) const {
+        if(parens) out << "(";
+        self.from->visit(ostream_visitor(), out, true);
+        out << " -> ";
+        self.to->visit(ostream_visitor(), out, false);
+        if(parens) out << ")";
       }
         
     };
   }
 
   std::ostream& operator<<(std::ostream& out, const any& self) {
-    self.visit(ostream_visitor(), out);
+    self.visit(ostream_visitor(), out, false);
     return out;
   }
   
