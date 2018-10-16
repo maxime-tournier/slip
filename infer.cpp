@@ -106,7 +106,6 @@ namespace type {
       s->unify(from >>= to, self);
       return reconstruct(s, to);
     }
-    
   }
 
 
@@ -463,6 +462,21 @@ namespace type {
     });
   }
 
+
+  static mono reify(const ref<state>& s, mono self) {
+    if(self.kind() == kind::term()) return ty(self);
+    
+    if(self.kind() == (kind::term() >>= kind::term())) {
+      const mono a = s->fresh();
+      return ty(a) >>= ty(self(a));
+    }
+
+    throw std::logic_error("reify not implemented");
+    // * => type(self)
+    // (* -> *) => type a -> type (self a)
+  }
+  
+
   // module
   static mono infer(const ref<state>& s, const ast::module& self) {
 
@@ -502,10 +516,28 @@ namespace type {
     });
 
     // unify properly kinded variables to the right input variables
-    
-    // in the meantime, return signature
-    s->unify(result, record(attrs));
-    return sig;
+    foldr_args(s, outer, sig, [&](mono reified, mono rhs) {
+      return rhs.match<mono>([&](app self) {
+        // open reified type, and match against reified ctor arg
+        s->unify(open(s, reified), reify(s, self->arg));
+
+        // continue peeling constructor args
+        return self->ctor;
+      }, [&](mono self) -> mono { throw error("derp"); });
+    });
+
+    // unify result type with outer type
+    s->unify(ty(outer), result);
+
+    // define signature
+    auto it = s->sigs->emplace(c, s->generalize(outer >>= inner));
+    (void) it;
+
+    // define constructor
+    s->def(self.name, sig);
+
+    // return s->instantiate(it.first->second);
+    return io(unit);
   }
 
 
