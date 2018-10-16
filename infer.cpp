@@ -46,7 +46,14 @@ namespace type {
   }
   
   
- 
+  template<class Init, class Func>
+  static Init foldl_kind(const Init& init, const kind::any& self, const Func& func) {
+    return self.match<Init>([&](const kind::constructor& self) {
+      return foldl_kind(func(init, *self.from), *self.to, func);
+    }, [&](const kind::constant& ) { return init; });
+  }
+
+  
   struct let {
     const ::list<ast::bind> defs;
     const ast::expr body;
@@ -483,11 +490,18 @@ namespace type {
         return row(name, reconstruct(sub, reified)) |= rhs;
       }));
     
-    // compute kind from signature
+    // infer kind from signature
     const kind::any k = infer_kind(s, sig);
 
     // create a new type constructor with given name/computed kind    
     const cst c = make_ref<constant>(self.name, k);
+
+    // apply constructor to the right type variables
+    const mono outer = foldl_kind(mono(c), k, [&](mono lhs, kind::any k) {
+      return lhs(s->fresh(k));
+    });
+
+    // unify properly kinded variables to the right input variables
     
     // in the meantime, return signature
     s->unify(result, record(attrs));
