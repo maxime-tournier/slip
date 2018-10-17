@@ -65,7 +65,8 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto rest_parser = chr<std::isalnum>() | chr<matches<'-', '_'>>();  
 
   static const auto op_parser =
-    (token("!=") | token("<=") | token(">=") | token("->") | token("=>"))
+    (token("!=") | token("<=") | token(">=") | token("->") | token("=>")
+     | token(">>=") )
     >> [](const char* s) {
       return pure(symbol(s));
     } | chr<matches<'+', '-', '*', '/', '=', '<', '>', '%' >>() >> [](char c) {

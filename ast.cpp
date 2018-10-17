@@ -95,9 +95,7 @@ namespace ast {
     return {res, nullptr};
   }
 
-
   
-    
   // validate sexpr against a special forms table
   template<class U>
   using special_type = std::map<symbol, std::pair<monad<U>, std::string> >;
@@ -113,27 +111,30 @@ namespace ast {
       return fail<U>();
     };
   }
-    
 
-  static const auto check_args = peek() >> [](sexpr::list self) {
-    maybe<abs::arg::list> init{nullptr};
-    
-    return lift(foldr(init, self, [](sexpr lhs, maybe<abs::arg::list> rhs) {
-          return rhs >> [&](abs::arg::list tail) -> maybe<abs::arg::list> {
-            if(auto res = lhs.get<symbol>()) {
-              return check_var(*res) >>= tail;
-            }
-            if(auto res = lhs.get<sexpr::list>()) {
-              return (pop() >> [tail](sexpr type) {
-                  return pop_as<symbol> >> [tail, type](symbol name) {
-                    return pure(abs::typed{expr::check(type), check_var(name)} >>= tail);
-                  };
-                })(*res);
-            }
-            return {};
-          };
-        }));
+  // check typed function argument
+  static const auto check_typed_arg = pop() >> [](sexpr type) {
+    return pop_as<symbol> >> [type](symbol name) {
+      return done(abs::typed{expr::check(type), check_var(name)});
+    };
   };
+
+
+  // check function arguments
+  static const auto check_args = map([](sexpr self) {
+      using type = maybe<abs::arg>;
+      return self.match<type>([&](symbol self) {
+          return just(abs::arg(check_var(self)));
+        },
+        [&](sexpr::list self) -> type {
+          return check_typed_arg(self) >> [](abs::typed self) {
+            return just(abs::arg(self));
+          };
+        },
+        [&](sexpr) -> type {
+          return {};
+        });
+    });
   
 
 
@@ -155,13 +156,15 @@ namespace ast {
   };
 
 
+  // check a binding sequence
   static const auto check_bindings = map([](sexpr self) -> maybe<bind> {
       if(auto binding = self.get<sexpr::list>()) {
         return check_bind(*binding);
       }
       return {};
     });
-  
+
+  // check let-bindings
   static const auto check_let = pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
     return lift(check_bindings(bindings)) >> [](list<bind> defs) {
       return pop() >> [defs](sexpr body) {
@@ -176,13 +179,15 @@ namespace ast {
     const var id;
     const abs::arg::list args;
   };
-  
+
+  // check a named signature `symbol` `arg`...
   static const auto check_named_signature = pop_as<symbol> >> [](symbol name) {
     return check_args >> [=](abs::arg::list args) {
       return pure(named_signature{check_var(name), args});
     };
   };
-  
+
+  // check inline function definition (def (foo a b c) bar)
   static const auto check_fundef = pop_as<sexpr::list> >> [](sexpr::list sig) {
     return lift(check_named_signature(sig)) >> [](named_signature sig) {
       return pop() >> [=](sexpr body) {
@@ -191,19 +196,22 @@ namespace ast {
       };
     };
   };
-  
+
+  // check definitions
   static const auto check_def = (check_bind | check_fundef) >> [](bind self) {
     const expr res = def{self.id, self.value};
     return pure(res);
   };
   
 
+  // check sequences
   static slice<expr> check_seq(sexpr::list args) {
     const expr res = seq{map(args, io::check)};
     return {res, nullptr};
   }
 
-  
+
+  // check conditionals
   static const auto check_cond = pop() >> [](sexpr self) {
     const auto test = expr::check(self);
     return pop() >> [=](sexpr self) {
@@ -217,6 +225,7 @@ namespace ast {
   };
 
 
+  // check record attributes
   static slice<record::attr::list> check_record_attrs(sexpr::list args) {
     const auto init = just(record::attr::list());
     

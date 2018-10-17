@@ -10,10 +10,9 @@
           (empty 0)
           (compose +)))
 
-(def list-concat
-     (fn (lhs rhs)
-         (if (isnil lhs) rhs
-           (cons (head lhs) (list-concat (tail lhs) rhs)))))
+(def (list-concat lhs rhs)
+     (if (isnil lhs) rhs
+       (cons (head lhs) (list-concat (tail lhs) rhs))))
 
 ;; monoid instance for list
 (def list-monoid
