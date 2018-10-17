@@ -15,7 +15,7 @@ namespace type {
   template<class Init, class Func>
   static Init foldr_rows(const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::row());
-    return self.match<Init>([&](const app& self) {
+    return self.match([&](const app& self) {
       const auto e = extension::unpack(self);
       return func(e.attr, e.head, foldr_rows(init, e.tail, func));
     }, [&](const mono& ) { return init; });
@@ -28,7 +28,7 @@ namespace type {
   static Init foldr_args(const ref<state>& s,
                          const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::term());
-    return s->substitute(self).match<Init>([&](const app& self) {
+    return s->substitute(self).match([&](const app& self) {
       const mono from = s->fresh();
       const mono to = s->fresh();
 
@@ -48,9 +48,9 @@ namespace type {
   
   template<class Init, class Func>
   static Init foldl_kind(const Init& init, const kind::any& self, const Func& func) {
-    return self.match<Init>([&](const kind::constructor& self) {
-      return foldl_kind(func(init, *self.from), *self.to, func);
-    }, [&](const kind::constant& ) { return init; });
+    return self.match([&](const kind::constructor& self) {
+        return foldl_kind(func(init, *self.from), *self.to, func);
+      }, [&](const kind::constant& ) { return init; });
   }
 
   
@@ -64,14 +64,13 @@ namespace type {
     static let rewrite(const ast::let& self) {
       using ::list;
       const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
-          return self.value.match<ast::bind>
-          ([&](const ast::abs& abs) { 
-            return ast::bind{self.id,
-                             ast::app{ast::var{fix()},
-                                      ast::abs{self.id >>= list<ast::abs::arg>(),
-                                               self.value}
-                                      >>= list<ast::expr>()}};
-          }, 
+          return self.value.match([&](const ast::abs& abs) { 
+              return ast::bind{self.id,
+                               ast::app{ast::var{fix()},
+                                        ast::abs{self.id >>= list<ast::abs::arg>(),
+                                                 self.value}
+                                        >>= list<ast::expr>()}};
+            }, 
             [&](const ast::expr& expr) { return self; });
         });
 
@@ -185,7 +184,7 @@ namespace type {
     auto sub = scope(s);
     
     for(auto arg: args) {
-      const mono type = arg.match<mono>([&](ast::var self) {
+      const mono type = arg.match([&](ast::var self) {
           return s->fresh();
         },
         [&](ast::abs::typed self) {
@@ -547,7 +546,7 @@ namespace type {
 
     // unify properly kinded variables to the right input variables
     foldr_args(s, outer, sig, [&](mono reified, mono rhs) {
-      return rhs.match<mono>([&](app self) {
+      return rhs.match([&](app self) {
         // open reified type, and match against reified ctor arg
         s->unify(open(s, reified), reify(s, self->arg));
 

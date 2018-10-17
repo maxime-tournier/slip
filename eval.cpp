@@ -51,10 +51,10 @@ namespace eval {
 
   
 value apply(const value& self, const value* first, const value* last) {
-  return self.match<value>([&](const closure& self) { return apply(self, first, last); },
-                           [&](const value& self) -> value {
-                             throw std::runtime_error("type error in application");
-                           });
+  return self.match([&](const closure& self) { return apply(self, first, last); },
+                    [&](const value& self) -> value {
+                      throw std::runtime_error("type error in application");
+                    });
 }
 
 
@@ -110,7 +110,7 @@ value apply(const value& self, const value* first, const value* last) {
 
   
   static value eval(const ref<state>& e, const ast::io& self) {
-    return self.match<value>([&](const ast::expr& self) {
+    return self.match([&](const ast::expr& self) {
         return expr(e, self);
       },
       [&](const ast::bind& self) {

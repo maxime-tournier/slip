@@ -23,9 +23,8 @@ namespace ast {
   };
   
   symbol abs::arg::name() const {
-    return match<symbol>
-      ([](var self) { return self.name; },
-       [](typed self) { return self.id.name; });
+    return match([](var self) { return self.name; },
+                 [](typed self) { return self.id.name; });
   }
 
 
@@ -123,7 +122,7 @@ namespace ast {
   // check function arguments
   static const auto check_args = map([](sexpr self) {
       using type = maybe<abs::arg>;
-      return self.match<type>([&](symbol self) {
+      return self.match([&](symbol self) {
           return just(abs::arg(check_var(self)));
         },
         [&](sexpr::list self) -> type {
@@ -370,24 +369,22 @@ namespace ast {
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_app;
     
-    return e.match<expr>
-      ([](boolean b) { return make_lit(b); },
-       [](integer i) { return make_lit(i); },
-       [](real r) { return make_lit(r); },
-       [](symbol s) -> expr {
-         return check_symbol(s);
-       },
-       [](sexpr::list f) {
-         return impl(f).get();
-       });
+    return e.match([](boolean b) -> expr { return make_lit(b); },
+                   [](integer i) -> expr { return make_lit(i); },
+                   [](real r) -> expr { return make_lit(r); },
+                   [](symbol s) -> expr {
+                     return check_symbol(s);
+                   },
+                   [](sexpr::list f) -> expr {
+                     return impl(f).get();
+                   });
   }
   
 
   io io::check(const sexpr& e) {
     static const auto impl = check_special(special_io);
 
-    return e.match<io>
-      ([](sexpr::list self) -> io {
+    return e.match([](sexpr::list self) -> io {
         if(auto res = impl(self)) {
           return res.get();
         }

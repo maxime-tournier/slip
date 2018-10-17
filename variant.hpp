@@ -66,15 +66,14 @@ namespace {
   };
 
 
-template<class Ret, class ... Func>
-struct overload : Func... {
-  using type = Ret;
-  overload(const Func& ... func) : Func(func)... { }
-};
+  template<class ... Func>
+  struct overload : Func... {
+    overload(const Func& ... func) : Func(func)... { }
+  };
 
 
   // helpers
-  struct write {
+  struct ostream {
     using type = void;
     template<class T>
     void operator()(const T& self, std::ostream& out) const {
@@ -94,12 +93,6 @@ class variant {
   index_type index;
 
   using helper_type = helper<0, Args...>;
-
-  template<class T, class Ret, class Self, class Func, class ... Params>
-  static Ret thunk(Self&& self, Func&& func, Params&& ... params) {
-    return std::forward<Func>(func)(std::forward<Self>(self).template cast<T>(),
-                                    std::forward<Params>(params)...);
-  }
 
 public:
 
@@ -154,25 +147,28 @@ public:
 
   // visitors
   template<class Func, class ... Params>
-  typename std::decay<Func>::type::type visit(Func&& func, Params&& ... params) const {
-    using ret_type = typename std::decay<Func>::type::type;
+  auto visit(Func&& func, Params&& ... params) const {
+    using ret_type = typename std::common_type<decltype(func(this->template cast<Args>(),
+                                                             std::forward<Params>(params)...))...>::type;
     using self_type = const variant&;
     using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
     
-    static const thunk_type table[] =
-      {thunk<Args, ret_type, self_type, Func, Params...>...};
+    static const thunk_type table[] = {
+      [](self_type self, Func&& func, Params&& ... params) -> ret_type {
+        return std::forward<Func>(func)(self.cast<Args>(), std::forward<Params>(params)...);
+      }...
+    };
     
-    return table[index](*this, std::forward<Func>(func),
-                        std::forward<Params>(params)...);
+    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
   }
 
-  template<class Ret = void, class ... Func>
-  Ret match(const Func& ... func) const {
-    return visit(overload<Ret, Func...>(func...));
+  template<class ... Func>
+  auto match(const Func& ... func) const {
+    return visit(overload<Func...>(func...));
   }
 
   friend std::ostream& operator<<(std::ostream& out, const variant& self) {
-    self.visit(write(), out);
+    self.visit(ostream(), out);
     return out;
   }
 
