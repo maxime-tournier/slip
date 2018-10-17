@@ -97,7 +97,17 @@ namespace type {
 
   
   constant::constant(symbol name, ::kind::any k) : name(name), kind(k) { }
-  
+
+
+  static void quantified_kind(std::ostream& out, kind::any k) {
+    k.match([&](kind::constant self) {
+        out << (k == kind::term() ? "'" : k == kind::row() ? "..." : "?");
+      },
+      [&](kind::constructor self) {
+        quantified_kind(out, *self.from);
+        quantified_kind(out, *self.to);        
+      });
+  }
 
   struct ostream_visitor {
     using type = void;
@@ -110,11 +120,13 @@ namespace type {
       out << self->name;
     }
 
+    
+    
     void operator()(const ref<variable>& self, std::ostream& out,
                     const poly::forall_type& forall, bool parens) const {
       auto it = map.emplace(self, map.size()).first;
       if(forall.find(self) != forall.end()) {
-        out << (self->kind == kind::term() ? "'" : self->kind == kind::row() ? "..." : "?");
+        quantified_kind(out, self->kind);
       } else {
         out << "!";
       }
