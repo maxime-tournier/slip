@@ -1,7 +1,11 @@
-#ifndef MAYBE_HPP
-#define MAYBE_HPP
+#ifndef SLAP_MAYBE_HPP
+#define SLAP_MAYBE_HPP
 
-// a maybe monad
+#include <type_traits>
+#include <utility>
+#include <stdexcept>
+
+// maybe monad
 template<class T> class maybe;
 
 namespace detail {
