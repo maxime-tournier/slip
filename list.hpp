@@ -5,8 +5,10 @@
 
 #include "ref.hpp"
 
+
 template<class T> struct cons;
 template<class T> using list = ref<cons<T>>;
+
 
 template<class T>
 struct cons {

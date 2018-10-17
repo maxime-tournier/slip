@@ -231,7 +231,7 @@ namespace ast {
           return tail >> [&](record::attr::list tail) {
             if(auto self = e.get<sexpr::list>()) {
               return check_bind(*self).result >> [&](bind b) {
-                const record::attr head{b.id.name, b.value};
+                const record::attr head{b.id, b.value};
                 return just(head >>= tail);
               };
             } else {
@@ -486,7 +486,7 @@ namespace ast {
 
       sexpr operator()(const sel& self) const {
         return symbol("sel")
-          >>= self.name
+          >>= self.id.name
           >>= sexpr::list();        
       }
 
@@ -494,7 +494,7 @@ namespace ast {
       sexpr operator()(const record& self) const {
         return kw::record
           >>= map(self.attrs, [](record::attr attr) -> sexpr {
-            return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
+            return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
       }
 
@@ -512,7 +512,7 @@ namespace ast {
         return kw::make
           >>= self.type
           >>= map(self.attrs, [](record::attr attr) -> sexpr {
-            return attr.name >>= attr.value.visit(repr()) >>= sexpr::list();
+            return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });
       }
 

@@ -173,14 +173,14 @@ value apply(const value& self, const value* first, const value* last) {
   static value eval(const ref<state>& e, const ast::record& self) {
     record res;
     for(const auto& attr : self.attrs) {
-      res.attrs.emplace(attr.name, expr(e, attr.value));
+      res.attrs.emplace(attr.id.name, expr(e, attr.value));
     }
     return res;
   }
 
 
   static value eval(const ref<state>& e, const ast::sel& self) {
-    const symbol name = self.name;
+    const symbol name = self.id.name;
     return closure(1, [name](const value* args) -> value {
       return args[0].cast<record>().attrs.at(name);      
       // return args[0].cast<record>().attrs.find(name)->second;

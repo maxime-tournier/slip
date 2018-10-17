@@ -303,7 +303,7 @@ namespace type {
     const mono tail = s->fresh(kind::row());
     const mono head = s->fresh(kind::term());
     
-    const mono row = ext(self.name)(head)(tail);
+    const mono row = ext(self.id.name)(head)(tail);
     return record(row) >>= head;
   }
 
@@ -312,7 +312,7 @@ namespace type {
   static mono infer(const ref<state>& s, const list<ast::record::attr>& attrs) {
     const mono init = empty;
     return foldr(init, attrs, [&](ast::record::attr attr, mono tail) {
-        return ext(attr.name)(infer(s, attr.value))(tail);
+        return ext(attr.id.name)(infer(s, attr.value))(tail);
       });
   }
 
@@ -348,7 +348,7 @@ namespace type {
     const mono provided =
       record(foldr(init, self.attrs,
                    [&](const ast::record::attr attr, mono tail) {
-                     return row(attr.name, infer(sub, attr.value)) |= tail;
+                     return row(attr.id.name, infer(sub, attr.value)) |= tail;
                    }));
 
     // now also unify inner with provided type

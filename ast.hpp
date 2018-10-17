@@ -92,8 +92,9 @@ namespace ast {
 
   // attribute selection
   struct sel {
-    // TODO var?
-    const symbol name;
+    // note: record attributes have the same restriction as variable names since
+    // they can be imported
+    const var id;
   };
 
 
@@ -161,20 +162,24 @@ namespace ast {
     static void iter(std::istream& in, std::function<void(expr)> cont);
   };
 
+  
   struct abs::typed {
     const expr type;
     const var id;
   };
+
   
   struct abs::arg : variant<var, typed> {
     using arg::variant::variant;
     symbol name() const;
   };  
 
+  
   struct record::attr {
     using list = list<attr>;
-    // TODO var?
-    const symbol name;
+    // note: record attributes have the same restriction as variable names since
+    // they can be imported
+    const var id;
     const expr value;
   };
 
