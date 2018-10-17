@@ -123,24 +123,22 @@ value apply(const value& self, const value* first, const value* last) {
 
   static value eval(const ref<state>& e, const ast::seq& self) {
     const value init = unit();
-    return foldl(init, self.items,
-                 [&](const value&, const ast::io& self) -> value {
-                   return eval(e, self);
-                 });
+    return foldl(init, self.items, [&](const value&, const ast::io& self) {
+        return eval(e, self);
+      });
   }
 
 
   static value eval(const ref<state>& e, const ast::module& self) {
+    // just define the reified module type constructor
+    auto it = e->locals.emplace(self.name, unit()); (void) it;
+    assert(it.second && "redefined variable");    
     return unit();
   }
 
   static value eval(const ref<state>& e, const ast::def& self) {
-    // note: the type system will keep us from evaluating side effects if the
-    // variable is already defined
-    if(!e->locals.emplace(self.name, expr(e, *self.value)).second) {
-      throw std::logic_error("redefined variable " + tool::quote(self.name.get()));
-    }
-    
+    auto it = e->locals.emplace(self.name, expr(e, *self.value)); (void) it;
+    assert(it.second && "redefined variable");
     return unit();
   }
   
@@ -160,10 +158,10 @@ value apply(const value& self, const value* first, const value* last) {
   
   static value eval(const ref<state>& e, const ast::cond& self) {
     const value test = expr(e, *self.test);
-    if(auto b = test.get<boolean>()) {
-      if(*b) return expr(e, *self.conseq);
-      else return expr(e, *self.alt);
-    } else throw std::runtime_error("condition must be boolean");
+    assert(test.get<boolean>() && "type error");
+    
+    if(test.cast<boolean>()) return expr(e, *self.conseq);
+    else return expr(e, *self.alt);
   }
 
 				   
@@ -174,12 +172,10 @@ value apply(const value& self, const value* first, const value* last) {
   // }
 
   static value eval(const ref<state>& e, const ast::record& self) {
-    record res;
-    foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
+    return foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
         res.attrs.emplace(attr.name, expr(e, attr.value));
         return unit();
       });
-    return res;
   }
 
 
@@ -196,18 +192,18 @@ value apply(const value& self, const value* first, const value* last) {
     return expr(e, ast::record{self.attrs});
   }
 
+  
   static value eval(const ref<state>& e, const ast::use& self) {
     auto r = expr(e, *self.env);
-    auto s = scope(e);
-    if(auto rr = r.get<record>()) {
-      for(const auto& it : rr->attrs) {
-        s->locals.emplace(it.first, it.second);
-      }
+    assert(r.get<record>() && "type error");
 
-      return expr(s, *self.body);
-    }
+    auto s = scope(e);
     
-    throw std::logic_error("attempting to use a non-record expr");
+    for(const auto& it : rr.cast<record>().attrs) {
+      s->locals.emplace(it.first, it.second);
+    }
+
+    return expr(s, *self.body);
   }
   
 
