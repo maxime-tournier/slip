@@ -391,7 +391,7 @@ namespace ast {
        [](symbol s) -> expr {
          return check_symbol(s);
        },
-       [](list<sexpr> f) {
+       [](sexpr::list f) {
          return impl(f).result.get();
        });
   }
@@ -417,6 +417,9 @@ namespace ast {
         return symbol("lit") >>= self.value >>= list<sexpr>();
       }
 
+      sexpr operator()(const lit<unit>& self) const {
+        return list<sexpr>();
+      }
 
       sexpr operator()(const var& self) const {
         return symbol("var") >>= self.name >>= list<sexpr>();
@@ -512,7 +515,7 @@ namespace ast {
 
       sexpr operator()(const make& self) const {
         return kw::make
-          >>= self.type->visit(repr())`
+          >>= self.type->visit(repr())
           >>= map(self.attrs, [](record::attr attr) -> sexpr {
             return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });

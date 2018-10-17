@@ -83,7 +83,12 @@ namespace type {
   // rewrite app as nested unary applications
   static ast::app rewrite(const ast::app& self) {
     const ast::expr& init = *self.func;
-    return foldl(init, self.args, [](ast::expr func, ast::expr arg) {
+
+    // turn nullary applications into unary applications
+    ast::expr::list args = self.args;
+    if(!args) args = ast::lit<::unit>{} >>= args;
+                
+    return foldl(init, args, [](ast::expr func, ast::expr arg) {
         return ast::app(func, arg >>= list<ast::expr>());
       }).cast<ast::app>();
   }
@@ -110,9 +115,11 @@ namespace type {
 
 
   // obtain constructor for a monotype
-  static cst constructor(mono t) {
+  static cst constructor(const ref<state>& s, mono t) {
+    t = s->substitute(t);
+    
     if(auto self = t.get<app>()) {
-      return constructor((*self)->ctor);
+      return constructor(s, (*self)->ctor);
     }
 
     if(auto self = t.get<cst>()) {
@@ -141,7 +148,7 @@ namespace type {
   // try to open type `self` from signatures in `s`
   static mono open(const ref<state>& s, const mono& self) {
     // obtain type constructor from argument type
-    const cst ctor = constructor(s->substitute(self));
+    const cst ctor = constructor(s, self);
 
     // get signature
     const poly sig = signature(s, ctor);
@@ -336,13 +343,19 @@ namespace type {
   static mono infer(const ref<state>& s, const ast::make& self) {
     // get reified constructor
     const mono reified = infer(s, *self.type);
+
+    const mono type = reconstruct(s, reified);
+
+    // std::clog << "reified: " << s->generalize(reified) << std::endl
+    //           << "type: " << s->generalize(type) << std::endl;
     
     // obtain actual constructor
-    const cst ctor = constructor(reconstruct(s, reified));
+    const cst ctor = constructor(s, type);
 
     // module signature
     const poly sig = signature(s, ctor);
-    
+    // std::clog << "signature: " << sig << std::endl;
+      
     auto sub = scope(s);
     
     const mono outer = s->fresh();
@@ -351,7 +364,7 @@ namespace type {
     // instantiate signature at sub level prevents generalization of
     // contravariant side (variables only appearing in the covariant side will
     // be generalized)
-    s->unify(ty(outer) >>= ty(inner), sub->instantiate(sig));
+    s->unify(outer >>= inner, sub->instantiate(sig));
     
     // vanilla covariant type
     const poly reference = sub->generalize(inner);
@@ -364,8 +377,8 @@ namespace type {
                      return row(attr.id.name, infer(sub, attr.value)) |= tail;
                    }));
 
-    std::clog << "inner: " << s->generalize(inner) << std::endl;
-    std::clog << "provided: " << s->generalize(provided) << std::endl;    
+    // std::clog << "inner: " << s->generalize(inner) << std::endl;
+    // std::clog << "provided: " << s->generalize(provided) << std::endl;    
     
     // now also unify inner with provided type
     s->unify(inner, provided);
@@ -561,6 +574,10 @@ namespace type {
 
   
   // lit
+  static mono infer(const ref<state>&, const ast::lit<::unit>& self) {
+    return unit;
+  }
+  
   static mono infer(const ref<state>&, const ast::lit<::boolean>& self) {
     return boolean;
   }

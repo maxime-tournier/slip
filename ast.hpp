@@ -143,7 +143,8 @@ namespace ast {
   };
   
   
-  struct expr : variant<lit<boolean>,
+  struct expr : variant<lit<unit>,
+                        lit<boolean>,
                         lit<integer>,
                         lit<real>,
                         var, abs, app, let,
@@ -154,7 +155,8 @@ namespace ast {
                         def, seq,
                         module> {
     using expr::variant::variant;
-
+    using list = list<expr>;
+    
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
 
     static expr check(const sexpr& e);
