@@ -345,16 +345,15 @@ namespace type {
     const mono reified = infer(s, *self.type);
 
     const mono type = reconstruct(s, reified);
-
-    std::clog << "reified: " << s->generalize(reified) << std::endl
-              << "type: " << s->generalize(type) << std::endl;
+    // std::clog << "reified: " << s->generalize(reified) << std::endl
+    //           << "type: " << s->generalize(type) << std::endl;
     
     // obtain actual constructor
     const cst ctor = constructor(s, type);
 
     // module signature
     const poly sig = signature(s, ctor);
-    std::clog << "signature: " << sig << std::endl;
+    // std::clog << "signature: " << sig << std::endl;
       
     auto sub = scope(s);
     
@@ -377,8 +376,8 @@ namespace type {
                      return row(attr.id.name, infer(sub, attr.value)) |= tail;
                    }));
 
-    std::clog << "inner: " << s->generalize(inner) << std::endl;
-    std::clog << "provided: " << s->generalize(provided) << std::endl;    
+    // std::clog << "inner: " << s->generalize(inner) << std::endl;
+    // std::clog << "provided: " << s->generalize(provided) << std::endl;    
     
     // now also unify inner with provided type
     s->unify(inner, provided);
