@@ -109,8 +109,7 @@ namespace ast {
 
   // module packing
   struct make {
-    // TODO var?
-    const symbol type;
+    const ref<expr> type;
     const list<record::attr> attrs;
   };
 

@@ -251,9 +251,11 @@ namespace ast {
     return done(res);
   };
   
-  static const auto check_make = pop_as<symbol> >> [](symbol type) {
+  static const auto check_make = pop() >> [](sexpr type) {
+    
     return check_record >> [type](expr self) {
-      const expr res = make{type, self.cast<record>().attrs};
+      const expr res = make{ make_expr(expr::check(type)),
+                             self.cast<record>().attrs};
       return done(res);
     };
   };
@@ -510,7 +512,7 @@ namespace ast {
 
       sexpr operator()(const make& self) const {
         return kw::make
-          >>= self.type
+          >>= self.type->visit(repr())`
           >>= map(self.attrs, [](record::attr attr) -> sexpr {
             return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
           });

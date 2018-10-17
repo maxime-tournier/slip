@@ -123,26 +123,33 @@ namespace type {
     throw error("constructor must be a constant");
   }
 
+
+  // get signature associated with constructor `self`
+  static poly signature(const ref<state>& s, const cst& self) {
+    // find associated signature
+    try {
+      const poly sig = s->sigs->at(self);
+      return sig;
+    } catch(std::out_of_range&) {
+      throw error("constructor " + tool::quote(self->name.get())
+                  + " has no associated signature");
+    }
+
+  }
+  
   
   // try to open type `self` from signatures in `s`
   static mono open(const ref<state>& s, const mono& self) {
     // obtain type constructor from argument type
-    const cst c = constructor(s->substitute(self));
+    const cst ctor = constructor(s->substitute(self));
+
+    // get signature
+    const poly sig = signature(s, ctor);
     
-    try {
-      auto sig = s->sigs->at(c);
-        
-      const mono inner = s->fresh();
-      s->unify(self >>= inner, s->instantiate(sig));
-      
-      return inner;
-    } catch(std::out_of_range&) {
-      std::stringstream ss;
-      ss << "constructor " << tool::quote(c->name.get())
-         << " has no associated signature";
-      
-      throw error(ss.str());
-    }
+    const mono inner = s->fresh();
+    s->unify(self >>= inner, s->instantiate(sig));
+    
+    return inner;
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -327,9 +334,15 @@ namespace type {
 
   // make
   static mono infer(const ref<state>& s, const ast::make& self) {
-    // get signature type
-    const poly sig = s->vars->find(self.type);
+    // get reified constructor
+    const mono reified = infer(s, *self.type);
+    
+    // obtain actual constructor
+    const cst ctor = constructor(reconstruct(s, reified));
 
+    // module signature
+    const poly sig = signature(s, ctor);
+    
     auto sub = scope(s);
     
     const mono outer = s->fresh();
@@ -351,6 +364,9 @@ namespace type {
                      return row(attr.id.name, infer(sub, attr.value)) |= tail;
                    }));
 
+    std::clog << "inner: " << s->generalize(inner) << std::endl;
+    std::clog << "provided: " << s->generalize(provided) << std::endl;    
+    
     // now also unify inner with provided type
     s->unify(inner, provided);
 
