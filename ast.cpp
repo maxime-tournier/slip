@@ -226,34 +226,24 @@ namespace ast {
 
 
   // check record attributes
-  static slice<record::attr::list> check_record_attrs(sexpr::list args) {
-    const auto init = just(record::attr::list());
-    
-    // build attribute list by folding args
-    if(auto res = foldr(init, args, [](sexpr e, maybe<record::attr::list> tail) {
-          return tail >> [&](record::attr::list tail) {
-            if(auto self = e.get<sexpr::list>()) {
-              return check_bind(*self) >> [&](bind b) {
-                const record::attr head{b.id, b.value};
-                return just(head >>= tail);
-              };
-            } else {
-              return maybe<record::attr::list>();
-            }
-          };
-        })) {
-      return {res.get(), nullptr};
-    } else {
-      return {{}, args};
-    }
-  };
+  static const auto check_record_attrs = map([](sexpr e) -> maybe<record::attr> {
+      if(auto self = e.get<sexpr::list>()) {
+        return check_bind(*self) >> [](bind b) {
+          const record::attr head{b.id, b.value};
+          return just(head);
+        };
+      }
+      return {};
+    });
 
-  
+  // check record literals
   static const auto check_record = check_record_attrs >> [](record::attr::list attrs) {
     const expr res = record{attrs};
     return done(res);
   };
-  
+
+
+  // check module creation
   static const auto check_make = pop() >> [](sexpr type) {
     
     return check_record >> [type](expr self) {
@@ -263,7 +253,7 @@ namespace ast {
     };
   };
 
-  
+  // check module unpacking
   static const auto check_use = pop() >> [](sexpr env) {
     return pop() >> [env](sexpr body) {
       const expr res = use(expr::check(env), expr::check(body));
@@ -271,33 +261,36 @@ namespace ast {
     };
   };
 
-  
+  // check package import
   static const auto check_import = pop_as<symbol> >> [](symbol package) {
     const expr res = import{package};
     return done(res);
   };
 
 
+  // check module declaration without arguments
   static const auto module_noargs = pop_as<symbol> >> [](symbol name) {
     return pure(named_signature{check_var(name), nullptr});
   };
 
+  // check module declaration with arguments  
   static const auto module_args = pop_as<sexpr::list> >> [](sexpr::list sig) {
     return lift(check_named_signature(sig));
   };
   
 
+  // check module definition
   static const auto check_module = (module_noargs | module_args) >> [](named_signature self) {
     return check_record_attrs >> [=](record::attr::list attrs) {
       const expr res = module{self.id, self.args, attrs};
       return done(res);
     };
-    
   }; 
   
+
   
   namespace kw {
-
+    // reserved keywords
     symbol abs("fn"),
       let("let"),
       seq("do"),
@@ -310,8 +303,7 @@ namespace ast {
       import("import"),
       module("module")
       ;
-   
-
+    
     static const std::set<symbol> reserved = {
       abs, let, def, cond, record, bind, seq, make, use, import, module,
     };
