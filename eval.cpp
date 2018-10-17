@@ -6,56 +6,55 @@
 #include "package.hpp"
 
 namespace eval {
-// env::~env() {
-//   std::clog << __func__ << std::endl;
-// }
 
-closure::closure(std::size_t argc, func_type func)
-  : func(func),
-    argc(argc) {
+  closure::closure(std::size_t argc, func_type func)
+    : func(func),
+      argc(argc) {
 
-}
+  }
 
-closure::closure(const closure&) = default;
-closure::closure(closure&&) = default;
+  closure::closure(const closure&) = default;
+  closure::closure(closure&&) = default;
 
-value apply(const value& self, const value* first, const value* last) {
-  const std::size_t argc = last - first;
-  const std::size_t expected = self.match<std::size_t>
-    ([](const closure& self) { return self.argc; },
-     [](const value& self) -> std::size_t {
-       throw std::runtime_error("type error in application");
-     });
+  // apply a closure to argument range
+  static value apply(const closure& self, const value* first, const value* last) {
+    const std::size_t argc = last - first;
 
-  if(argc < expected) {
-    // unsaturated call: build wrapper
-    const std::size_t remaining = expected - argc;        
-    const std::vector<value> saved(first, last);
+    if(argc < self.argc) {
+      // unsaturated call: build wrapper
+      const std::size_t remaining = self.argc - argc;        
+      const std::vector<value> saved(first, last);
     
-    return closure(remaining, [self, saved, remaining](const value* args) {
-      std::vector<value> tmp = saved;
-      for(auto it = args, last = args + remaining; it != last; ++it) {
-        tmp.emplace_back(*it);
-      }
-      return apply(self, tmp.data(), tmp.data() + tmp.size());
-    });
+      return closure(remaining, [self, saved, remaining](const value* args) {
+          std::vector<value> tmp = saved;
+          for(auto it = args, last = args + remaining; it != last; ++it) {
+            tmp.emplace_back(*it);
+          }
+          return apply(self, tmp.data(), tmp.data() + tmp.size());
+        });
+    }
+
+    if(argc > self.argc) {
+      // over-saturated call: call result with remaining args
+      const value* mid = first + argc;
+      
+      const value func = apply(self, first, mid);
+      assert(func.get<closure>() && "type error");
+      
+      const closure& self = func.cast<closure>();
+      return apply(self, mid, last);
+    }
+
+    // saturated calls
+    return self.func(first);
   }
 
-  if(argc > expected) {
-    // over-saturated call: call result with remaining args
-    const value* mid = first + expected;
-    const value result = apply(self, first, mid);
-    return apply(result, mid, last);
-  }
-
-  // saturated calls
-  return self.match<value>
-	([first](const closure& self) {
-      return self.func(first);      
-    },
-	 [](value) -> value {
-       throw std::runtime_error("type error in application");
-     });
+  
+value apply(const value& self, const value* first, const value* last) {
+  return self.match<value>([&](const closure& self) { return apply(self, first, last); },
+                           [&](const value& self) -> value {
+                             throw std::runtime_error("type error in application");
+                           });
 }
 
 
@@ -72,24 +71,23 @@ value apply(const value& self, const value* first, const value* last) {
 
 
   static value eval(const ref<state>& e,const ast::var& self) {
-    try {
-      return e->find(self.name);
-    } catch(std::out_of_range& e) {
-      throw std::runtime_error(e.what());
-    }
+    return e->find(self.name);
   }
 
   
   static value eval(const ref<state>& e, const ast::app& self) {
     const value func = expr(e, *self.func);
-
-    std::vector<value> args;
+    assert(func.get<closure>() && "type error");
+    
+    const closure& clos = func.cast<closure>();
+    
+    std::vector<value> args; args.reserve(clos.argc);
     foldl(unit(), self.args, [&](unit, const ast::expr& self) {
         args.emplace_back(expr(e, self));
         return unit();
       });
     
-    return apply(func, args.data(), args.data() + args.size());
+    return apply(clos, args.data(), args.data() + args.size());
   }
 
   
@@ -172,10 +170,11 @@ value apply(const value& self, const value* first, const value* last) {
   // }
 
   static value eval(const ref<state>& e, const ast::record& self) {
-    return foldl(unit(), self.attrs, [&](unit, const ast::record::attr& attr) {
-        res.attrs.emplace(attr.name, expr(e, attr.value));
-        return unit();
-      });
+    record res;
+    for(const auto& attr : self.attrs) {
+      res.attrs.emplace(attr.name, expr(e, attr.value));
+    }
+    return res;
   }
 
 
@@ -194,12 +193,12 @@ value apply(const value& self, const value* first, const value* last) {
 
   
   static value eval(const ref<state>& e, const ast::use& self) {
-    auto r = expr(e, *self.env);
-    assert(r.get<record>() && "type error");
+    const value env = expr(e, *self.env);
+    assert(env.get<record>() && "type error");
 
     auto s = scope(e);
     
-    for(const auto& it : rr.cast<record>().attrs) {
+    for(const auto& it : env.cast<record>().attrs) {
       s->locals.emplace(it.first, it.second);
     }
 

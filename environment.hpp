@@ -62,7 +62,8 @@ struct environment {
     return *this;
   }
 
-
+  
+  // debugging
   std::size_t write(std::ostream& out, std::size_t level=0) const {
     if(parent) {
       level = parent->write(out, level);
