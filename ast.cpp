@@ -115,56 +115,35 @@ namespace ast {
   }
     
 
-  
-  
- 
-  
-// struct typed_argument {
-//   const symbol type;
-//   const symbol name;
-// };
-
-// struct argument : variant<symbol, typed_argument> {
-//   using argument::variant::variant;
-// };
-
-  using args_type = list<abs::arg>;
-
-  static slice<args_type> check_args(sexpr::list self) {
-    maybe<args_type> init{nullptr};
+  static const auto check_args = peek() >> [](sexpr::list self) {
+    maybe<abs::arg::list> init{nullptr};
     
-    const maybe<args_type> result =
-      foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
-        return rhs >> [&](args_type tail) -> maybe<args_type> {
-          
-          if(auto res = lhs.get<symbol>()) {
-            return check_var(*res) >>= tail;
-          }
-          if(auto res = lhs.get<sexpr::list>()) {
-            return (pop() >> [tail](sexpr type) {
-                return pop_as<symbol> >> [tail, type](symbol name) {
-                  return pure(abs::typed{expr::check(type), check_var(name)} >>= tail);
-                };
-              })(*res);
-          }
-          return {};
-        };
-      });
-
-    // TODO backtrack if failed
-    return {result, nullptr};
-  }
+    return lift(foldr(init, self, [](sexpr lhs, maybe<abs::arg::list> rhs) {
+          return rhs >> [&](abs::arg::list tail) -> maybe<abs::arg::list> {
+            if(auto res = lhs.get<symbol>()) {
+              return check_var(*res) >>= tail;
+            }
+            if(auto res = lhs.get<sexpr::list>()) {
+              return (pop() >> [tail](sexpr type) {
+                  return pop_as<symbol> >> [tail, type](symbol name) {
+                    return pure(abs::typed{expr::check(type), check_var(name)} >>= tail);
+                  };
+                })(*res);
+            }
+            return {};
+          };
+        }));
+  };
+  
 
 
   // check fundefs
   static const auto check_abs = pop_as<sexpr::list> >> [](sexpr::list self) {
-    return pop() >> [&](const sexpr& body) -> monad<expr> {
-      if(const auto args = check_args(self)) {
-        const expr e = abs{args.get(), expr::check(body)};
+    return lift(check_args(self)) >> [](abs::arg::list args) {
+      return pop() >> [&](const sexpr& body) -> monad<expr> {
+        const expr e = abs{args, expr::check(body)};
         return done(e);
-      } else {
-        return fail<expr>();
-      }
+      };
     };
   };
 
@@ -175,30 +154,21 @@ namespace ast {
     };
   };
 
-  // check a binding sequence (`binding`...)
-  static const auto check_bindings = [](sexpr::list self) {
-    list<bind> defs;
-  
-    return foldr(just(defs), self, [](sexpr lhs, maybe<list<bind>> rhs) {
-        return rhs >> [&](list<bind> tail) -> maybe<list<bind>> {
-          if(auto binding = lhs.get<sexpr::list>()) {
-            return check_bind(*binding) >> [&](bind self) {
-              return just(self >>= tail);
-            };
-          }
-          return {};
-        };
-      });
-  };
-  
 
+  static const auto check_bindings = map([](sexpr self) -> maybe<bind> {
+      if(auto binding = self.get<sexpr::list>()) {
+        return check_bind(*binding);
+      }
+      return {};
+    });
+  
   static const auto check_let = pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
-    if(const auto defs = check_bindings(bindings)) {
+    return lift(check_bindings(bindings)) >> [](list<bind> defs) {
       return pop() >> [defs](sexpr body) {
-        const expr res = let{defs.get(), expr::check(body)};
+        const expr res = let{defs, expr::check(body)};
         return done(res);
       };
-    } else return fail<expr>();
+    };
   };
 
 

@@ -167,6 +167,43 @@ namespace slice {
 
   template<class A>
   static lift_type<A> lift(const maybe<A>& self) { return {self}; }
+
+
+  // map a computation on each element of the list
+  // TODO this is not quite a map
+  template<class Func>
+  struct map_type {
+    const Func func;
+
+    template<class T>
+    static T value(const maybe<T>& );
+    
+    template<class T>
+    auto operator()(const list<T>& self) const {
+      using value_type = decltype(value(func(self->head)));
+      using slice_type = slice<T, list<value_type>>;
+
+      // empty list: base case
+      if(!self) {
+        return slice_type{just(list<value_type>()), self};
+      }
+      
+      // apply func on head
+      const auto result = func(self->head) >> [&](auto head) {
+        return operator()(self->tail) >> [&](auto tail) {
+          return just(head >>= tail);
+        };
+      };
+
+      // note: either the computation is completely successful, or we backtrack
+      // all the way up 
+      return slice_type{result, result ? nullptr : self};
+    }
+  };
+
+
+  template<class Func>
+  static map_type<Func> map(Func func) { return {func}; }
   
 }
 
