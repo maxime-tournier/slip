@@ -8,9 +8,13 @@ namespace slice {
   // list processing monad: computations on lists that try to extract a value
   // from a contiguous slice, returning the remainder of the list and the value
   template<class T, class A>
-  struct slice {
-    const maybe<A> result;
+  struct slice : maybe<A> {
     const list<T> rest;
+
+    slice(const maybe<A>& value, const list<T>& rest)
+      : maybe<A>(value), rest(rest) { }
+
+    using maybe<A>::operator>>;
   };
 
   template<class T, class A>
@@ -29,7 +33,7 @@ namespace slice {
   };
 
   template<class A>
-  static pure_type<A> pure(A a) { return {a};}
+  static pure_type<A> pure(const A& a) { return {a};}
 
   
   // monadic bind
@@ -53,13 +57,13 @@ namespace slice {
       using target_slice_type = decltype(target_monad(result(source_slice(self)))(self));
       
       const auto ra = ma(self);
-      if(!ra.result) {
+      if(!ra) {
         return target_slice_type{{}, self};
       }
 
       // note: backtrack all the way in case second fails
-      const auto rb = func(ra.result.get())(ra.rest);
-      if(!rb.result) {
+      const auto rb = func(ra.get())(ra.rest);
+      if(!rb) {
         return target_slice_type{{}, self};
       }
       
@@ -93,9 +97,13 @@ namespace slice {
 
     template<class T>
     auto operator()(const list<T>& self) const {
-      const auto left = lhs(self);
-      if(left.result) return left;
-      return rhs(self);
+      static_assert(std::is_same<decltype(lhs(self)), decltype(rhs(self))>::value,
+                    "types must be the same");
+      if(const auto left = lhs(self)) {
+        return left;
+      } else {     
+        return rhs(self);
+      }
     }
     
   };
@@ -136,7 +144,7 @@ namespace slice {
   };
 
   template<class A>
-  static done_type<A> done(A a) { return {a}; }
+  static done_type<A> done(const A& a) { return {a}; }
 
   // peek at current list (useful for debugging)
   struct peek {
@@ -146,6 +154,19 @@ namespace slice {
     }
   };
 
+
+  template<class A>
+  struct lift_type {
+    const maybe<A> result;
+
+    template<class T>
+    slice<T, A> operator()(const list<T>& self) const {
+      return {result, self};
+    }
+  };
+
+  template<class A>
+  static lift_type<A> lift(const maybe<A>& self) { return {self}; }
   
 }
 

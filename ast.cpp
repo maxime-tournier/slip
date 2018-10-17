@@ -130,10 +130,11 @@ namespace ast {
 
   using args_type = list<abs::arg>;
 
-  static maybe<args_type> check_args(sexpr::list self) {
+  static slice<args_type> check_args(sexpr::list self) {
     maybe<args_type> init{nullptr};
     
-    return foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
+    const maybe<args_type> result =
+      foldr(init, self, [](sexpr lhs, maybe<args_type> rhs) {
         return rhs >> [&](args_type tail) -> maybe<args_type> {
           
           if(auto res = lhs.get<symbol>()) {
@@ -144,11 +145,14 @@ namespace ast {
                 return pop_as<symbol> >> [tail, type](symbol name) {
                   return pure(abs::typed{expr::check(type), check_var(name)} >>= tail);
                 };
-              })(*res).result;
+              })(*res);
           }
           return {};
         };
       });
+
+    // TODO backtrack if failed
+    return {result, nullptr};
   }
 
 
@@ -178,7 +182,7 @@ namespace ast {
     return foldr(just(defs), self, [](sexpr lhs, maybe<list<bind>> rhs) {
         return rhs >> [&](list<bind> tail) -> maybe<list<bind>> {
           if(auto binding = lhs.get<sexpr::list>()) {
-            return check_bind(*binding).result >> [&](bind self) {
+            return check_bind(*binding) >> [&](bind self) {
               return just(self >>= tail);
             };
           }
@@ -198,11 +202,31 @@ namespace ast {
   };
 
 
-  static const auto check_def = check_bind >> [](bind self) {
+  struct named_signature {
+    const var id;
+    const abs::arg::list args;
+  };
+  
+  static const auto check_named_signature = pop_as<symbol> >> [](symbol name) {
+    return check_args >> [=](abs::arg::list args) {
+      return pure(named_signature{check_var(name), args});
+    };
+  };
+  
+  static const auto check_fundef = pop_as<sexpr::list> >> [](sexpr::list sig) {
+    return lift(check_named_signature(sig)) >> [](named_signature sig) {
+      return pop() >> [=](sexpr body) {
+        const ast::bind res{sig.id, ast::abs{sig.args, expr::check(body)}};
+        return done(res);
+      };
+    };
+  };
+  
+  static const auto check_def = (check_bind | check_fundef) >> [](bind self) {
     const expr res = def{self.id, self.value};
     return pure(res);
   };
-
+  
 
   static slice<expr> check_seq(sexpr::list args) {
     const expr res = seq{map(args, io::check)};
@@ -230,7 +254,7 @@ namespace ast {
     if(auto res = foldr(init, args, [](sexpr e, maybe<record::attr::list> tail) {
           return tail >> [&](record::attr::list tail) {
             if(auto self = e.get<sexpr::list>()) {
-              return check_bind(*self).result >> [&](bind b) {
+              return check_bind(*self) >> [&](bind b) {
                 const record::attr head{b.id, b.value};
                 return just(head >>= tail);
               };
@@ -275,27 +299,18 @@ namespace ast {
   };
 
 
-  static const auto check_module = pop() >> [](sexpr sig) -> monad<expr> {
-    const auto name = sig.match<maybe<symbol>>([&](symbol self) {
-        return just(self);
-      },
-      [&](sexpr::list self) {
-        return pop_as<symbol>(self).result;
-      },
-      [&](sexpr) -> maybe<symbol> { return {}; });
+  static const auto module_noargs = pop_as<symbol> >> [](symbol name) {
+    return pure(named_signature{check_var(name), nullptr});
+  };
 
-    if(!name) return fail<expr>();
+  static const auto module_args = pop_as<sexpr::list> >> [](sexpr::list sig) {
+    return lift(check_named_signature(sig));
+  };
+  
 
-    const auto args = sig.match<maybe<args_type>>([&](sexpr::list self) {
-        return check_args(self->tail);
-      },
-      [&](symbol) { return just(args_type()); },
-      [&](sexpr) -> maybe<args_type> { return {}; });
-
-    if(!args) return fail<expr>();
-    
+  static const auto check_module = (module_noargs | module_args) >> [](named_signature self) {
     return check_record_attrs >> [=](record::attr::list attrs) {
-      const expr res = module{check_var(name.get()), args.get(), attrs};
+      const expr res = module{self.id, self.args, attrs};
       return done(res);
     };
     
@@ -392,7 +407,7 @@ namespace ast {
          return check_symbol(s);
        },
        [](sexpr::list f) {
-         return impl(f).result.get();
+         return impl(f).get();
        });
   }
   
@@ -402,7 +417,9 @@ namespace ast {
 
     return e.match<io>
       ([](sexpr::list self) -> io {
-        if(auto res = impl(self).result) return res.get();
+        if(auto res = impl(self)) {
+          return res.get();
+        }
         return expr::check(self);
       },[](sexpr self) -> io { return expr::check(self); });
   }

@@ -172,6 +172,7 @@ namespace ast {
   
   struct abs::arg : variant<var, typed> {
     using arg::variant::variant;
+    using list = list<arg>;
     symbol name() const;
   };  
 

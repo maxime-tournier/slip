@@ -5,7 +5,10 @@
         (compose (a -> a -> a)))
 
 ;; monoid instance for integer
-(def integer-monoid (new monoid (empty 0)  (compose +)))
+(def integer-monoid
+     (new monoid
+          (empty 0)
+          (compose +)))
 
 (def list-concat
      (fn (lhs rhs)
