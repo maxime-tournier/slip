@@ -108,6 +108,7 @@ value apply(const value& self, const value* first, const value* last) {
     });
   }
 
+  
   static value eval(const ref<state>& e, const ast::io& self) {
     return self.match<value>([&](const ast::expr& self) {
         return expr(e, self);
