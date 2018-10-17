@@ -355,7 +355,7 @@ namespace ast {
   
   static expr check_symbol(symbol s) {
     // attributes
-    if(s.get()[0] == ':') {
+    if(s.get()[0] == '.') {
       const std::string name = std::string(s.get()).substr(1);
       if(name.empty()) throw error("empty attribute name");
       return sel{name};

@@ -114,7 +114,7 @@ namespace type {
                     const poly::forall_type& forall, bool parens) const {
       auto it = map.emplace(self, map.size()).first;
       if(forall.find(self) != forall.end()) {
-        out << "'";
+        out << (self->kind == kind::term() ? "'" : self->kind == kind::row() ? "..." : "?");
       } else {
         out << "!";
       }

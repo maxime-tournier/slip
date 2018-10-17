@@ -82,21 +82,21 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
 
   static const auto symbol_parser = identifier_parser | op_parser;
 
-  static const char colon = ':';
-  
+  static constexpr char attribute_prefix = '.';  
+
   static const auto qualified_parser =
-    (symbol_parser % chr<matches<'.'>>()) >> [](std::deque<symbol> parts) {
+    (symbol_parser % chr<matches<attribute_prefix>>()) >> [](std::deque<symbol> parts) {
       sexpr res = parts.front();
       parts.pop_front();
       
       for(symbol s : parts) {
-        res = symbol(std::string(1, colon) + s.get()) >>= res >>= sexpr::list();
+        res = symbol(std::string(1, attribute_prefix) + s.get()) >>= res >>= sexpr::list();
       }
 
       return pure(res);
     };
-  
-  static const auto attr_parser = chr<matches<colon>>() >> [](char c) { 
+
+  static const auto attr_parser = chr<matches<attribute_prefix>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
       return pure(symbol(c + std::string(s.get())));
     };

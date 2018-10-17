@@ -158,7 +158,7 @@ namespace type {
 
     // rewriting failed: attribute error
     std::stringstream ss;
-    ss << "expected attribute " << tool::quote(e.attr.get())
+    ss << "no attribute " << tool::quote(e.attr.get())
        << " in record type \"" << self->generalize(to) << "\"";
     throw error(ss.str());
   }  
