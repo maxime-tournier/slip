@@ -92,13 +92,14 @@ namespace ast {
 
   // attribute selection
   struct sel {
+    // TODO var?
     const symbol name;
   };
 
 
   // module definition
   struct module {
-    const symbol name;
+    const var id;
 
     const list<abs::arg> args;
     const list<record::attr> attrs;
@@ -107,16 +108,16 @@ namespace ast {
 
   // module packing
   struct make {
+    // TODO var?
     const symbol type;
     const list<record::attr> attrs;
   };
 
   // definition (modifies current environment)
   struct def {
-    const symbol name;
+    const var id;
     const ref<expr> value;
-    def(symbol name, const expr& value)
-      : name(name), value(make_expr(value)) { }
+    def(var id, const expr& value);
   };
 
   // sequencing
@@ -162,23 +163,24 @@ namespace ast {
 
   struct abs::typed {
     const expr type;
-    const symbol name;
+    const var id;
   };
   
-  struct abs::arg : variant<symbol, typed> {
+  struct abs::arg : variant<var, typed> {
     using arg::variant::variant;
     symbol name() const;
   };  
 
   struct record::attr {
     using list = list<attr>;
+    // TODO var?
     const symbol name;
     const expr value;
   };
 
   // monadic binding in a sequence
   struct bind {
-    const symbol name;
+    const var id;
     const expr value;
   };
   

@@ -130,13 +130,13 @@ value apply(const value& self, const value* first, const value* last) {
 
   static value eval(const ref<state>& e, const ast::module& self) {
     // just define the reified module type constructor
-    auto it = e->locals.emplace(self.name, unit()); (void) it;
+    auto it = e->locals.emplace(self.id.name, unit()); (void) it;
     assert(it.second && "redefined variable");    
     return unit();
   }
 
   static value eval(const ref<state>& e, const ast::def& self) {
-    auto it = e->locals.emplace(self.name, expr(e, *self.value)); (void) it;
+    auto it = e->locals.emplace(self.id.name, expr(e, *self.value)); (void) it;
     assert(it.second && "redefined variable");
     return unit();
   }
@@ -147,7 +147,7 @@ value apply(const value& self, const value* first, const value* last) {
     state::locals_type locals;
     
     for(const ast::bind& def : self.defs) {
-      locals.emplace(def.name, expr(sub, def.value));
+      locals.emplace(def.id.name, expr(sub, def.value));
     }
 
     sub->locals = std::move(locals);

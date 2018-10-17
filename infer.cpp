@@ -66,9 +66,9 @@ namespace type {
       const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
           return self.value.match<ast::bind>
           ([&](const ast::abs& abs) { 
-            return ast::bind{self.name,
+            return ast::bind{self.id,
                              ast::app{ast::var{fix()},
-                                      ast::abs{self.name >>= list<ast::abs::arg>(),
+                                      ast::abs{self.id >>= list<ast::abs::arg>(),
                                                self.value}
                                       >>= list<ast::expr>()}};
           }, 
@@ -171,7 +171,7 @@ namespace type {
     auto sub = scope(s);
     
     for(auto arg: args) {
-      const mono type = arg.match<mono>([&](symbol self) {
+      const mono type = arg.match<mono>([&](ast::var self) {
           return s->fresh();
         },
         [&](ast::abs::typed self) {
@@ -280,7 +280,7 @@ namespace type {
     auto sub = scope(s);
 
     for(ast::bind def : self.defs) {
-      sub->vars->locals.emplace(def.name, s->generalize(infer(s, def.value)));
+      sub->vars->locals.emplace(def.id.name, s->generalize(infer(s, def.value)));
     }
     
     return infer(sub, self.body);
@@ -402,14 +402,14 @@ namespace type {
     return result;    
   }
 
-  
+
   // def
   static mono infer(const ref<state>& s, const ast::def& self) {
     const mono value =
-      infer(s, ast::let(ast::bind{self.name, *self.value} >>= list<ast::bind>(),
-                        ast::var{self.name}));
+      infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(),
+                        self.id));
     try {
-      s->def(self.name, value);
+      s->def(self.id.name, value);
       return io(unit);
     } catch(std::runtime_error& e) {
       throw error(e.what());
@@ -475,6 +475,8 @@ namespace type {
     // * => type(self)
     // (* -> *) => type a -> type (self a)
   }
+
+
   
 
   // module
@@ -508,7 +510,7 @@ namespace type {
     const kind::any k = infer_kind(s, sig);
 
     // create a new type constructor with given name/computed kind    
-    const cst c = make_ref<constant>(self.name, k);
+    const cst c = make_ref<constant>(self.id.name, k);
 
     // apply constructor to the right type variables
     const mono outer = foldl_kind(mono(c), k, [&](mono lhs, kind::any k) {
@@ -534,7 +536,7 @@ namespace type {
     (void) it;
 
     // define constructor
-    s->def(self.name, sig);
+    s->def(self.id.name, sig);
 
     // return s->instantiate(it.first->second);
     return io(unit);

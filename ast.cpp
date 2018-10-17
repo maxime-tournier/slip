@@ -15,6 +15,8 @@
 
 namespace ast {
 
+  static var check_var(symbol s);
+    
   struct unimplemented : std::runtime_error {
     unimplemented(std::string what)
       : std::runtime_error("unimplemented: " + what) { }
@@ -22,10 +24,14 @@ namespace ast {
   
   symbol abs::arg::name() const {
     return match<symbol>
-      ([](symbol self) { return self; },
-       [](typed self) { return self.name; });
+      ([](var self) { return self.name; },
+       [](typed self) { return self.id.name; });
   }
 
+
+
+  def::def(var id, const expr& value) : id(id), value(make_expr(value)) { }
+  
   static const symbol arrow = "->";
   
   static sexpr::list rewrite_arrows(sexpr::list args) {
@@ -131,12 +137,12 @@ namespace ast {
         return rhs >> [&](args_type tail) -> maybe<args_type> {
           
           if(auto res = lhs.get<symbol>()) {
-            return *res >>= tail;
+            return check_var(*res) >>= tail;
           }
           if(auto res = lhs.get<sexpr::list>()) {
             return (pop() >> [tail](sexpr type) {
                 return pop_as<symbol> >> [tail, type](symbol name) {
-                  return pure(abs::typed{expr::check(type), name} >>= tail);
+                  return pure(abs::typed{expr::check(type), check_var(name)} >>= tail);
                 };
               })(*res).result;
           }
@@ -161,7 +167,7 @@ namespace ast {
   // check a binding (`symbol`, `expr`)
   static const auto check_bind = pop_as<symbol> >> [](symbol id) {
     return pop() >> [id](sexpr e) {
-      return done(bind{id, expr::check(e)});
+      return done(bind{check_var(id), expr::check(e)});
     };
   };
 
@@ -193,7 +199,7 @@ namespace ast {
 
 
   static const auto check_def = check_bind >> [](bind self) {
-    const expr res = def{self.name, self.value};
+    const expr res = def{self.id, self.value};
     return pure(res);
   };
 
@@ -225,7 +231,7 @@ namespace ast {
           return tail >> [&](record::attr::list tail) {
             if(auto self = e.get<sexpr::list>()) {
               return check_bind(*self).result >> [&](bind b) {
-                const record::attr head{b.name, b.value};
+                const record::attr head{b.id.name, b.value};
                 return just(head >>= tail);
               };
             } else {
@@ -287,7 +293,7 @@ namespace ast {
     if(!args) return fail<expr>();
     
     return check_record_attrs >> [=](record::attr::list attrs) {
-      const expr res = module{name.get(), args.get(), attrs};
+      const expr res = module{check_var(name.get()), args.get(), attrs};
       return done(res);
     };
     
@@ -336,6 +342,42 @@ namespace ast {
       return pure(io(self));
     }, "(bind `symbol` `expr`)"}},
   };
+
+  static var check_identifier(symbol s) {
+    // forbid reserved keywords
+    if(kw::reserved.find(s) != kw::reserved.end()) {
+      throw error(tool::quote(s.get()) + " is a reserved keyword and"
+                  " cannot be used as a variable name");
+    }
+    
+    return {s};
+  }
+  
+  static expr check_symbol(symbol s) {
+    // attributes
+    if(s.get()[0] == ':') {
+      const std::string name = std::string(s.get()).substr(1);
+      if(name.empty()) throw error("empty attribute name");
+      return sel{name};
+    }
+
+    // special cases
+    if(s == "true") { return lit<boolean>{true}; }
+    if(s == "false") { return lit<boolean>{false}; }
+
+    return check_identifier(s);
+  }
+  
+
+  static var check_var(symbol s) {
+    const expr e = check_symbol(s);
+    if(auto self = e.get<var>()) {
+      return *self;
+    }
+
+    throw error(tool::quote(s.get()) + " cannot be used as a variable name");
+  }
+  
   
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_app;
@@ -345,24 +387,7 @@ namespace ast {
        [](integer i) { return make_lit(i); },
        [](real r) { return make_lit(r); },
        [](symbol s) -> expr {
-         // forbid reserved keywords
-         if(kw::reserved.find(s) != kw::reserved.end()) {
-           throw error(tool::quote(s.get()) + " is a reserved keyword and"
-                       " cannot be used as a variable name");
-         }
-
-         // attributes
-         if(s.get()[0] == ':') {
-           const std::string name = std::string(s.get()).substr(1);
-           if(name.empty()) throw error("empty attribute name");
-           return sel{name};
-         }
-
-         // special cases
-         if(s == "true") { return lit<boolean>{true}; }
-         if(s == "false") { return lit<boolean>{false}; }
-         
-         return var{s};
+         return check_symbol(s);
        },
        [](list<sexpr> f) {
          return impl(f).result.get();
@@ -400,7 +425,7 @@ namespace ast {
       }
 
       sexpr operator()(const abs::typed& self) const {
-        return self.type.visit(*this) >>= self.name >>= sexpr::list();
+        return self.type.visit(*this) >>= self.id.name >>= sexpr::list();
       }
       
 
@@ -427,7 +452,7 @@ namespace ast {
       sexpr operator()(const let& self) const {
         return kw::let
           >>= map(self.defs, [](const bind& self) -> sexpr {
-            return self.name >>= self.value.visit(repr()) >>= sexpr::list();
+            return self.id.name >>= self.value.visit(repr()) >>= sexpr::list();
           })
           >>= self.body->visit(repr())
           >>= list<sexpr>();
@@ -443,7 +468,7 @@ namespace ast {
 
       sexpr operator()(const def& self) const {
         return kw::def
-          >>= self.name
+          >>= self.id.name
           >>= self.value->visit(repr())
           >>= list<sexpr>();
       }
