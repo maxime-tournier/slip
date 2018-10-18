@@ -185,6 +185,9 @@ namespace type {
     to = sub->substitute(to);
 
     if(from.kind() != to.kind()) {
+      if(log) {
+        *log << std::string(2 * indent, '.') << "kind error" << std::endl;
+      }
       throw unification_error("cannot unify types of different kinds");
     }
 
@@ -221,6 +224,10 @@ namespace type {
     }
   
     if(from != to) {
+      if(log) {
+        *log << std::string(2 * indent, '.') << "error" << std::endl;
+      }
+
       std::stringstream ss;
       logger(ss) << "cannot unify types \"" << self->generalize(from)
                  << "\" and \"" << self->generalize(to) << "\"";

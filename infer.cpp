@@ -245,25 +245,30 @@ namespace type {
 
     // TODO less stupid
     try {
+      std::clog << "regular" << std::endl;
       s->unify(func, arg >>= ret);
       return ret;
     } catch(error& e) { 
 
       try {
+        std::clog << "opening func" << std::endl;
         s->unify(open(s, func), arg >>= ret);
         return ret;
       } catch(error& ) { }
 
       try {
+        std::clog << "opening arg" << std::endl;
         s->unify(func, open(s, arg) >>= ret);
         return ret;
       } catch(error& ) { }
 
       try {
+        std::clog << "opening arg/func" << std::endl;        
         s->unify(open(s, func), open(s, arg) >>= ret);
         return ret;
       } catch(error& ) { }
       
+      std::clog << "nope :/" << std::endl;        
       throw;
     }
     
