@@ -46,7 +46,7 @@ static void read_loop(const F& f) {
 
 
 static void print_error(const std::exception& e, std::size_t level=0) {
-    const std::string prefix(level, ' ');
+    const std::string prefix(level, '.');
     
     std::cerr << prefix << e.what() << std::endl;
     
@@ -55,6 +55,8 @@ static void print_error(const std::exception& e, std::size_t level=0) {
     } catch(std::exception& e) {
         print_error(e, level + 1);
     }
+
+    
 }
 
 
@@ -86,8 +88,8 @@ int main(int argc, char** argv) {
       } catch(ast::error& e) {
         std::cerr << "syntax error: " << e.what() << std::endl;
       } catch(type::error& e) {
+        std::cerr << "type error: " << std::endl;
         print_error(e);
-        std::cerr << "type error: " << e.what() << std::endl;
       } catch(kind::error& e) {
         std::cerr << "kind error: " << e.what() << std::endl;
       } catch(std::runtime_error& e) {
