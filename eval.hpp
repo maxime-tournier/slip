@@ -55,6 +55,7 @@ namespace eval {
     friend std::ostream& operator<<(std::ostream& out, const value& self);
   };
 
+  const extern symbol cons, nil, head, tail;
   
   template<class Ret, class ... Args>
   closure::closure(Ret (*impl) (const Args&...) )

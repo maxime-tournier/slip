@@ -37,67 +37,11 @@ package package::core() {
     ;
 
 
-  const mono list = make_ref<type::constant>("list", kind::term() >>= kind::term());
-  
-  {
-    const auto a = self.ts->fresh();
-    self.def("nil", list(a), value::list());
-  }
-
-  {
-    const auto a = self.ts->fresh();      
-    self.def("cons", a >>= list(a) >>= list(a),
-             closure(2, [](const value* args) -> value {
-               return args[0] >>= args[1].cast<value::list>();
-             }));
-  }
-
-  {
-    const auto a = self.ts->fresh();      
-    self.def("isnil", list(a) >>= type::boolean,
-             closure(+[](const value::list& self) -> boolean {
-               return !boolean(self);
-             }));
-  }
-
-  {
-    const auto a = self.ts->fresh();
-    self.def("head", list(a) >>= a,
-             closure(1, [](const value* args) -> value {
-               return args[0].cast<value::list>()->head;
-             }));
-  }
-
-  {
-    const auto a = self.ts->fresh();      
-    self.def("tail", list(a) >>= list(a),
-             closure(1, [](const value* args) -> value {
-               return args[0].cast<value::list>()->tail;
-             }));
-  }
-
-
   using type::ty;
   auto ctor_value = closure(+[](const unit&) { return unit();});
   auto ctor2_value = closure(+[](const unit&, const unit& ) { return unit();});
   
-  
-  {
-    // list reified constructor
-    const mono a = self.ts->fresh(kind::term());
-    self.def("list", ty(a) >>= ty(list(a)), ctor_value);
-  }
-
-  {
-    // list signature
-    const mono a = self.ts->fresh(kind::term());
-
-    using type::sum;
-    const mono sig = list(a) >>= list(a);
-    self.ts->sigs->emplace(*list.get<type::cst>(), self.ts->generalize(sig));
-    
-  }
-
+  // function
   {
     const mono a = self.ts->fresh(kind::term());
     const mono b = self.ts->fresh(kind::term());    
@@ -185,6 +129,41 @@ package package::core() {
     }
     
   }
+
+  // list
+  {
+    const mono list = make_ref<type::constant>("list", kind::term() >>= kind::term());
+    
+    {
+      const mono a = self.ts->fresh();
+      const mono sig = list(a) >>=
+        type::sum(row(eval::cons, type::record(row(eval::head, a) |= row(eval::tail, list(a)) |= type::empty))
+                  |= row(eval::nil, type::unit)
+                  |= type::empty);
+      
+      self.ts->sigs->emplace(list.cast<type::cst>(), self.ts->generalize(sig));
+    }
+    
+    {
+      const mono a = self.ts->fresh();
+      self.def("nil", list(a), eval::value::list());
+    }
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("cons", a >>= list(a) >>= list(a), eval::closure(2, [](const eval::value* args) -> value {
+            return args[0] >>= args[1].cast<eval::value::list>();
+          }));
+    }
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("list", ty(a) >>= ty(list(a)), ctor_value);
+    }
+    
+  }
+
+
   
   // {
     

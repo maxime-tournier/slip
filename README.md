@@ -3,10 +3,11 @@ simple prototype language with:
 - s-expressions based syntax
 - hindley-milner type system
 - row polymorphism (scoped labels)
+- (open) sum types + pattern matching
 - first-class polymorphism with type inference
 - higher-kinded types
-- simple interpreter
 - minimal package imports
+- simple interpreter
 
 ```elisp
 ;; helper list functions

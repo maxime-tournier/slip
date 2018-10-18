@@ -7,6 +7,13 @@
 
 namespace eval {
 
+  const symbol cons = "cons";
+  const symbol nil = "nil";    
+
+  const symbol head = "head";
+  const symbol tail = "tail";    
+
+  
   closure::closure(std::size_t argc, func_type func)
     : func(func),
       argc(argc) {
@@ -40,6 +47,8 @@ namespace eval {
     if(argc > self.argc) {
       // over-saturated call: call result with remaining args
       const value* mid = first + argc;
+      assert(mid > first);
+      assert(mid < last);
       
       const value func = apply(self, first, mid);
       assert(func.get<closure>() && "type error");
@@ -185,9 +194,22 @@ value apply(const value& self, const value* first, const value* last) {
   static value eval(const ref<state>& e, const ast::sel& self) {
     const symbol name = self.id.name;
     return closure(1, [name](const value* args) -> value {
-        const auto it = args[0].cast<record>().attrs.find(name); (void) it;
-        assert(it != args[0].cast<record>().attrs.end() && "type error");
-        return it->second;
+        return args[0].match([&](const value::list& self) -> value {
+            // note: the only possible way to call this is during a pattern
+            // match processing a non-empty list
+            assert(self && "type error");
+            if(name == head) return self->head;
+            if(name == tail) return self->tail;
+            assert(false && "type error");
+          },
+          [&](const record& self) {
+            const auto it = self.attrs.find(name); (void) it;
+            assert(it != self.attrs.end() && "type error");
+            return it->second;
+          },
+          [&](const value& self) -> value {
+            assert(false && "type error");
+          });
       });
   }
 
@@ -238,18 +260,31 @@ value apply(const value& self, const value* first, const value* last) {
     }
     
     const ref<ast::expr> fallback = self.fallback;
-    
+
     return closure(1, [e, dispatch, fallback](const value* args) {
-        const auto& self = args[0].cast<sum>();
-        auto it = dispatch.find(self.tag);
-        if(it != dispatch.end()) {
-          auto sub = scope(e);
-          sub->def(it->second.first, *self.data);
-          return eval(sub, it->second.second);
-        } else {
-          assert(fallback);
-          return eval(e, *fallback);
-        }
+        return args[0].match([&](const value::list& self) {
+            auto it = dispatch.find(self ? cons : nil);
+            if(it != dispatch.end()) {
+              auto sub = scope(e);
+              sub->def(it->second.first, self);
+              return eval(sub, it->second.second);
+            } else {
+              assert(fallback);
+              return eval(e, self);
+            }
+          },
+          [&](const sum& self) {
+            auto it = dispatch.find(self.tag);
+            if(it != dispatch.end()) {
+              auto sub = scope(e);
+              sub->def(it->second.first, *self.data);
+              return eval(sub, it->second.second);
+            } else {
+              assert(fallback);
+              return eval(e, *fallback);
+            }
+          },
+          [&](const value&) -> value { assert(false && "type error"); });
       });
   }
 
