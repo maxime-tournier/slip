@@ -98,6 +98,17 @@ namespace ast {
   };
 
 
+  // pattern matching
+  struct match {
+    const ref<expr> value;
+
+    struct handler;
+    const list<handler> cases;
+    
+    const list<expr> fallback;
+  };
+  
+
   // module definition
   struct module {
     const var id;
@@ -150,6 +161,7 @@ namespace ast {
                         var, abs, app, let,
                         cond,
                         record, sel,
+                        match,
                         make, use,
                         import,
                         def, seq,
@@ -185,6 +197,15 @@ namespace ast {
     const expr value;
   };
 
+  
+  // note: match handlers introduce a variable binding the same ways as
+  // functions do
+  struct match::handler {
+    const abs::arg arg;
+    const expr value;
+  };
+
+  
   // monadic binding in a sequence
   struct bind {
     const var id;
@@ -196,7 +217,6 @@ namespace ast {
     using io::variant::variant;
 
     static io check(const sexpr& e);
-    friend std::ostream& operator<<(std::ostream& out, const io& self);    
   };
 
   struct error : std::runtime_error {
@@ -204,8 +224,22 @@ namespace ast {
   };
 
 
-
-  
+  namespace kw {
+    // reserved keywords
+    extern symbol abs,
+      let,
+      seq,
+      def,
+      cond,
+      record,
+      match,
+      make,
+      bind,
+      use,
+      import,
+      module
+      ;
+  }
 }
 
 

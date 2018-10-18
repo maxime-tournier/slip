@@ -11,7 +11,7 @@
 #include "tool.hpp"
 
 #include "slice.hpp"
-
+#include "repr.hpp"
 
 namespace ast {
 
@@ -296,6 +296,7 @@ namespace ast {
       def("def"),
       cond("if"),
       record("record"),
+      match("match"),
       make("new"),
       bind("bind"),
       use("use"),
@@ -304,24 +305,30 @@ namespace ast {
       ;
     
     static const std::set<symbol> reserved = {
-      abs, let, def, cond, record, bind, seq, make, use, import, module,
+      abs, let, def, cond,
+      record,
+      match,
+      bind, seq,
+      make, use, import,
+      module,
     };
 
   }
   
   // special forms table
   static const special_type<expr> special_expr = {
-    {kw::abs, {check_abs, "(fn (`symbol`...) `expr`)"}},
+    {kw::abs, {check_abs, "(fn (`arg`...) `expr`)"}},
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
+    // {kw::match, {check_match, "(match `expr` (`symbol` `arg` `expr`)...)"}},
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
     {kw::def, {check_def, "(def `symbol` `expr`)"}},
     {kw::use, {check_use, "(use `expr` `expr`)"}},
     {kw::import, {check_import, "(import `symbol`)"}},
     {kw::module, {check_module,
-                  "(module (`symbol` `symbol`...) (`symbol `expr`)...)"}},
+                  "(module (`symbol` `arg`...) (`symbol `expr`)...)"}},
   };
 
   static const special_type<io> special_io = {
@@ -392,150 +399,11 @@ namespace ast {
       },[](sexpr self) -> io { return expr::check(self); });
   }
 
-  
-  namespace {
-    struct repr {
-      using type = sexpr;
-      
-      template<class T>
-      sexpr operator()(const lit<T>& self) const {
-        return symbol("lit") >>= self.value >>= list<sexpr>();
-      }
-
-      sexpr operator()(const lit<unit>& self) const {
-        return list<sexpr>();
-      }
-
-      sexpr operator()(const var& self) const {
-        return symbol("var") >>= self.name >>= list<sexpr>();
-      }
-
-      sexpr operator()(const symbol& self) const {
-        return self;
-      }
-
-      sexpr operator()(const abs::typed& self) const {
-        return self.type.visit(*this) >>= self.id.name >>= sexpr::list();
-      }
-      
-
-      sexpr operator()(const abs& self) const {
-        return kw::abs
-          >>= map(self.args, [](abs::arg arg) -> sexpr {
-              return arg.visit(repr());
-            })
-          >>= self.body->visit(repr())
-          >>= list<sexpr>();
-      }
-
-
-      sexpr operator()(const app& self) const {
-        return symbol("app")
-          >>= self.func->visit(repr())
-          >>= map(self.args, [](const expr& e) {
-              return e.visit(repr());
-            })
-          >>= list<sexpr>();
-      }
-
-
-      sexpr operator()(const let& self) const {
-        return kw::let
-          >>= map(self.defs, [](const bind& self) -> sexpr {
-            return self.id.name >>= self.value.visit(repr()) >>= sexpr::list();
-          })
-          >>= self.body->visit(repr())
-          >>= list<sexpr>();
-      }
-
-
-      sexpr operator()(const seq& self) const {
-        return kw::seq
-          >>= map(self.items, repr())
-          >>= list<sexpr>();
-      }
-
-
-      sexpr operator()(const def& self) const {
-        return kw::def
-          >>= self.id.name
-          >>= self.value->visit(repr())
-          >>= list<sexpr>();
-      }
-
-    
-      sexpr operator()(const io& self) const {
-        return self.visit(repr());
-      }
-
-
-      sexpr operator()(const expr& self) const {
-        return self.visit(repr());
-      }
-
-
-      sexpr operator()(const sel& self) const {
-        return symbol("sel")
-          >>= self.id.name
-          >>= sexpr::list();        
-      }
-
-
-      sexpr operator()(const record& self) const {
-        return kw::record
-          >>= map(self.attrs, [](record::attr attr) -> sexpr {
-            return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
-          });
-      }
-
-
-      sexpr operator()(const cond& self) const {
-        return kw::cond
-          >>= self.test->visit(repr())
-          >>= self.conseq->visit(repr())
-          >>= self.alt->visit(repr())
-          >>= sexpr::list();
-      }
-
-
-      sexpr operator()(const make& self) const {
-        return kw::make
-          >>= self.type->visit(repr())
-          >>= map(self.attrs, [](record::attr attr) -> sexpr {
-            return attr.id.name >>= attr.value.visit(repr()) >>= sexpr::list();
-          });
-      }
-
-      sexpr operator()(const use& self) const {
-        return kw::use
-          >>= self.env->visit(repr())
-          >>= self.body->visit(repr())
-          >>= sexpr::list();
-      }
-
-      sexpr operator()(const import& self) const {
-        return kw::import
-          >>= self.package
-          >>= sexpr::list();
-      }
-      
-      template<class T>
-      sexpr operator()(const T& self) const {
-        throw std::logic_error("unimplemented repr: " + tool::type_name(typeid(T)));
-      }
-    
-    };
-  }
 
   std::ostream& operator<<(std::ostream& out, const expr& self) {
-    return out << self.visit(repr());
+    return out << repr(self);
   }
 
-
-  std::ostream& operator<<(std::ostream& out, const io& self) {
-    return out << self.visit(repr());
-  }
-  
 
   void expr::iter(std::istream& in, std::function<void(expr)> cont) {
     sexpr::iter(in, [cont](sexpr e) {
