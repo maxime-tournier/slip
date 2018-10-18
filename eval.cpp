@@ -182,11 +182,20 @@ value apply(const value& self, const value* first, const value* last) {
   static value eval(const ref<state>& e, const ast::sel& self) {
     const symbol name = self.id.name;
     return closure(1, [name](const value* args) -> value {
-      return args[0].cast<record>().attrs.at(name);      
-      // return args[0].cast<record>().attrs.find(name)->second;
-    });
+        const auto it = args[0].cast<record>().attrs.find(name); (void) it;
+        assert(it != args[0].cast<record>().attrs.end() && "type error");
+        return it->second;
+      });
   }
 
+
+  static value eval(const ref<state>& e, const ast::inj& self) {
+    const symbol name = self.id.name;
+    return closure(1, [name](const value* args) -> value {
+        return sum{name, make_ref<value>(args[0])};
+      });
+  }
+  
 
   static value eval(const ref<state>& e, const ast::make& self) {
     return expr(e, ast::record{self.attrs});
@@ -271,6 +280,11 @@ struct ostream_visitor {
     out << "}";
   }
 
+  void operator()(const sum& self, std::ostream& out) const {
+    out << "<" << self.tag << ": " << *self.value << ">";
+  }
+
+  
 };
 }
 

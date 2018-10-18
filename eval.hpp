@@ -16,7 +16,6 @@ namespace eval {
   
   struct state : environment<value> {
     using state::environment::environment;
-    // ~env();
   };
 
   
@@ -25,8 +24,14 @@ namespace eval {
   };
 
   
+  struct sum {
+    symbol tag;
+    ref<value> value;
+  };
+  
+  
   struct closure {
-    using func_type = std::function<value (const value* args)>;
+    using func_type = std::function<value(const value* args)>;
     const func_type func;
   
     const std::size_t argc;
@@ -42,7 +47,7 @@ namespace eval {
 
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, record> {
+                         closure, record, sum> {
     using value::variant::variant;
     using list = list<value>;
 
@@ -52,11 +57,12 @@ namespace eval {
   
   template<class Ret, class ... Args>
   closure::closure(Ret (*impl) (const Args&...) )
-    : func( [impl](const value* args) -> value {
-      const std::tuple<const Args&...> pack =
-        { *(args++)->template get<Args>()... };
-      return tool::apply(impl, pack, std::index_sequence_for<Args...>());
-    }),
+    : func([impl](const value* args) -> value {
+        const std::tuple<const Args&...> pack = {
+          *(args++)->template get<Args>()...
+        };
+        return tool::apply(impl, pack, std::index_sequence_for<Args...>());
+      }),
       argc(sizeof...(Args)) { }
 
 
