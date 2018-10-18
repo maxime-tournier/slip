@@ -100,12 +100,8 @@ namespace ast {
 
   // pattern matching
   struct match {
-    const ref<expr> value;
-
     struct handler;
     const list<handler> cases;
-    
-    const list<expr> fallback;
   };
   
 

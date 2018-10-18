@@ -335,6 +335,29 @@ namespace type {
     return record(infer(s, self.attrs));
   }
 
+
+  // match
+  static mono infer(const ref<state>& s, const ast::match& self) {
+    // match result type
+    const mono result = s->fresh();
+    
+    const mono rows =
+      foldr(mono(s->fresh(kind::row())), self.cases,
+            [&](ast::match::handler h, mono tail) {
+              // build a lambda for handler body
+              const ast::abs lambda =
+              {h.arg >>= ast::abs::arg::list(), h.value};
+              
+              // unify lambda type
+              const mono from = s->fresh();
+              s->unify(from >>= result, infer(s, lambda));
+              
+              return row(h.id.name, from) |= tail;
+            });
+
+    // final match type
+    return sum(rows) >>= result;
+  }
   
 
 

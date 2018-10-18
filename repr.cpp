@@ -142,7 +142,6 @@ namespace ast {
 
   static sexpr repr(const match& self) {
     return kw::match
-      >>= repr(*self.value)
       >>= map(self.cases, [](match::handler self) -> sexpr {
           return repr(self.arg) >>= repr(self.value) >>= sexpr::list();
         });

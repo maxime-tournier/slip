@@ -300,19 +300,21 @@ namespace ast {
     };
   };
 
-  // check pattern matching
-  static const auto check_match = pop() >> [](sexpr value) {
+  static const auto check_match_with_value = pop() >> [](sexpr value) {
     return map([](sexpr item) -> maybe<match::handler> {
         if(auto self = item.get<sexpr::list>()) {
           return check_match_handler(*self);
         }
         return {};
       }) >> [=](match::handler::list cases) {
-      const expr res = match{make_expr(expr::check(value)), cases};
+      const expr res = app{match{cases}, expr::check(value) >>= expr::list()};
       return pure(res);
     };
   };
+
   
+  // check pattern matching TODO match without value
+  static const auto check_match = check_match_with_value;
 
   
   namespace kw {
