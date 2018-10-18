@@ -74,10 +74,10 @@ int main(int argc, char** argv) {
           pkg.exec(e, [&](type::poly p, eval::value v) {
             // TODO: cleanup variables with depth greater than current in
             // substitution
-            if(auto v = e.get<ast::var>()) {
-              std::cout << v->name;
+            if(auto self = e.get<ast::var>()) {
+              std::cout << self->name;
             }
-            
+
             std::cout << " : " << p << std::flush
                       << " = " << v << std::endl;
           });

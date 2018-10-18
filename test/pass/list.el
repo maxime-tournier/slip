@@ -9,4 +9,11 @@
      (if (= start end) nil
        (cons start (range (+ start 1) end))))
 
-(concat (range 0 10) (range 0 3))
+(def test (concat (range 0 10) (range 0 3)))
+
+(def (map f x)
+     (match x
+            (nil _ nil)
+            (cons self (cons (f self.head) (map f self.tail)))))
+
+(map (fn (x) (* 2 x)) test)
