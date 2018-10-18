@@ -1,6 +1,7 @@
 #include "repr.hpp"
 
 #include "ast.hpp"
+#include "tool.hpp"
 
 namespace ast {
 
@@ -16,10 +17,11 @@ namespace ast {
     };
   }
   
-  // template<class T>
-  // static sexpr repr(const T& ) {
-  //   throw std::logic_error("unimplemented repr: " + tool::type_name(typeid(T)));
-  // }
+  template<class T>
+  static sexpr repr(const T& ) {
+    static_assert(sizeof(T) == 0, "unimplemented repr");
+    // throw std::logic_error("unimplemented repr: " + tool::type_name(typeid(T)));
+  }
 
   template<class T>
   static sexpr repr(const lit<T>& self) {
@@ -101,6 +103,12 @@ namespace ast {
       >>= sexpr::list();        
   }
 
+  static sexpr repr(const inj& self) {
+    return symbol("inj")
+      >>= self.id.name
+      >>= sexpr::list();        
+  }
+  
 
   static sexpr repr(const record& self) {
     return kw::record
@@ -110,6 +118,13 @@ namespace ast {
   }
 
 
+  static sexpr repr(const bind& self) {
+    return kw::bind
+      >>= self.id.name
+      >>= repr(self.value)
+      >>= sexpr::list();
+  }
+  
   static sexpr repr(const cond& self) {
     return kw::cond
       >>= repr(*self.test)
@@ -127,6 +142,15 @@ namespace ast {
         });
   }
 
+
+  static sexpr repr(const module& self) {
+    return kw::module
+      >>= sexpr(self.id.name >>= map(self.args, repr_visitor()))
+      >>= map(self.attrs, [](record::attr attr) -> sexpr {
+          return attr.id.name >>= repr(attr.value) >>= sexpr::list();
+        });
+  }
+  
   static sexpr repr(const use& self) {
     return kw::use
       >>= repr(*self.env)
