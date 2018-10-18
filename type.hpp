@@ -122,7 +122,7 @@ namespace type {
 
   // constructors
   const extern mono func, io;
-  const extern mono record, empty;
+  const extern mono record, sum, empty;
 
   // type as value reification
   const extern mono ty;
@@ -133,7 +133,7 @@ namespace type {
   mono operator>>=(mono lhs, mono rhs);
 
   
-  // convenience: build record types
+  // convenience: build row types
   struct row {
     const symbol attr;
     const mono head;
@@ -156,6 +156,7 @@ namespace type {
   };  
 
   
+  // debugging helper
   struct logger {
     std::ostream& out;
 

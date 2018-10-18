@@ -41,7 +41,13 @@ namespace type {
   const mono record =
     make_constant("record", kind::row() >>= kind::term());
 
+  // sums
+  const mono sum =
+    make_constant("sum", kind::row() >>= kind::term());
+
+  
   const mono empty = make_constant("{}", kind::row());
+
   
   mono ext(symbol attr) {
     static const kind::any k = kind::term() >>= kind::row() >>= kind::row();  
@@ -52,8 +58,9 @@ namespace type {
     return it.first->second;
   }
 
-  const mono ty = make_constant("type", kind::term() >>= kind::term());
   
+  const mono ty = make_constant("type", kind::term() >>= kind::term());
+
   
   state& state::def(symbol name, mono t) {
     if(!vars->locals.emplace(name, generalize(t)).second) {
@@ -64,11 +71,11 @@ namespace type {
   }
   
 
-
   mono mono::operator()(mono arg) const {
     return make_ref<application>(*this, arg);
   }
 
+  
   mono operator>>=(mono from, mono to) {
     return mono(func)(from)(to);
   }
@@ -147,14 +154,21 @@ namespace type {
       const kind::any k = mono(self).kind();
     
       if(self->ctor == record) {
-        // skip record constructor altogether since row types have {} around
-        self->arg.visit(*this, out, forall, true);
+        out << "{";
+        self->arg.visit(*this, out, forall, false);
+        out << "}";
         return;
       }
 
+      if(self->ctor == sum) {
+        out << "<";
+        self->arg.visit(*this, out, forall, false);
+        out << ">";
+        return;
+      }
+      
       if(parens) {
-        if(k == kind::row()) out << "{";
-        else out << "(";
+        if(k == kind::term()) out << "(";
       }
     
       if(self->ctor == func) {
@@ -189,8 +203,7 @@ namespace type {
       }
 
       if(parens) {
-        if(k == kind::row()) out << "}";
-        else out << ")";
+        if(k == kind::term()) out << ")";
       }
     }
   
