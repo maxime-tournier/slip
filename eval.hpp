@@ -26,7 +26,8 @@ namespace eval {
   
   struct sum {
     symbol tag;
-    ref<value> value;
+    ref<value> data;
+    sum(symbol tag, const value& self);
   };
   
   
@@ -67,7 +68,7 @@ namespace eval {
 
 
   value apply(const value& func, const value* first, const value* last);
-  value expr(const ref<state>& e, const ast::expr& expr);
+  value eval(const ref<state>& e, const ast::expr& expr);
   
 }
 

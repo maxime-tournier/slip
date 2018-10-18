@@ -30,6 +30,7 @@ namespace ast {
 
 
   def::def(var id, const expr& value) : id(id), value(make_expr(value)) { }
+
   
   static const symbol arrow = "->";
   
@@ -112,16 +113,21 @@ namespace ast {
   }
 
   // check typed function argument
+  static var check_funvar(symbol name) {
+    if(name == kw::wildcard) return {name};
+    return check_var(name);
+  }
+  
   static const auto check_typed_arg = pop() >> [](sexpr type) {
     return pop_as<symbol> >> [type](symbol name) {
-      return done(abs::typed{expr::check(type), check_var(name)});
+      return done(abs::typed{expr::check(type), check_funvar(name)});
     };
   };
 
 
   static const auto check_arg = [](sexpr self) -> maybe<abs::arg> {
     return self.match([&](symbol self) {
-        return just(abs::arg(check_var(self)));
+        return just(abs::arg(check_funvar(self)));
       },
       [&](sexpr::list self) {
         return check_typed_arg(self) >> [](abs::typed self) {
@@ -288,8 +294,18 @@ namespace ast {
   };
 
 
-  // check a match handler
-  static const auto check_match_handler = pop_as<symbol> >> [](symbol name) {
+  // check match fallback case
+  static const auto check_fallback = pop_as<symbol> >> [](symbol name) -> monad<match::handler> {
+    if(name != kw::wildcard) return fail<match::handler>();
+    return pop() >> [=](sexpr value) {
+      const var wildcard = {name};
+      const match::handler res = {wildcard, wildcard, expr::check(value)};
+      return done(res);
+    };
+  };
+  
+  // check match case
+  static const auto check_case = pop_as<symbol> >> [](symbol name) {
     return pop() >> [=](sexpr arg) {
       return lift(check_arg(arg)) >> [=](abs::arg arg) {
         return pop() >> [=](sexpr body) {
@@ -300,14 +316,32 @@ namespace ast {
     };
   };
 
+  // check a list of handlers
+  static const auto check_match_cases = map([](sexpr item) -> maybe<match::handler> {
+      if(auto self = item.get<sexpr::list>()) {
+        return check_case(*self);
+      }
+      return {};
+    });
+  
+  static const auto check_match_with_fallback = pop_as<sexpr::list> >> [](sexpr::list self) {
+    return lift(check_fallback(self));
+  } >> [](match::handler fallback) {
+    return check_match_cases >> [=](match::handler::list cases) {
+      const match res = {cases, make_expr(fallback.value)};
+      return pure(res);
+    };
+  };
+  
+  static const auto check_match_no_fallback = check_match_cases >> [](match::handler::list cases) {
+    const match res = {cases, nullptr};
+    return pure(res);
+  };
+  
+  // check match with given matched value
   static const auto check_match_with_value = pop() >> [](sexpr value) {
-    return map([](sexpr item) -> maybe<match::handler> {
-        if(auto self = item.get<sexpr::list>()) {
-          return check_match_handler(*self);
-        }
-        return {};
-      }) >> [=](match::handler::list cases) {
-      const expr res = app{match{cases}, expr::check(value) >>= expr::list()};
+    return (check_match_with_fallback | check_match_no_fallback) >> [=](match self) {
+      const expr res = app{self, expr::check(value) >>= expr::list()};
       return pure(res);
     };
   };
@@ -330,7 +364,8 @@ namespace ast {
       bind("bind"),
       use("use"),
       import("import"),
-      module("module")
+      module("module"),
+      wildcard("_")
       ;
     
     static const std::set<symbol> reserved = {
@@ -340,6 +375,7 @@ namespace ast {
       bind, seq,
       make, use, import,
       module,
+      wildcard,
     };
 
   }

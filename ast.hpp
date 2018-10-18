@@ -106,6 +106,7 @@ namespace ast {
   struct match {
     struct handler;
     const list<handler> cases;
+    const ref<expr> fallback;
   };
   
 
@@ -239,7 +240,8 @@ namespace ast {
       bind,
       use,
       import,
-      module
+      module,
+      wildcard
       ;
   }
 }

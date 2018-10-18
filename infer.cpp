@@ -350,9 +350,11 @@ namespace type {
   static mono infer(const ref<state>& s, const ast::match& self) {
     // match result type
     const mono result = s->fresh();
+
+    const mono tail = s->fresh(kind::row());
     
     const mono rows =
-      foldr(mono(s->fresh(kind::row())), self.cases,
+      foldr(tail, self.cases,
             [&](ast::match::handler h, mono tail) {
               // build a lambda for handler body
               const ast::abs lambda =
@@ -365,6 +367,14 @@ namespace type {
               return row(h.id.name, from) |= tail;
             });
 
+    if(self.fallback) {
+      // handle fallback result
+      s->unify(result, infer(s, *self.fallback));
+    } else {
+      // seal sum type: exclude any sum term not in the ones given by the match
+      s->unify(tail, empty);
+    }
+    
     // final match type
     return sum(rows) >>= result;
   }

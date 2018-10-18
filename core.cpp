@@ -153,31 +153,35 @@ package package::core() {
 
 
 
-  // test
+  // maybe
   {
-    const mono test = make_ref<type::constant>("test", kind::term() >>= kind::term());
+    const mono maybe = make_ref<type::constant>("maybe", kind::term() >>= kind::term());
     
     {
       const mono a = self.ts->fresh();
-      const mono sig = test(a)
-        >>= type::sum(row("cons",
-                          type::record(row("head", a)
-                                       |= row("tail", list(a))
-                                       |= type::empty))
-                      |= row("nil", type::unit)
-                      |= type::empty);
-
-      self.ts->sigs->emplace(test.cast<type::cst>(), self.ts->generalize(sig));
+      const mono sig = maybe(a) >>=
+        type::sum(row("some", a)
+                  |= row("none", type::unit)
+                  |= type::empty);
+      
+      self.ts->sigs->emplace(maybe.cast<type::cst>(), self.ts->generalize(sig));
     }
 
     {
       const mono a = self.ts->fresh();
-      self.def("test-null", test(a), value::list());
+      self.def("none", maybe(a), eval::sum{"none", unit()});
     }
 
     {
       const mono a = self.ts->fresh();
-      self.def("test-cons", a >>= test(a) >>= test(a), value::list());
+      self.def("just", a >>= maybe(a), eval::closure(1, [](const eval::value* args) -> value{
+            return eval::sum("some", args[0]);
+          }));
+    }
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("maybe", ty(a) >>= ty(maybe(a)), ctor_value);
     }
     
   }
