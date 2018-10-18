@@ -25,7 +25,7 @@ namespace ast {
 
   template<class T>
   static sexpr repr(const lit<T>& self) {
-    return symbol("lit") >>= self.value >>= sexpr::list();
+    return self.value;
   }
 
   static sexpr repr(const lit<unit>& ) {
@@ -34,7 +34,7 @@ namespace ast {
 
 
   static sexpr repr(const var& self) {
-    return symbol("var") >>= self.name >>= sexpr::list();
+    return self.name;
   }
 
   static sexpr repr(const abs::typed& self) {
@@ -56,12 +56,11 @@ namespace ast {
 
 
   static sexpr repr(const app& self) {
-    return symbol("app")
-      >>= repr(*self.func)
+    return 
+      repr(*self.func)
       >>= map(self.args, [](const expr& e) {
           return repr(e);
-        })
-      >>= sexpr::list();
+      });
   }
 
 
@@ -98,15 +97,11 @@ namespace ast {
 
 
   static sexpr repr(const sel& self) {
-    return symbol("sel")
-      >>= self.id.name
-      >>= sexpr::list();        
+    return symbol(std::string(1, selection_prefix) + self.id.name.get());
   }
 
   static sexpr repr(const inj& self) {
-    return symbol("inj")
-      >>= self.id.name
-      >>= sexpr::list();        
+    return symbol(std::string(1, injection_prefix) + self.id.name.get());
   }
   
 
@@ -167,7 +162,7 @@ namespace ast {
   static sexpr repr(const match& self) {
     return kw::match
       >>= map(self.cases, [](match::handler self) -> sexpr {
-          return repr(self.arg) >>= repr(self.value) >>= sexpr::list();
+        return self.id.name >>= repr(self.arg) >>= repr(self.value) >>= sexpr::list();
         });
   }
       

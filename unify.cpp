@@ -165,7 +165,6 @@ namespace type {
 
 
   void unify_terms(state* self, mono from, mono to, logger* log) {
-    const lock instance;
 
     using var = ref<variable>;
     using app = ref<application>;
@@ -176,7 +175,9 @@ namespace type {
            << " with: " << self->generalize(to)
            << std::endl;
     }
-  
+
+    const lock instance;
+    
     // resolve
     from = self->substitute(from);
     to = self->substitute(to);
