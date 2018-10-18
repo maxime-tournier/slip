@@ -3,19 +3,15 @@
 #include "parse.hpp"
 #include <algorithm>
 
-namespace {
-
-  template<char ... c>
-  static int matches(int x) {
-    static const char data[] = {c..., 0};
-
-    for(const char* i = data; *i; ++i) {
-      if(*i == x) return true;
-    }
-
-    return false;
+template<char ... c>
+static int matches(int x) {
+  static const char data[] = {c..., 0};
+  
+  for(const char* i = data; *i; ++i) {
+    if(*i == x) return true;
   }
   
+  return false;
 }
 
 
@@ -49,10 +45,10 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto endl = chr<matches<'\n'>>();
   
   static const auto comment_parser = debug("comment") |=
-    semicolon >> then(noskip(*!endl));
+    semicolon >> then(noskip(*!endl >> then(endl)));
   
   static const auto skip_parser = debug("skip") |=
-    comment_parser;
+    +comment_parser;
   
   static const auto as_expr = parser::cast<sexpr>();
   
@@ -89,30 +85,34 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto symbol_parser = identifier_parser | op_parser;
 
   static const auto qualified_parser =
-    (symbol_parser % chr<matches<selection_prefix>>()) >> [](std::deque<symbol> parts) {
-    sexpr res = parts.front();
-    parts.pop_front();
+    (symbol_parser % chr<matches<selection_prefix>>()) >>
+    [](std::deque<symbol> parts) {
+      sexpr res = parts.front();
+      parts.pop_front();
+      
+      for(symbol s : parts) {
+        res = symbol(std::string(1, selection_prefix) + s.get())
+          >>= res >>= sexpr::list();
+      }
     
-    for(symbol s : parts) {
-      res = symbol(std::string(1, selection_prefix) + s.get()) >>= res >>= sexpr::list();
-    }
-    
-    return pure(res);
-  };
+      return pure(res);
+    };
   
 
-  static const auto selection_parser = chr<matches<selection_prefix>>() >> [](char c) { 
-    return symbol_parser >> [c](symbol s) {
-      return pure(symbol(c + std::string(s.get())));
+  static const auto selection_parser =
+    chr<matches<selection_prefix>>() >> [](char c) { 
+      return symbol_parser >> [c](symbol s) {
+        return pure(symbol(c + std::string(s.get())));
+      };
     };
-  };
   
-  static const auto injection_parser = chr<matches<injection_prefix>>() >> [](char c) { 
-    return symbol_parser >> [c](symbol s) {
-      return pure(symbol(c + std::string(s.get())));
+  static const auto injection_parser =
+    chr<matches<injection_prefix>>() >> [](char c) { 
+      return symbol_parser >> [c](symbol s) {
+        return pure(symbol(c + std::string(s.get())));
+      };
     };
-  };
-
+  
   
   static auto expr_parser = any<sexpr>();
 
@@ -133,17 +133,17 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   
   static const auto once =
     (expr_parser =
-     (debug("expr") |=
       skip(skip_parser,
+           debug("expr") |=
            (qualified_parser >> as_expr)
            | (selection_parser >> as_expr)
            | (injection_parser >> as_expr)           
            | (op_parser >> as_expr)
            | number_parser
-           | (list_parser >> as_expr)))
+           | (list_parser >> as_expr))
       , 0); (void) once;
 
-  // debug::stream = &std::clog;
+  debug::stream = &std::clog;
   return expr_parser(in);
 }
 
