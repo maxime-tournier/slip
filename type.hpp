@@ -31,7 +31,9 @@ namespace type {
   using var = ref<variable>;
   using app = ref<application>;
 
-
+  // type substitution
+  class substitution;
+  
   // type state
   struct state {
     using vars_type = environment<poly>;
@@ -41,9 +43,7 @@ namespace type {
   
     const ref<vars_type> vars;
     const ref<sigs_type> sigs;
-  
-    using substitution = std::map<ref<variable>, mono>;
-  
+    
     const ref<substitution> sub;
 
     state();

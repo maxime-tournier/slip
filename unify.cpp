@@ -1,6 +1,8 @@
 #include "unify.hpp"
 #include "maybe.hpp"
 
+#include "substitution.hpp"
+
 #include <sstream>
 
 namespace type {
@@ -29,9 +31,7 @@ namespace type {
     assert(from->kind == to.kind());
     if(mono(from) == to) return;
   
-    if(!self->sub->emplace(from, to).second) {
-      assert(false);
-    }
+    self->sub->link(from, to);
   }
 
 

@@ -10,10 +10,11 @@
 #include "package.hpp"
 
 #include "unify.hpp"
+#include "substitution.hpp"
 
 namespace type {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
   static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
     return make_ref<constant>(constant{name, k});
@@ -356,10 +357,10 @@ namespace type {
     using type = mono;
   
     mono operator()(const ref<variable>& self, const state& s) const {
-      auto it = s.sub->find(self);
-      if(it == s.sub->end()) return self;
-      assert(it->second != self);
-      return s.substitute(it->second);
+      const mono sub = s.sub->find(self);
+      if(sub == self) return sub;
+
+      return s.substitute(sub);
     }
 
     mono operator()(const ref<application>& self, const state& s) const {
