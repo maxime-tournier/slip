@@ -83,25 +83,34 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
 
   static const auto symbol_parser = identifier_parser | op_parser;
 
-  static constexpr char attribute_prefix = '.';  
+  static constexpr char selection_prefix = '.';
+  static constexpr char injection_prefix = '|';    
 
   static const auto qualified_parser =
-    (symbol_parser % chr<matches<attribute_prefix>>()) >> [](std::deque<symbol> parts) {
-      sexpr res = parts.front();
-      parts.pop_front();
-      
-      for(symbol s : parts) {
-        res = symbol(std::string(1, attribute_prefix) + s.get()) >>= res >>= sexpr::list();
-      }
+    (symbol_parser % chr<matches<selection_prefix>>()) >> [](std::deque<symbol> parts) {
+    sexpr res = parts.front();
+    parts.pop_front();
+    
+    for(symbol s : parts) {
+      res = symbol(std::string(1, selection_prefix) + s.get()) >>= res >>= sexpr::list();
+    }
+    
+    return pure(res);
+  };
+  
 
-      return pure(res);
-    };
-
-  static const auto attr_parser = chr<matches<attribute_prefix>>() >> [](char c) { 
+  static const auto selection_parser = chr<matches<selection_prefix>>() >> [](char c) { 
     return symbol_parser >> [c](symbol s) {
       return pure(symbol(c + std::string(s.get())));
     };
   };
+  
+  static const auto injection_parser = chr<matches<injection_prefix>>() >> [](char c) { 
+    return symbol_parser >> [c](symbol s) {
+      return pure(symbol(c + std::string(s.get())));
+    };
+  };
+
   
   static auto expr_parser = any<sexpr>();
 
@@ -125,7 +134,8 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
      (debug("expr") |=
       skip(skip_parser,
            (qualified_parser >> as_expr)
-           | (attr_parser >> as_expr)
+           | (selection_parser >> as_expr)
+           | (injection_parser >> as_expr)           
            | (op_parser >> as_expr)
            | number_parser
            | (list_parser >> as_expr)))

@@ -97,7 +97,11 @@ namespace ast {
     const var id;
   };
 
-
+  // value injection
+  struct inj {
+    const var id;
+  };
+  
   // pattern matching
   struct match {
     struct handler;
@@ -157,7 +161,7 @@ namespace ast {
                         var, abs, app, let,
                         cond,
                         record, sel,
-                        match,
+                        match, inj,
                         make, use,
                         import,
                         def, seq,
