@@ -201,6 +201,8 @@ namespace ast {
   // note: match handlers introduce a variable binding the same ways as
   // functions do
   struct match::handler {
+    using list = list<handler>;
+    const var id;
     const abs::arg arg;
     const expr value;
   };

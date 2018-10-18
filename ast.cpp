@@ -119,23 +119,24 @@ namespace ast {
   };
 
 
-  // check function arguments
-  static const auto check_args = map([](sexpr self) {
-      using type = maybe<abs::arg>;
-      return self.match([&](symbol self) {
-          return just(abs::arg(check_var(self)));
-        },
-        [&](sexpr::list self) -> type {
-          return check_typed_arg(self) >> [](abs::typed self) {
-            return just(abs::arg(self));
-          };
-        },
-        [&](sexpr) -> type {
-          return {};
-        });
-    });
+  static const auto check_arg = [](sexpr self) -> maybe<abs::arg> {
+    return self.match([&](symbol self) {
+        return just(abs::arg(check_var(self)));
+      },
+      [&](sexpr::list self) {
+        return check_typed_arg(self) >> [](abs::typed self) {
+          return just(abs::arg(self));
+        };
+      },
+      [&](sexpr) -> maybe<abs::arg> {
+        return {};
+      });
+  };
   
 
+  // check function arguments
+  static const auto check_args = map(check_arg);
+  
 
   // check fundefs
   static const auto check_abs = pop_as<sexpr::list> >> [](sexpr::list self) {
@@ -284,7 +285,33 @@ namespace ast {
       const expr res = module{self.id, self.args, attrs};
       return done(res);
     };
-  }; 
+  };
+
+
+  // check a match handler
+  static const auto check_match_handler = pop_as<symbol> >> [](symbol name) {
+    return pop() >> [=](sexpr arg) {
+      return lift(check_arg(arg)) >> [=](abs::arg arg) {
+        return pop() >> [=](sexpr body) {
+          const match::handler res = {check_var(name), arg, expr::check(body)};
+          return done(res);
+        };
+      };
+    };
+  };
+
+  // check pattern matching
+  static const auto check_match = pop() >> [](sexpr value) {
+    return map([](sexpr item) -> maybe<match::handler> {
+        if(auto self = item.get<sexpr::list>()) {
+          return check_match_handler(*self);
+        }
+        return {};
+      }) >> [=](match::handler::list cases) {
+      const expr res = match{make_expr(expr::check(value)), cases};
+      return pure(res);
+    };
+  };
   
 
   
@@ -322,7 +349,7 @@ namespace ast {
     {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
-    // {kw::match, {check_match, "(match `expr` (`symbol` `arg` `expr`)...)"}},
+    {kw::match, {check_match, "(match `expr` (`symbol` `arg` `expr`)...)"}},
     {kw::make, {check_make, "(new `symbol` (`symbol` `expr`)...)"}},
     {kw::def, {check_def, "(def `symbol` `expr`)"}},
     {kw::use, {check_use, "(use `expr` `expr`)"}},
