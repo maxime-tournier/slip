@@ -347,35 +347,11 @@ namespace type {
 
   poly state::generalize(const mono& t) const {
     poly::forall_type forall;
-    const mono s = substitute(t);
+    const mono s = sub->substitute(t);
     s.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
     return poly{forall, s};
   }
 
-
-  struct substitute_visitor {
-    using type = mono;
-  
-    mono operator()(const ref<variable>& self, const state& s) const {
-      const mono sub = s.sub->find(self);
-      if(sub == self) return sub;
-
-      return s.substitute(sub);
-    }
-
-    mono operator()(const ref<application>& self, const state& s) const {
-      return s.substitute(self->ctor)(s.substitute(self->arg));
-    }
-
-    mono operator()(const ref<constant>& self, const state&) const {
-      return self;
-    }
-  
-  };
-
-  mono state::substitute(const mono& t) const {
-    return t.visit(substitute_visitor(), *this);
-  }
 
 
   extension extension::unpack(const app& self) {
@@ -395,14 +371,12 @@ namespace type {
 
 
 
-
-
-
-
-
   void state::unify(mono from, mono to) {
     logger log(std::clog);
-    unify_terms(this, from, to, debug ? &log : nullptr);
+
+    const ref<substitution> tmp = scope(sub);
+    unify_terms(this, tmp.get(), from, to, debug ? &log : nullptr);
+    tmp->merge();
   }
 
 

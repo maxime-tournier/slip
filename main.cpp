@@ -45,6 +45,20 @@ static void read_loop(const F& f) {
 };
 
 
+static void print_error(const std::exception& e, std::size_t level=0) {
+    const std::string prefix(level, ' ');
+    
+    std::cerr << prefix << e.what() << std::endl;
+    
+    try {
+        std::rethrow_if_nested(e);
+    } catch(std::exception& e) {
+        print_error(e, level + 1);
+    }
+}
+
+
+
 int main(int argc, char** argv) {
 
   // parser::debug::stream = &std::clog;
@@ -72,6 +86,7 @@ int main(int argc, char** argv) {
       } catch(ast::error& e) {
         std::cerr << "syntax error: " << e.what() << std::endl;
       } catch(type::error& e) {
+        print_error(e);
         std::cerr << "type error: " << e.what() << std::endl;
       } catch(kind::error& e) {
         std::cerr << "kind error: " << e.what() << std::endl;

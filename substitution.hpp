@@ -24,6 +24,8 @@ namespace type {
     void merge();
     
     substitution(const ref<substitution>& parent={});
+
+    mono substitute(const mono& t) const;
   };
 
 }

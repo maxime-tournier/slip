@@ -14,7 +14,7 @@ namespace type {
 
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
   static void occurs_check(state* self, var v, mono t);
-  static void link(state* self, const var& from, const mono& to);
+  static void link(substitution* self, const var& from, const mono& to);
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
   static void upgrade(state* self, mono t, std::size_t level);
   
@@ -27,11 +27,11 @@ namespace type {
 
   
   // link types in substitution
-  static void link(state* self, const var& from, const mono& to) {
+  static void link(substitution* sub, const var& from, const mono& to) {
     assert(from->kind == to.kind());
     if(mono(from) == to) return;
   
-    self->sub->link(from, to);
+    sub->link(from, to);
   }
 
 
@@ -107,7 +107,7 @@ namespace type {
     
     void operator()(const cst& self, std::size_t level, state* s) const { }
     void operator()(const var& self, std::size_t level, state* s) const {
-      const auto sub = s->substitute(self);
+      const auto sub = s->sub->substitute(self);
 
       if(sub != self) {
         sub.visit(upgrade_visitor(), level, s);
@@ -134,7 +134,9 @@ namespace type {
 
   
   
-  void unify_rows(state* self, const app& from, const app& to, logger* log) {
+  void unify_rows(state* self, substitution* sub,
+                  const app& from, const app& to, logger* log) {
+    
     const extension e = extension::unpack(from);
 
     // try rewriting 'to' like 'from'
@@ -149,10 +151,10 @@ namespace type {
       }
     
       // rewriting succeeded, unify rewritten terms
-      unify_terms(self, e.head, rw.get().head, log);
+      unify_terms(self, sub, e.head, rw.get().head, log);
 
       // TODO switch tail order so that we don't always rewrite the same side
-      unify_terms(self, e.tail, rw.get().tail, log);
+      unify_terms(self, sub, e.tail, rw.get().tail, log);
       return;
     }
 
@@ -164,7 +166,7 @@ namespace type {
   }  
 
 
-  void unify_terms(state* self, mono from, mono to, logger* log) {
+  void unify_terms(state* self, substitution* sub, mono from, mono to, logger* log) {
 
     using var = ref<variable>;
     using app = ref<application>;
@@ -179,8 +181,8 @@ namespace type {
     const lock instance;
     
     // resolve
-    from = self->substitute(from);
-    to = self->substitute(to);
+    from = sub->substitute(from);
+    to = sub->substitute(to);
 
     if(from.kind() != to.kind()) {
       throw unification_error("cannot unify types of different kinds");
@@ -191,7 +193,7 @@ namespace type {
     // var -> mono
     if(auto v = from.get<var>()) {
       occurs_check(self, *v, to);
-      link(self, *v, to);
+      link(sub, *v, to);
       upgrade(self, to, (*v)->level);
       return;
     }
@@ -199,7 +201,7 @@ namespace type {
     // mono <- var
     if(auto v = to.get<var>()) {
       occurs_check(self, *v, from);
-      link(self, *v, from);
+      link(sub, *v, from);
       upgrade(self, from, (*v)->level);
       return;
     }
@@ -209,12 +211,12 @@ namespace type {
 
       // row polymorphism
       if(k == kind::row()) {
-        unify_rows(self, from.cast<app>(), to.cast<app>(), log);
+        unify_rows(self, sub, from.cast<app>(), to.cast<app>(), log);
         return;
       }
 
-      unify_terms(self, from.cast<app>()->arg, to.cast<app>()->arg, log);
-      unify_terms(self, from.cast<app>()->ctor, to.cast<app>()->ctor, log);
+      unify_terms(self, sub, from.cast<app>()->arg, to.cast<app>()->arg, log);
+      unify_terms(self, sub, from.cast<app>()->ctor, to.cast<app>()->ctor, log);
       return;
     }
   

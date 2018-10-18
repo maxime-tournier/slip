@@ -2,6 +2,8 @@
 #include "ast.hpp"
 #include "package.hpp"
 
+#include "substitution.hpp"
+
 #include <sstream>
 
 namespace type {
@@ -28,7 +30,7 @@ namespace type {
   static Init foldr_args(const ref<state>& s,
                          const Init& init, mono self, const Func& func) {
     assert(self.kind() == kind::term());
-    return s->substitute(self).match([&](const app& self) {
+    return s->sub->substitute(self).match([&](const app& self) {
       const mono from = s->fresh();
       const mono to = s->fresh();
 
@@ -96,7 +98,7 @@ namespace type {
   
   // reconstruct actual type from reified type: ... -> (type 'a) yields 'a
   static mono reconstruct(ref<state> s, mono self) {
-    self = s->substitute(self);
+    self = s->sub->substitute(self);
     auto a = s->fresh();
 
     try {
@@ -115,7 +117,7 @@ namespace type {
 
   // obtain constructor for a monotype
   static cst constructor(const ref<state>& s, mono t) {
-    t = s->substitute(t);
+    t = s->sub->substitute(t);
     
     if(auto self = t.get<app>()) {
       return constructor(s, (*self)->ctor);
@@ -221,6 +223,9 @@ namespace type {
     
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
+
+
+    // TODO not quite sure about this
     
     return sig;
   }
@@ -431,14 +436,14 @@ namespace type {
     // substitute to the same variables
     std::set<var> quantified;
     for(const var& v : gen.forall) {
-      assert(sub->substitute(v) == v);
+      assert(sub->sub->substitute(v) == v);
       quantified.insert(v);
     }
 
     // make sure all reference quantified references substitute to quantified
     // variables
     for(const var& v : reference.forall) {
-      const mono vs = sub->substitute(v);
+      const mono vs = sub->sub->substitute(v);
       if(auto u = vs.get<var>()) {
         auto it = quantified.find(*u);
         if(it != quantified.end()) {
@@ -500,7 +505,7 @@ namespace type {
     
     // fill sub scope with record contents
     using ::unit;
-    foldr_rows(unit(), s->substitute(row), [&](symbol attr, mono t, unit) {
+    foldr_rows(unit(), s->sub->substitute(row), [&](symbol attr, mono t, unit) {
         // TODO generalization issue?
         sub->def(attr, t);
         return unit();
@@ -528,7 +533,7 @@ namespace type {
   // infer kind from reified type
   static kind::any infer_kind(const ref<state>& s, mono self) {
     return foldr_args(s, kind::term(), self, [&](mono arg, kind::any k) {
-      return infer_kind(s, open(s, s->substitute(arg))) >>= k;
+      return infer_kind(s, open(s, s->sub->substitute(arg))) >>= k;
     });
   }
 
@@ -647,7 +652,13 @@ namespace type {
   
 
   mono infer(const ref<state>& s, const ast::expr& self) {
-    return self.visit(infer_visitor(), s);
+    try {
+      return self.visit(infer_visitor(), s);
+    } catch(error& e) {
+      std::stringstream ss;
+      ss << "when processing: " << self;
+      std::throw_with_nested(error(ss.str()));
+    }
   }
 
   

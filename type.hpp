@@ -51,8 +51,6 @@ namespace type {
 
     ref<variable> fresh(kind::any k=kind::term()) const;
   
-    mono substitute(const mono& t) const;
-  
     poly generalize(const mono& t) const;
     mono instantiate(const poly& p) const;
   

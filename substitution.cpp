@@ -30,4 +30,31 @@ namespace type {
 
   substitution::substitution(const ref<substitution>& parent)
     : parent(parent) { }
+
+
+  struct substitute_visitor {
+
+    mono operator()(const ref<variable>& self, const substitution& sub) const {
+      const mono t = sub.find(self);
+      if(t == self) return t;
+
+      return sub.substitute(t);
+    }
+
+    mono operator()(const ref<application>& self, const substitution& sub) const {
+      return sub.substitute(self->ctor)(sub.substitute(self->arg));
+    }
+
+    mono operator()(const ref<constant>& self, const substitution&) const {
+      return self;
+    }
+  
+  };
+
+  mono substitution::substitute(const mono& t) const {
+    return t.visit(substitute_visitor(), *this);
+  }
+
+
+  
 }
