@@ -239,56 +239,34 @@ namespace type {
     const ast::app rw = rewrite(self);
     assert(size(rw.args) == 1);
 
-    // infer func/arg types for application
-    const auto with_inferred = [&](auto cont) {
-      const mono func = infer(s, *rw.func);
-      const mono arg = infer(s, rw.args->head);
+    const mono func = infer(s, *rw.func);
+    const mono arg = infer(s, rw.args->head);
+    const mono ret = s->fresh();
 
-      return cont(func, arg);
-    };
-
-    // check if application works with given func/arg type
-    const auto check = [&](mono func, mono arg) {
-      const mono ret = s->fresh();
-      s->unify(func , arg >>= ret);
-      return ret;
-    };
-
-    // TODO find a less stupid way of trying all cases?
+    // TODO less stupid
     try {
-      // normal case
-      return with_inferred([&](mono func, mono arg) {
-          return check(func, arg);
-        });
+      s->unify(func, arg >>= ret);
+      return ret;
+    } catch(error& e) { 
+
+      try {
+        s->unify(open(s, func), arg >>= ret);
+        return ret;
+      } catch(error& ) { }
+
+      try {
+        s->unify(func, open(s, arg) >>= ret);
+        return ret;
+      } catch(error& ) { }
+
+      try {
+        s->unify(open(s, func), open(s, arg) >>= ret);
+        return ret;
+      } catch(error& ) { }
       
-    } catch(error& e) {
-
-      try {
-        // open func type and retry
-        return with_inferred([&](mono func, mono arg) {
-            return check(open(s, func), arg);
-          });
-      }
-      catch(error& ) {  }
-
-      try {
-        // open arg type and retry        
-        return with_inferred([&](mono func, mono arg) {
-            return check(func, open(s, arg));
-          });
-      }
-      catch(error& ) {  }
-
-      try {
-        // open both func and arg types and retry        
-        return with_inferred([&](mono func, mono arg) {
-            return check(open(s, func), open(s, arg));
-          });
-      }
-      catch(error& ) {  }
-      
-      throw e;
+      throw;
     }
+    
     
   }
 
