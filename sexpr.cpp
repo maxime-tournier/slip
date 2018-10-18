@@ -143,7 +143,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
            | (list_parser >> as_expr))
       , 0); (void) once;
 
-  debug::stream = &std::clog;
+  // debug::stream = &std::clog;
   return expr_parser(in);
 }
 
