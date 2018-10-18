@@ -24,6 +24,7 @@ struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   static void iter(std::istream& in, std::function<void(sexpr)> cont);
 };
 
+const extern char selection_prefix, injection_prefix;
 
 
 

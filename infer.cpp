@@ -320,6 +320,16 @@ namespace type {
     return record(row) >>= head;
   }
 
+
+  // inj
+  static mono infer(const ref<state>& s, const ast::inj& self) {
+    const mono head = s->fresh(kind::term());
+    const mono tail = s->fresh(kind::row());
+    
+    const mono row = ext(self.id.name)(head)(tail);
+    return head >>= sum(row);
+  }
+  
   
   // record attrs
   static mono infer(const ref<state>& s, const list<ast::record::attr>& attrs) {

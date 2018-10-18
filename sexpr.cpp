@@ -19,6 +19,11 @@ namespace {
 }
 
 
+const char selection_prefix = '.';
+const char injection_prefix = '|';    
+
+
+
 template<class T>
 static const std::ios::pos_type try_parse(std::istream& in) {
   const parser::stream_state backup(in);
@@ -82,9 +87,6 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   };
 
   static const auto symbol_parser = identifier_parser | op_parser;
-
-  static constexpr char selection_prefix = '.';
-  static constexpr char injection_prefix = '|';    
 
   static const auto qualified_parser =
     (symbol_parser % chr<matches<selection_prefix>>()) >> [](std::deque<symbol> parts) {

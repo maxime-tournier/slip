@@ -377,13 +377,23 @@ namespace ast {
   }
   
   static expr check_symbol(symbol s) {
-    // attributes
-    if(s.get()[0] == '.') {
+
+    // selection
+    if(s.get()[0] == selection_prefix) {
       const std::string name = std::string(s.get()).substr(1);
       if(name.empty()) throw error("empty attribute name");
-      return sel{name};
+      return sel{check_var(name)};
     }
 
+
+    // injection
+    if(s.get()[0] == injection_prefix) {
+      const std::string name = std::string(s.get()).substr(1);
+      if(name.empty()) throw error("empty case name");
+      return inj{check_var(name)};
+    }
+    
+    
     // special cases
     if(s == "true") { return lit<boolean>{true}; }
     if(s == "false") { return lit<boolean>{false}; }

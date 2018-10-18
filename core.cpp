@@ -83,14 +83,19 @@ package package::core() {
   
   
   {
+    // list reified constructor
     const mono a = self.ts->fresh(kind::term());
     self.def("list", ty(a) >>= ty(list(a)), ctor_value);
   }
 
   {
+    // list signature
     const mono a = self.ts->fresh(kind::term());
+
+    using type::sum;
     const mono sig = list(a) >>= list(a);
     self.ts->sigs->emplace(*list.get<type::cst>(), self.ts->generalize(sig));
+    
   }
 
   {
@@ -146,7 +151,36 @@ package package::core() {
   self.def("integer", ty(type::integer), unit());
   self.def("boolean", ty(type::boolean), unit());
 
-  
+
+
+  // test
+  {
+    const mono test = make_ref<type::constant>("test", kind::term() >>= kind::term());
+    
+    {
+      const mono a = self.ts->fresh();
+      const mono sig = test(a)
+        >>= type::sum(row("cons",
+                          type::record(row("head", a)
+                                       |= row("tail", list(a))
+                                       |= type::empty))
+                      |= row("nil", type::unit)
+                      |= type::empty);
+
+      self.ts->sigs->emplace(test.cast<type::cst>(), self.ts->generalize(sig));
+    }
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("test-null", test(a), value::list());
+    }
+
+    {
+      const mono a = self.ts->fresh();
+      self.def("test-cons", a >>= test(a) >>= test(a), value::list());
+    }
+    
+  }
   // {
     
   //   self.def("functor", (ty >>= ty) >>= ty, unit());
