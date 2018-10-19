@@ -58,7 +58,7 @@ public:
       } else {
         new (&storage) T(std::move(other.get()));
       }
-      set = other.get;
+      set = other.set;
     }
 
     // note: moved from gets unset

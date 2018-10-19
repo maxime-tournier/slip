@@ -15,6 +15,8 @@
 #include "type.hpp"
 #include "package.hpp"
 
+#include "argparse.hpp"
+
 const bool debug = false;
 
 
@@ -46,31 +48,43 @@ static void read_loop(const F& f) {
 
 
 static void print_error(const std::exception& e, std::size_t level=0) {
-    const std::string prefix(level, '.');
+  const std::string prefix(level, '.');
     
-    std::cerr << prefix << e.what() << std::endl;
+  std::cerr << prefix << e.what() << std::endl;
     
-    try {
-        std::rethrow_if_nested(e);
-    } catch(std::exception& e) {
-        print_error(e, level + 1);
-    }
-
-    
+  try {
+    std::rethrow_if_nested(e);
+  } catch(std::exception& e) {
+    print_error(e, level + 1);
+  }
+  
 }
 
 
 
-int main(int argc, char** argv) {
+int main(int argc, const char** argv) {
 
+  using namespace argparse;
+  const auto parser = argparse::parser
+    (flag("debug")
+     flag("ast") |
+     argument<std::string>("filename"))
+    ;
+
+  const auto options = parser.parse(argc, argv);
+
+  const bool show_ast = 
+  
   // parser::debug::stream = &std::clog;
   package pkg = package::core();
   
   static const auto handler =
     [&](std::istream& in) {
-      try {
-        ast::expr::iter(in, [&](ast::expr e) {
-          if(debug) std::cout << "ast: " << e << std::endl;
+    try {
+      ast::expr::iter(in, [&](ast::expr e) {
+          if(options.flag("ast", false)) {
+            std::cout << "ast: " << e << std::endl;
+          }
           pkg.exec(e, [&](type::poly p, eval::value v) {
             // TODO: cleanup variables with depth greater than current in
             // substitution
@@ -99,9 +113,8 @@ int main(int argc, char** argv) {
     };
 
   
-  if(argc > 1) {
-    const char* filename = argv[1];
-    if(auto ifs = std::ifstream(filename)) {
+  if(auto filename = options.get<std::string>("filename")) {
+    if(auto ifs = std::ifstream(filename->c_str())) {
       return handler(ifs) ? 0 : 1;
     } else {
       std::cerr << "io error: " << "cannot read " << filename << std::endl;

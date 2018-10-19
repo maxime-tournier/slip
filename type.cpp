@@ -14,8 +14,6 @@
 
 namespace type {
 
-  static constexpr bool debug = true;
-
   static const auto make_constant = [](const char* name, kind::any k=kind::term()) {
     return make_ref<constant>(constant{name, k});
   };
@@ -119,17 +117,17 @@ namespace type {
 
   struct ostream_visitor {
     using type = void;
-  
+
     using map_type = std::map<ref<variable>, std::size_t>;
     map_type& map;
 
+    static const bool show_variable_kinds = false;
+    
     void operator()(const ref<constant>& self, std::ostream& out,
                     const poly::forall_type& forall, bool parens) const {
       out << self->name;
     }
 
-    
-    
     void operator()(const ref<variable>& self, std::ostream& out,
                     const poly::forall_type& forall, bool parens) const {
       auto it = map.emplace(self, map.size()).first;
@@ -141,8 +139,7 @@ namespace type {
     
       out << char('a' + it->second);
 
-      static const bool extra = false;
-      if(debug && extra) {
+      if(show_variable_kinds) {
         out << "("
             << std::hex << (long(self.get()) & 0xffff)
             << "::" << self->kind

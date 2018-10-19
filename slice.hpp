@@ -9,8 +9,9 @@ namespace slice {
   // from a contiguous slice, returning the remainder of the list and the value
   template<class T, class A>
   struct slice : maybe<A> {
-    const list<T> rest;
+    list<T> rest;
 
+    // TODO reorder arguments to match template parameters
     slice(const maybe<A>& value, const list<T>& rest)
       : maybe<A>(value), rest(rest) { }
 

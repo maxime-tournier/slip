@@ -71,7 +71,8 @@ struct cons {
 
 
 template<class Iterator>
-static list<typename Iterator::value_type> make_list(Iterator first, Iterator last) {
+static list<typename std::iterator_traits<Iterator>::value_type>
+make_list(Iterator first, Iterator last) {
   if(first == last) return nullptr;
   const auto head = *first;
   return head >>= make_list(++first, last);

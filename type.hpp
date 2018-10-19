@@ -65,7 +65,8 @@ namespace type {
     friend ref<state> scope(ref<state> parent) {
       return make_ref<state>(parent);
     }
-  
+
+    bool debug = false;
   };
 
   
