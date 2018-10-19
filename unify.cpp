@@ -25,6 +25,17 @@ namespace type {
     ~lock() { --indent; }
   };
 
+
+  static std::string prefix() {
+    std::stringstream ss;
+    for(std::size_t i = 0 ; i < indent; ++i) {
+      ss << "  |";
+    }
+
+    ss << "--";
+    
+    return ss.str();
+  };
   
   // link types in substitution
   static void link(substitution* sub, const var& from, const mono& to) {
@@ -143,7 +154,7 @@ namespace type {
     if(auto rw = rewrite(self, e.attr, to)) {
 
       if(log) {
-        *log << std::string(2 * indent, '.')
+        *log << prefix()
              << "rewrote: " << self->generalize(to)
              << " as: " << self->generalize(rw.get().head) << "; "
              << self->generalize(rw.get().tail)
@@ -164,19 +175,19 @@ namespace type {
       ss << "no attribute " << tool::quote(e.attr.get())
          << " in record type \"" << self->generalize(to) << "\"";
       const unification_error e(ss.str());
-      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
     }
-  }  
+  }
 
 
   void unify_terms(state* self, substitution* sub, mono from, mono to, logger* log) {
-
+      
     using var = ref<variable>;
     using app = ref<application>;
 
     if(log) {
-      *log << std::string(2 * indent, '.')
+      *log << prefix()
            << "unifying: " << self->generalize(from)
            << " with: " << self->generalize(to)
            << std::endl;
@@ -191,7 +202,7 @@ namespace type {
     if(from.kind() != to.kind()) {
       const unification_error e("cannot unify types of different kinds");
 
-      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
     }
 
@@ -228,16 +239,12 @@ namespace type {
     }
   
     if(from != to) {
-      if(log) {
-        *log << std::string(2 * indent, '.') << "error" << std::endl;
-      }
-
       std::stringstream ss;
       logger(ss) << "cannot unify types \"" << self->generalize(from)
                  << "\" and \"" << self->generalize(to) << "\"";
 
       const unification_error e(ss.str());
-      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
     }
   }

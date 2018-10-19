@@ -45,8 +45,23 @@ static void read_loop(const F& f) {
 };
 
 
+template<class Func>
+static void lines(const std::string& str, Func func) {
+  std::stringstream ss(str);
+  std::string line;
+  while(std::getline(ss, line)) {
+    func(line);
+  }
+}
+
 static std::string print_error(const std::exception& e, bool verbose=true, std::size_t level=0) {
-  const std::string prefix(level, '.');
+  std::stringstream ss;
+
+  for(std::size_t i = 0; i < level; ++i) {
+    ss << "  |";
+  }
+
+  const std::string prefix = ss.str();
   
   try {
     std::rethrow_if_nested(e);
@@ -54,7 +69,11 @@ static std::string print_error(const std::exception& e, bool verbose=true, std::
     return e.what();
   } catch(std::exception& e) {
     // not last one
-    if(verbose) std::cerr << prefix << e.what() << std::endl;
+    if(verbose) {
+      lines(e.what(), [&](const std::string& line) {
+          std::cerr << prefix << "--" << line << std::endl;
+        });
+    }
     
     return print_error(e, verbose, level + 1);
   }
@@ -102,7 +121,7 @@ int main(int argc, const char** argv) {
     } catch(ast::error& e) {
       std::cerr << "syntax error: " << e.what() << std::endl;
     } catch(type::error& e) {
-      const std::string what = print_error(e, options.flag("verbose", false));
+      const std::string what = print_error(e, options.flag("verbose", true));
       std::cerr << "type error: " << what << std::endl;
     } catch(kind::error& e) {
       std::cerr << "kind error: " << e.what() << std::endl;

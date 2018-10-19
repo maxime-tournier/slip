@@ -419,7 +419,14 @@ namespace type {
     // std::clog << "provided: " << s->generalize(provided) << std::endl;    
     
     // now also unify inner with provided type
-    s->unify(inner, provided);
+    try {
+        s->unify(inner, provided);
+    } catch(error& e) {
+        std::stringstream ss;
+        ss << "when unifying type: " << s->generalize(inner) << std::endl
+           << "and type:\t" << s->generalize(provided);
+        std::throw_with_nested(error(ss.str()));
+    }
 
     // now generalize the provided type
     const poly gen = sub->generalize(inner);
@@ -651,7 +658,7 @@ namespace type {
       return self.visit(infer_visitor(), s);
     } catch(error& e) {
       std::stringstream ss;
-      ss << "when processing: " << self;
+      ss << "when processing expression: " << self;
       std::throw_with_nested(error(ss.str()));
     }
   }
