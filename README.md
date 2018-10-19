@@ -14,38 +14,39 @@ simple prototype language with:
 
 ## how
 
+the main parts:
+
 1. vanilla hindley-milner
-2. row polymorphism *à la* [Leijen](https://www.microsoft.com/en-us/research/publication/extensible-records-with-scoped-labels/), with both records and sums
-3. first-class polymorphism *à
-  la* [Jones](http://web.cecs.pdx.edu/~mpj/pubs/fcp.html) *i.e.* function
+2. row polymorphism à la [Leijen](https://www.microsoft.com/en-us/research/publication/extensible-records-with-scoped-labels/), with both records and sums
+3. first-class polymorphism à
+  la [Jones](http://web.cecs.pdx.edu/~mpj/pubs/fcp.html) *i.e.* function
   variables introduce FCP + give up first-class data constructors. the only data
   constructors are module constructors
-4. parametrized signatures also *à
-  la* [Jones](http://web.cecs.pdx.edu/~mpj/pubs/paramsig.html), with
+4. parametrized signatures also à
+  la [Jones](http://web.cecs.pdx.edu/~mpj/pubs/paramsig.html), with
   universal quantifiers only
-5. type/module/value language *à
-  la* [Rossberg](https://people.mpi-sws.org/~rossberg/1ml/), but trying hard to
+5. type/module/value language à
+  la [Rossberg](https://people.mpi-sws.org/~rossberg/1ml/), but trying hard to
   stick to rank-1 types (and use FCP when necessary)
 
-1, 2 are pretty standard. 3 is implemented using modules as the only data
-constructors, which validate records (soon: sums too) against their signature
-(4). For instance:
+1, 2 are pretty much standard. 3 is implemented using modules as the only data
+constructors, with associated parametrized signatures similar to 4. For
+instance:
 
 ```elisp
 (new functor
    (map list-map))
 ```
 
-This boxes the record type `forall a, b, f. {map: (a -> b) -> (f a) -> (f b)}`
-in module type `forall f. functor f`. Module signatures are associated to module
+this boxes the record type `forall a, b, f. {map: (a -> b) -> (f a) -> (f b)}`
+in module type `forall f. functor f`. module signatures are associated to module
 type constructors (here `functor`) and are used to unbox module values, as for
 instance:
 
 `forall a, b, f. (functor f) -> {map: (a -> b) -> (f a) -> (f b)}`
 
-5 is used because I am lazy and did not want to implement a separate language
-for types and terms, so I tried to use the term language as much as
-possible.
+5 is used because of me being too lazy to implement a separate language for
+types and terms. so I tried to use the term language as much as possible.
 
 ```elisp
 (def (list-size (list x))
@@ -61,9 +62,9 @@ list
 ;; list : (type 'a) -> type (list 'a) = #<fun>
 ```
 
-The right-most `list` is the *type* constructor `list`, which is here reified as
+the right-most `list` is the *type* constructor `list`, which is here reified as
 the *value* `list`. This *value* is used for function parameter type
-annotations. The *type* constructor `list` is associated with the following
+annotations. the *type* constructor `list` is associated with the following
 signature:
 
 `forall a. (list a) -> <cons: {head: a; tail: list a}; nil: list a>`
