@@ -2,15 +2,20 @@
 BUILD?=build
 CONFIG?=release
 
-TARGET=slip
+export SLIP=$(abspath $(BUILD)/slip)
 
-first: all
+first: compile
 
-all: compile
+all: compile tests
 
 $(BUILD): meson.build
 	meson $(BUILD) --buildtype $(CONFIG)
 
 compile: $(BUILD)
 	ninja -C $(BUILD)
+
+FORCE:
+
+tests: FORCE
+	$(MAKE) -C tests
 

@@ -1,19 +1,21 @@
-BUILD=../build
-SLAP=$(BUILD)/slap
+SLIP?=$(error undefined SLIP variable)
+
+PASS=pass
+FAIL=fail
 
 first: all
 
-all: pass fail
+all: $(PASS) $(FAIL)
 
-pass: $(wildcard pass/*.el)
-pass: $(wildcard fail/*.el)
+$(PASS): $(wildcard $(PASS)/*.el)
+$(FAIL): $(wildcard $(FAIL)/*.el)
 
 FORCE:
 
-pass/%.el: FORCE
-	@echo $@; $(SLAP) $@
+$(PASS)/%.el: FORCE
+	@echo $@; $(SLIP) $@ > $@.out
 
-fail/%.el: FORCE
-	@echo $@; if $(SLAP) $@; then exit 1; fi
+$(FAIL)/%.el: FORCE
+	@echo $@; if ($(SLIP) $@ > $@.out); then exit 1; fi
 
 
