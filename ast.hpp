@@ -116,6 +116,8 @@ namespace ast {
 
     const list<abs::arg> args;
     const list<record::attr> attrs;
+    
+    enum type {product, coproduct} type;
   };
   
 
@@ -240,7 +242,8 @@ namespace ast {
       bind,
       use,
       import,
-      module,
+      product,
+      coproduct,
       wildcard
       ;
   }

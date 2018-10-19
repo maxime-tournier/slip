@@ -1,6 +1,6 @@
 
 ;; monoid module definition
-(module (monoid a)
+(struct (monoid a)
         (empty a)
         (compose (a -> a -> a)))
 

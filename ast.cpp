@@ -286,14 +286,19 @@ namespace ast {
   
 
   // check module definition
-  static const auto check_module = (module_noargs | module_args) >> [](named_signature self) {
-    return check_record_attrs >> [=](record::attr::list attrs) {
-      const expr res = module{self.id, self.args, attrs};
-      return done(res);
+  static const auto check_module = [](enum module::type type) {
+    return (module_noargs | module_args) >> [=](named_signature self) {
+      return check_record_attrs >> [=](record::attr::list attrs) {
+        const expr res = module{self.id, self.args, attrs, type};
+        return done(res);
+      };
     };
   };
 
 
+  static const auto check_product = check_module(module::product);
+  static const auto check_coproduct = check_module(module::coproduct);  
+  
   // check match fallback case
   static const auto check_fallback = pop_as<symbol> >> [](symbol name) -> monad<match::handler> {
     if(name != kw::wildcard) return fail<match::handler>();
@@ -364,7 +369,10 @@ namespace ast {
       bind("bind"),
       use("use"),
       import("import"),
-      module("module"),
+
+      product("struct"),
+      coproduct("union"),      
+      
       wildcard("_")
       ;
     
@@ -374,7 +382,7 @@ namespace ast {
       match,
       bind, seq,
       make, use, import,
-      module,
+      product, coproduct,
       wildcard,
     };
 
@@ -392,8 +400,9 @@ namespace ast {
     {kw::def, {check_def, "(def `symbol` `expr`)"}},
     {kw::use, {check_use, "(use `expr` `expr`)"}},
     {kw::import, {check_import, "(import `symbol`)"}},
-    {kw::module, {check_module,
-                  "(module (`symbol` `arg`...) (`symbol `expr`)...)"}},
+
+    {kw::product, {check_product, "(struct (`symbol` `arg`...) (`symbol `expr`)...)"}},
+    {kw::coproduct, {check_coproduct, "(union (`symbol` `arg`...) (`symbol `expr`)...)"}},    
   };
 
   static const special_type<io> special_io = {
@@ -458,6 +467,7 @@ namespace ast {
                      return check_symbol(s);
                    },
                    [](sexpr::list f) -> expr {
+                     if(!f) return make_lit(unit());
                      return impl(f).get();
                    });
   }

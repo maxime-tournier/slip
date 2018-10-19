@@ -139,7 +139,7 @@ namespace ast {
 
 
   static sexpr repr(const module& self) {
-    return kw::module
+    return (self.type == module::product ? kw::product : kw::coproduct)
       >>= sexpr(self.id.name >>= map(self.args, repr_visitor()))
       >>= map(self.attrs, [](record::attr attr) -> sexpr {
           return attr.id.name >>= repr(attr.value) >>= sexpr::list();

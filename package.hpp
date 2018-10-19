@@ -24,7 +24,10 @@ struct package {
   eval::value dict() const;
 
   static package import(symbol name);
+
   static package core();
+
+  static package builtin();
 };
 
 #endif

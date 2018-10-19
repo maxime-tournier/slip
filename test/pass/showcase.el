@@ -17,8 +17,6 @@ nil
 list-size
 ;; list-size : (list 'a) -> integer = #<fun>
 
-list
-
 
 ;; list concatenation, pattern matching
 (def (concat lhs rhs)
@@ -57,7 +55,7 @@ list-map
 
 
 ;; functor module definition
-(module (functor (ctor f))
+(struct (functor (ctor f))
         (map (fn (a b) ((a -> b) -> (f a) -> (f b)))))
 functor
 ;; functor : (ctor ''a) -> type (functor ''a) = ()
@@ -71,6 +69,28 @@ list-functor
 ;; list-functor : functor list = {map: #<fun>}
 
 
+;; sum types: maybe
+(union (maybe a)
+       (none unit)
+       (some a))
+maybe
+;; maybe : (type 'a) -> type (maybe 'a) = ()
+
+
+;; convenience
+(def none (new maybe
+               (none ())))
+none
+;; none : maybe 'a = {none: ()}
+
+
+;; convenience
+(def (just a)
+     (new maybe (some a)))
+just
+;; just : 'a -> maybe 'a = #<fun>
+
+
 ;; maybe map
 (def (maybe-map f (maybe a))
      (match a
@@ -78,6 +98,7 @@ list-functor
             (some self (just (f self)))))
 maybe-map
 ;; maybe-map : ('a -> 'b) -> (maybe 'a) -> maybe 'b = #<fun>
+
 
 
 ;; maybe functor instance
@@ -90,7 +111,7 @@ maybe-functor
 
 
 ;; omg monads!!11
-(module (monad (ctor m))
+(struct (monad (ctor m))
         (pure (fn (a) (a -> (m a))))
         (>>= (fn (a b) ((m a) -> (a -> (m b)) -> (m b)))))
 monad

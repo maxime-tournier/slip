@@ -404,12 +404,16 @@ namespace type {
     const poly reference = sub->generalize(inner);
     
     // build provided type
-    const mono init = empty;
+    const mono inner_ctor = constructor(sub, inner);
+    assert(inner_ctor.kind() == (kind::row() >>= kind::term()));
+
+    // TODO does this even make sense?
+    const mono init = inner_ctor == record ? empty : sub->fresh(kind::row());
     const mono provided =
-      record(foldr(init, self.attrs,
-                   [&](const ast::record::attr attr, mono tail) {
-                     return row(attr.id.name, infer(sub, attr.value)) |= tail;
-                   }));
+      inner_ctor(foldr(init, self.attrs,
+                       [&](const ast::record::attr attr, mono tail) {
+                         return row(attr.id.name, infer(sub, attr.value)) |= tail;
+                       }));
 
     // std::clog << "inner: " << s->generalize(inner) << std::endl;
     // std::clog << "provided: " << s->generalize(provided) << std::endl;    
@@ -563,9 +567,12 @@ namespace type {
     // infer attribute types in module scope
     const mono attrs = infer(sub, self.attrs);
 
+    // inner type constructor
+    const mono inner_ctor = self.type == ast::module::product ? record : sum;
+    
     // recover inner type from reified types
     const mono inner =
-      record(foldr_rows(empty, attrs, [&](symbol name, mono reified, mono rhs) {
+      inner_ctor(foldr_rows(empty, attrs, [&](symbol name, mono reified, mono rhs) {
         return row(name, reconstruct(sub, reified)) |= rhs;
       }));
     
