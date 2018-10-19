@@ -65,6 +65,6 @@ test
             (none _ none)
             (some self (f self))))
 
-;; maybe functor instance
-(new functor (map maybe-map))
+;; ;; maybe functor instance
+;; (new functor (map maybe-map))
      

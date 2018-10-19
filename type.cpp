@@ -115,6 +115,17 @@ namespace type {
       });
   }
 
+  static void bound_kind(std::ostream& out, kind::any k) {
+    k.match([&](kind::constant self) {
+        out << (k == kind::term() ? "!" : k == kind::row() ? "..." : "?");
+      },
+      [&](kind::constructor self) {
+        bound_kind(out, *self.from);
+        bound_kind(out, *self.to);        
+      });
+  }
+
+  
   struct ostream_visitor {
     using type = void;
 
@@ -134,7 +145,7 @@ namespace type {
       if(forall.find(self) != forall.end()) {
         quantified_kind(out, self->kind);
       } else {
-        out << "!";
+        bound_kind(out, self->kind);        
       }
     
       out << char('a' + it->second);

@@ -156,6 +156,11 @@ namespace type {
     
     const mono inner = s->fresh();
     s->unify(self >>= inner, s->instantiate(sig));
+
+    if(s->debug) {
+      std::clog << "opened: " << s->generalize(self)
+                << " as: " << s->generalize(inner) << std::endl;
+    }
     
     return inner;
   }
@@ -245,30 +250,30 @@ namespace type {
 
     // TODO less stupid
     try {
-      std::clog << "regular" << std::endl;
+      if(s->debug) std::clog << "regular" << std::endl;
       s->unify(func, arg >>= ret);
       return ret;
     } catch(error& e) { 
 
       try {
-        std::clog << "opening func" << std::endl;
-        s->unify(open(s, func), arg >>= ret);
-        return ret;
-      } catch(error& ) { }
-
-      try {
-        std::clog << "opening arg" << std::endl;
+        if(s->debug) std::clog << "opening arg" << std::endl;
         s->unify(func, open(s, arg) >>= ret);
         return ret;
       } catch(error& ) { }
 
       try {
-        std::clog << "opening arg/func" << std::endl;        
+        if(s->debug) std::clog << "opening func" << std::endl;
+        s->unify(open(s, func), arg >>= ret);
+        return ret;
+      } catch(error& ) { }
+
+      try {
+        if(s->debug) std::clog << "opening arg/func" << std::endl;        
         s->unify(open(s, func), open(s, arg) >>= ret);
         return ret;
       } catch(error& ) { }
       
-      std::clog << "nope :/" << std::endl;        
+      if(s->debug) std::clog << "nope :/" << std::endl;        
       throw;
     }
     
