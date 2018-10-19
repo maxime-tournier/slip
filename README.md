@@ -7,84 +7,138 @@ simple prototype language with:
 - first-class polymorphism with type inference
 - higher-kinded types
 - minimal package imports
+- cryptic error messages :/
 - simple interpreter
 
 ```elisp
-;; helper list functions
-(def append
-     (func (lhs rhs)
-           (if (isnil lhs) rhs
-             (cons (head lhs)
-                   (append (tail lhs) rhs)))))
-;; : io unit = ()
+;; no "hello word (yet) sorry :/"
 
-(def l1 (cons 1 (cons 2 nil)))
-(def l2 (cons 3 (cons 4 nil)))
+;; simple arithmetic
+(+ 1 2)
+;; : integer = 3
 
-(append (cons 1 (cons 2 nil))
-        (cons 3 (cons 4 nil)))
-;; : list integer = (1 2 3 4)
 
-;; list concatenation
-(def concat
-	 (func (xs)
-		   (if (isnil xs) nil
-			 (append (head xs) (concat (tail xs))))))
+;; empty list
+nil
+;; nil : list 'a = ()
 
-(concat (cons l1 (cons l2 (cons l2 nil))))
-;; : list integer = (1 2 3 4 3 4)
 
-;; list functor
-(def list-map
-     (func (f x)
-           (if (isnil x) nil
-             (cons (f (head x)) (list-map f (tail x))))))
-			 
+;; list concatenation, pattern matching
+(def (concat lhs rhs)
+     (match lhs
+            (cons self (cons self.head (concat self.tail rhs)))
+            (nil _ rhs)))
+concat
+;; concat : <cons: {head: 'a; ...b}; nil: 'c> -> (list 'a) -> list 'a = #<fun>
+
+
+;; build a list containing an integer range
+(def (range start end)
+     (if (= start end) nil
+       (cons start (range (+ start 1) end))))
+range
+;; range : integer -> integer -> list integer = #<fun>
+
+
+;; some test list
+(def data (concat (range 0 10) (range 0 3)))
+data
+;; data : list integer = (0 1 2 3 4 5 6 7 8 9 0 1 2)
+
+
+;; list map
+(def (list-map f (list x))
+     (match x
+            (nil _ nil)
+            (cons self (cons (f self.head) (list-map f self.tail)))))
+list-map
+;; list-map : ('a -> 'b) -> (list 'a) -> list 'b = #<fun>
+
+
+;; doubling our test list
+(list-map (fn (x) (* 2 x)) data)
+
+
+;; functor module definition
+(module (functor (ctor f))
+        (map (fn (a b) ((a -> b) -> (f a) -> (f b)))))
+functor
+;; functor : (ctor ''a) -> type (functor ''a) = ()
+
+
+;; list functor instance
 (def list-functor
-	 (new functor (map list-map)))
-
+     (new functor
+          (map list-map)))
 list-functor
-;; list-functor : functor list = {map: #<func>}
-
-;; list monad
-(def list-pure
-     (func (x) (cons x nil)))
-
-list-pure
-;; list-pure : 'a -> list 'a = #<func>
-
-(def list-bind
-	 (func (xs f)
-		   (concat (list-map f xs))))
-list-bind
-;; list-bind : (list 'a) -> ('a -> list 'b) -> list 'b = #<func>
+;; list-functor : functor list = {map: #<fun>}
 
 
-(def list-monad
-	 (new monad
-		  (pure list-pure)
-		  (bind list-bind)))
-list-monad
-;; list-monad : monad list = {bind: #<func>; pure: #<func>}
+;; maybe map
+(def (maybe-map f (maybe a))
+     (match a
+            (none _ none)
+            (some self (just (f self)))))
+maybe-map
+;; maybe-map : ('a -> 'b) -> (maybe 'a) -> maybe 'b = #<fun>
+
+
+;; maybe functor instance
+(def maybe-functor
+     (new functor
+          (map maybe-map)))
+
+maybe-functor
+;; maybe-functor : functor maybe = {map: #<fun>}
+
+
+;; omg monads!!11
+(module (monad (ctor m))
+        (pure (fn (a) (a -> (m a))))
+        (>>= (fn (a b) ((m a) -> (a -> (m b)) -> (m b)))))
+monad
+;; monad : (ctor ''a) -> type (monad ''a) = ()
+
+
+;; maybe bind
+(def (maybe-bind (maybe a) f)
+     (match a
+            (none _ none)
+            (some a (f a))))
+maybe-bind
+;; maybe-bind : (maybe 'a) -> ('a -> maybe 'b) -> maybe 'b = #<fun>
+
+
+;; maybe monad instance
+(def maybe-monad
+     (new monad
+          (pure just)
+          (>>= maybe-bind)))
+
+maybe-monad
+;; maybe-monad : monad maybe = {>>=: #<fun>; pure: #<fun>}
+
+
+;; reader pure
+(def (reader-pure x)
+     (fn (y) x))
+reader-pure
+;; reader-pure : 'a -> 'b -> 'a = #<fun>
+
+
+;; reader bind
+(def (reader-bind a f)
+     (fn (y)
+         (f (a y) y)))
+reader-bind
+;; reader-bind : ('a -> 'b) -> ('b -> 'a -> 'c) -> 'a -> 'c = #<fun>
+
 
 ;; reader monad
-(def reader-pure
-	 (func (x)
-		   (func (y) x)))
-reader-pure
-;; reader-pure : 'a -> 'b -> 'a = #<func>
-
-(def reader-bind
-	 (func (a f)
-		   (func (e)
-				 ((f (a e)) e))))
-reader-bind
-;; reader-bind : ('a -> 'b) -> ('b -> 'a -> 'c) -> 'a -> 'c = #<func>
-
 (def reader-monad
-	 (new monad
-		  (pure reader-pure)
-		  (bind reader-bind)))
+     (new monad
+          (pure reader-pure)
+          (>>= reader-bind)))
 reader-monad
-;; reader-monad : monad 'a -> = {bind: #<func>; pure: #<func>}
+;; reader-monad : monad 'a -> = {>>=: #<fun>; pure: #<fun>}
 ```
