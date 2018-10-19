@@ -69,8 +69,9 @@ signature:
 
 `forall a. (list a) -> <cons: {head: a; tail: list a}; nil: list a>`
 
-which makes it possible to automatically unbox values of type `list a` in
-function applications, in this case for pattern matching.
+which makes it possible to automatically unbox values of type `list a` at
+function applications (automatic coercion), in this case for
+pattern matching.
 
 ## why
 
