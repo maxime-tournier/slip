@@ -30,7 +30,7 @@ the main parts:
   stick to rank-1 types (and use FCP when necessary)
 
 1, 2 are pretty much standard. 3 is implemented using modules as the only data
-constructors, with associated parametrized signatures similar to 4. For
+constructors, with associated parametrized signatures similar to 4. for
 instance:
 
 ```elisp
@@ -39,9 +39,9 @@ instance:
 ```
 
 this boxes the record type `forall a, b, f. {map: (a -> b) -> (f a) -> (f b)}`
-in module type `forall f. functor f`. module signatures are associated to module
-type constructors (here `functor`) and are used to unbox module values, as for
-instance:
+as module type `forall f. functor f`. module signatures are associated with
+module type constructors (here `functor`) and are used to unbox module values.
+in this case the signature is:
 
 `forall a, b, f. (functor f) -> {map: (a -> b) -> (f a) -> (f b)}`
 
@@ -55,7 +55,7 @@ types and terms. so I tried to use the term language as much as possible.
             (cons self (+ 1 (list-size self.tail)))))
 ```
 
-In this example, `list` is actually a value:
+the the above example, `list` is actually a value:
 
 ```elisp
 list
@@ -63,8 +63,8 @@ list
 ```
 
 the right-most `list` is the *type* constructor `list`, which is here reified as
-the *value* `list`. This *value* is used for function parameter type
-annotations. the *type* constructor `list` is associated with the following
+the *value* `list`. the *value* is used for function parameter type annotations
+as shown above. the *type* constructor `list` is associated with the following
 signature:
 
 `forall a. (list a) -> <cons: {head: a; tail: list a}; nil: list a>`
