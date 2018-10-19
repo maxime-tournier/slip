@@ -60,7 +60,6 @@ test
                      (none _ none)
                      (some a (f a))))))
 
-
 (def (maybe-map f (monad a))
      (match a
             (none _ none)

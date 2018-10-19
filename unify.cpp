@@ -159,10 +159,14 @@ namespace type {
     }
 
     // rewriting failed: attribute error
-    std::stringstream ss;
-    ss << "no attribute " << tool::quote(e.attr.get())
-       << " in record type \"" << self->generalize(to) << "\"";
-    throw error(ss.str());
+    {
+      std::stringstream ss;
+      ss << "no attribute " << tool::quote(e.attr.get())
+         << " in record type \"" << self->generalize(to) << "\"";
+      const unification_error e(ss.str());
+      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      throw e;
+    }
   }  
 
 
@@ -185,10 +189,10 @@ namespace type {
     to = sub->substitute(to);
 
     if(from.kind() != to.kind()) {
-      if(log) {
-        *log << std::string(2 * indent, '.') << "kind error" << std::endl;
-      }
-      throw unification_error("cannot unify types of different kinds");
+      const unification_error e("cannot unify types of different kinds");
+
+      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      throw e;
     }
 
     const kind::any k = from.kind();
@@ -231,7 +235,10 @@ namespace type {
       std::stringstream ss;
       logger(ss) << "cannot unify types \"" << self->generalize(from)
                  << "\" and \"" << self->generalize(to) << "\"";
-      throw unification_error(ss.str());
+
+      const unification_error e(ss.str());
+      if(log) *log << std::string(2 * indent, '.') << e.what() << std::endl;
+      throw e;
     }
   }
   

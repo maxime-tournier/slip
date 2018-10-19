@@ -304,7 +304,8 @@ namespace type {
     : level(parent->level + 1),
       vars(make_ref<vars_type>(parent->vars)),
       sigs(parent->sigs),
-      sub(parent->sub)
+      sub(parent->sub),
+      debug(parent->debug)
   {
 
   }
