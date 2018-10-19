@@ -41,15 +41,16 @@ namespace argparse {
       return pop_if([=](const char* item) {
           return item == target;
         }) >> [name, value](const char*) {
-        const item res = {name, [value] { return &value; }};
+        const item res = {name, [value] { throw &value; }};
         return pure(res);
       };
     };
     
     return parser("--" + std::string(name), true) | parser("--no-" + std::string(name), false);
   };
+
   
-  
+  ////////////////////////////////////////////////////////////////////////////////
   class result {
     std::map<std::string, thrower> parsed;
   public:
