@@ -1,14 +1,86 @@
+# what
+
 simple prototype language with:
 
 - s-expressions based syntax
-- hindley-milner type system
+- hindley-milner-based type system
 - row polymorphism (scoped labels)
 - (open) sum types + pattern matching
 - first-class polymorphism with type inference
 - higher-kinded types
 - minimal package imports
-- cryptic error messages :/
-- simple interpreter
+- cryptic error messages :-/
+- minimal interpreter
+
+## how
+
+1. vanilla hindley-milner
+2. row polymorphism *à la* [Leijen](https://www.microsoft.com/en-us/research/publication/extensible-records-with-scoped-labels/), with both records and sums
+3. first-class polymorphism *à
+  la* [Jones](http://web.cecs.pdx.edu/~mpj/pubs/fcp.html) *i.e.* function
+  variables introduce FCP + give up first-class data constructors. the only data
+  constructors are module constructors
+4. parametrized signatures also *à
+  la* [Jones](http://web.cecs.pdx.edu/~mpj/pubs/paramsig.html), with
+  universal quantifiers only
+5. type/module/value language *à
+  la* [Rossberg](https://people.mpi-sws.org/~rossberg/1ml/), but trying hard to
+  stick to rank-1 types (and use FCP when necessary)
+
+1, 2 are pretty standard. 3 is implemented using modules as the only data
+constructors, which validate records (soon: sums too) against their signature
+(4). For instance:
+
+```elisp
+(new functor
+   (map list-map))
+```
+
+This boxes the record type `forall a, b, f. {map: (a -> b) -> (f a) -> (f b)}`
+in module type `forall f. functor f`. Module signatures are associated to module
+type constructors (here `functor`) and are used to unbox module values, as for
+instance:
+
+`forall a, b, f. (functor f) -> {map: (a -> b) -> (f a) -> (f b)}`
+
+5 is used because I am lazy and did not want to implement a separate language
+for types and terms, so I tried to use the term language as much as
+possible.
+
+```elisp
+(def (list-size (list x))
+     (match x
+            (nil _ 0)
+            (cons self (+ 1 (list-size self.tail)))))
+```
+
+In this example, `list` is actually a value:
+
+```elisp
+list
+;; list : (type 'a) -> type (list 'a) = #<fun>
+```
+
+The right-most `list` is the *type* constructor `list`, which is here reified as
+the *value* `list`. This *value* is used for function parameter type
+annotations. The *type* constructor `list` is associated with the following
+signature:
+
+`forall a. (list a) -> <cons: {head: a; tail: list a}; nil: list a>`
+
+which makes it possible to automatically unbox values of type `list a` in
+function applications, in this case for pattern matching.
+
+## why
+
+- to discover/understand how functional languages work
+  
+- to have a simple basis for trying out advanced features like lifetime
+  polymorphism, linear type systems, etc
+
+- for the fun!!1
+
+## example 
 
 ```elisp
 ;; no "hello word (yet) sorry :/"
@@ -142,3 +214,11 @@ reader-bind
 reader-monad
 ;; reader-monad : monad 'a -> = {>>=: #<fun>; pure: #<fun>}
 ```
+
+## TODO
+
+- improve error messages
+- do notation
+- state monad, mutable refs, etc
+
+

@@ -9,6 +9,16 @@
 nil
 ;; nil : list 'a = ()
 
+;; list size
+(def (list-size (list x))
+     (match x
+            (nil _ 0)
+            (cons self (+ 1 (list-size self.tail)))))
+list-size
+;; list-size : (list 'a) -> integer = #<fun>
+
+list
+
 
 ;; list concatenation, pattern matching
 (def (concat lhs rhs)
