@@ -25,8 +25,7 @@ struct package {
 
   static package import(symbol name);
 
-  static package core();
-
+  static std::vector<std::string> path;
   static package builtin();
 };
 

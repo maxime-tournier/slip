@@ -200,9 +200,13 @@ namespace type {
     to = sub->substitute(to);
 
     if(from.kind() != to.kind()) {
-      const unification_error e("cannot unify types of different kinds");
-
-      if(log) *log << prefix() << "error: " << e.what() << std::endl;
+      std::stringstream ss;
+      ss << "cannot unify type: " << self->generalize(from) // << std::endl
+         << "with type: " << self->generalize(to);
+        
+      const unification_error e(ss.str());
+      
+      if(log) *log << prefix() << "kind error" << std::endl;
       throw e;
     }
 
@@ -210,7 +214,7 @@ namespace type {
   
     // var -> mono
     if(auto v = from.get<var>()) {
-      occurs_check(self, *v, to);
+      occurs_check(self, *v, to); 
       link(sub, *v, to);
       upgrade(self, to, (*v)->level);
       return;

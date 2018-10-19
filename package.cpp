@@ -51,6 +51,7 @@ void package::exec(ast::expr e, cont_type cont) {
 }
 
 void package::exec(std::string filename) {
+  // execute a file in current package
   std::ifstream in(filename);
   ast::expr::iter(in, [&](const ast::expr& e) {
     exec(e);
@@ -64,15 +65,25 @@ static bool exists(std::string path) {
   return std::ifstream(path).good();
 }
 
+// TODO better/portable/what not
+static std::string join(const std::string& path, const std::string& file) {
+  return path + "/" + file;
+}
+
 static std::string resolve(symbol name) {
-  const std::string filename = name.get() + ext;
-  if(exists(filename)) return filename;
+  for(const std::string& prefix : package::path) {
+    const std::string filename = join(prefix, name.get() + ext);
+    if(exists(filename)) {
+      return filename;
+    }
+  }
+  
   throw std::runtime_error("package " + tool::quote(name.get()) + " not found");
 }
 
 package package::import(symbol name) {
   static std::map<symbol, package> cache = {
-    {"core", core()}
+    {"builtin", builtin()}
   };
   
   const auto info = cache.emplace(name, package());
@@ -83,3 +94,6 @@ package package::import(symbol name) {
   
   return info.first->second;
 }
+
+
+std::vector<std::string> package::path = {"", SLIP_PATH};

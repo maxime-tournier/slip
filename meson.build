@@ -1,9 +1,12 @@
+# -*- mode: lua -*-
 
 project('slap', 'cpp',
         default_options : ['cpp_std=c++14'])
 
 compiler = meson.get_compiler('cpp')
 readline = compiler.find_library('readline', required: true)
+
+lib_path = join_paths(meson.source_root(), 'lib')
 
 executable('slip',
            'main.cpp',
@@ -17,8 +20,10 @@ executable('slip',
            'substitution.cpp',
            'kind.cpp',
            'package.cpp',
-           'core.cpp',
+           'builtin.cpp',
            'infer.cpp',
            'unify.cpp',
-           dependencies: [readline])
+           dependencies: [readline],
+           cpp_args : '-DSLIP_PATH="@0@"'.format(lib_path))
+
 

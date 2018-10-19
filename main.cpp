@@ -20,7 +20,7 @@
 
 struct history {
   const std::string filename;
-  history(const std::string& filename="/tmp/slap.history")
+  history(const std::string& filename="/tmp/slip.history")
     : filename(filename) {
     read_history(filename.c_str());
   }
@@ -88,13 +88,13 @@ int main(int argc, const char** argv) {
   const auto parser = argparse::parser
     (flag("debug") |
      flag("ast") |
-     flag("verbose") |     
+     flag("verbose") |
      argument<std::string>("filename"))
     ;
 
   const auto options = parser.parse(argc, argv);
 
-  package pkg = package::core();
+  package pkg = package::import("core");
   pkg.ts->debug = options.flag("debug", false);
     
   static const auto handler =
@@ -136,7 +136,7 @@ int main(int argc, const char** argv) {
     if(auto ifs = std::ifstream(filename->c_str())) {
       return handler(ifs) ? 0 : 1;
     } else {
-      std::cerr << "io error: " << "cannot read " << filename << std::endl;
+      std::cerr << "io error: " << "cannot read " << *filename << std::endl;
       return 1;
     }
   } else {

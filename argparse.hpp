@@ -114,7 +114,9 @@ namespace argparse {
   
   template<class Options>
   static parser_type<Options> parser(Options options) { return {options}; }
-  
+
+
+  // TODO higher-level class that provides help message etc
 }
 
 

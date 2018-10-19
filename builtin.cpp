@@ -1,6 +1,6 @@
 #include "package.hpp"
 
-package package::core() {
+package package::builtin() {
   package self;
   
   using namespace eval;
@@ -58,6 +58,7 @@ package package::core() {
   }
 
 
+  // type
   {
     const mono a = self.ts->fresh(kind::term());
     const mono sig = ty(a) >>= ty(a);
@@ -74,6 +75,7 @@ package package::core() {
 
   }
 
+  // ctor
   const mono ctor =
     make_ref<type::constant>("ctor",
                              (kind::term() >>= kind::term()) >>= kind::term());
@@ -84,7 +86,7 @@ package package::core() {
 
     const mono sig = ctor(c) >>= (ty(a) >>= ty(c(a)));
     
-    self.ts->sigs->emplace(*ctor.get<type::cst>(), self.ts->generalize(sig));
+    self.ts->sigs->emplace(ctor.cast<type::cst>(), self.ts->generalize(sig));
   }
 
   {
@@ -97,41 +99,6 @@ package package::core() {
   self.def("unit", ty(type::unit), unit());
 
   
-
-
-  // maybe
-  if(false) {
-    const mono maybe = make_ref<type::constant>("maybe", kind::term() >>= kind::term());
-    
-    {
-      const mono a = self.ts->fresh();
-      const mono sig = maybe(a) >>=
-        type::sum(row("some", a)
-                  |= row("none", type::unit)
-                  |= type::empty);
-      
-      self.ts->sigs->emplace(maybe.cast<type::cst>(), self.ts->generalize(sig));
-    }
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("none", maybe(a), eval::sum{"none", unit()});
-    }
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("just", a >>= maybe(a), eval::closure(1, [](const eval::value* args) -> value{
-            return eval::sum("some", args[0]);
-          }));
-    }
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("maybe", ty(a) >>= ty(maybe(a)), ctor_value);
-    }
-    
-  }
-
   // list
   {
     const mono list = make_ref<type::constant>("list", kind::term() >>= kind::term());
@@ -165,26 +132,6 @@ package package::core() {
     
   }
 
-
-  
-  // {
-    
-  //   self.def("functor", (ty >>= ty) >>= ty, unit());
-    
-  //   const mono f = self.ts->fresh(kind::term() >>= kind::term());
-  //   const mono a = self.ts->fresh(kind::term());
-  //   const mono b = self.ts->fresh(kind::term());    
-
-  //   const mono functor =
-  //     make_ref<type::constant>("functor", f.kind() >>= kind::term());
-
-  //   const mono sig = functor(f) >>=
-  //     type::record(row("map", a >>= b >>= f(a) >>= f(b)) |= type::empty);
-    
-  //   self.ts->sigs->emplace(*functor.get<type::cst>(), self.ts->generalize(sig));
-  // }
-
-  
   return self;
 }
   
