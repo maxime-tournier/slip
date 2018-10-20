@@ -1,5 +1,6 @@
 ;; list module
 (import builtin)
+(import func)
 
 (def list builtin.list)
 (def cons builtin.cons)
@@ -19,13 +20,9 @@
 			(cons self
 				  (foldl f (f init self.head) self.tail))))
 
-
 ;; list concatenation
 (def (concat (list lhs) (list rhs))
-     (match lhs
-            (nil _ rhs)
-            (cons self (cons self.head
-                             (concat self.tail rhs)))))
+	 (foldr cons rhs lhs))
 
 ;; TODO use builtin + export size
 ;; list size
@@ -36,15 +33,7 @@
 
 
 ;; reverse a list
-(def (reverse (list self))
-	 (let ((helper
-			(fn ((list self) acc)
-				(match self
-					   (nil _ acc)
-					   (cons self (helper
-								   self.tail
-								   (cons self.head acc)))))))
-	   (helper self nil)))
+(def reverse (foldl (func.flip cons) nil))
 
 ;; functor map
 (def (map f (list self))

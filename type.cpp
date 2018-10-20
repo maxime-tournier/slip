@@ -389,6 +389,20 @@ namespace type {
   }
 
 
+  // normalized representation of a type
+  std::string show(const poly& self, std::size_t max) {
+    std::stringstream ss;
+    ss << self;
+
+    std::string str = ss.str();
+    if(str.size() > max) {
+      str = str.substr(0, max) + "...";
+    }
+    return tool::quote(str);
+  }
+  
+  
+
 
   struct logger::pimpl_type {
     ostream_visitor::map_type map;

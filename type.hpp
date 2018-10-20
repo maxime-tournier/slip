@@ -154,7 +154,9 @@ namespace type {
     static extension unpack(const app& self);
   };  
 
-
+  // normalized/user friendly output of a type
+  std::string show(const poly& self, std::size_t max=48);
+    
   // debugging helper
   struct logger {
     std::ostream& out;

@@ -9,13 +9,6 @@
 
 namespace type {
 
-  // normalized representation of a type
-  static std::string show(const poly& self) {
-    std::stringstream ss;
-    ss << self;
-    return tool::quote(ss.str());
-  }
-  
 
 
   // try to open type `self` from signatures in `s`
@@ -298,9 +291,9 @@ namespace type {
       if(s->debug) std::clog << "nope :/" << std::endl;
       
       std::stringstream ss;
-      ss << "error: cannot apply a function of type: "
-         << s->generalize(func) << std::endl
-         << "...to an argument of type: " << s->generalize(arg);
+      ss << "cannot apply function type:\t"
+         << show(s->generalize(func)) << std::endl
+         << "...to argument of type:\t" << show(s->generalize(arg));
       std::throw_with_nested(error(ss.str()));
     }
     

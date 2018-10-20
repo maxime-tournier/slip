@@ -71,7 +71,7 @@ static std::string print_error(const std::exception& e, bool verbose=true, std::
     // not last one
     if(verbose) {
       lines(e.what(), [&](const std::string& line) {
-          std::cerr << prefix << "--" << line << std::endl;
+          std::cerr << prefix << "- " << line << std::endl;
         });
     }
     

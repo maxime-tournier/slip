@@ -173,7 +173,7 @@ namespace type {
     {
       std::stringstream ss;
       ss << "no attribute " << tool::quote(e.attr.get())
-         << " in record type \"" << self->generalize(to) << "\"";
+         << " in row type: " << show(self->generalize(to));
       const unification_error e(ss.str());
       if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
@@ -244,9 +244,9 @@ namespace type {
   
     if(from != to) {
       std::stringstream ss;
-      logger(ss) << "cannot unify types \"" << self->generalize(from)
-                 << "\" and \"" << self->generalize(to) << "\"";
-
+      logger(ss) << "cannot unify types " << show(self->generalize(from))
+                 << " and " << show(self->generalize(to));
+      
       const unification_error e(ss.str());
       if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
