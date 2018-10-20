@@ -150,16 +150,16 @@ namespace type {
   static mono open(const ref<state>& s, const mono& self) {
     // obtain type constructor from argument type
     const cst ctor = constructor(s, self);
-
+    
     // get signature
     const poly sig = signature(s, ctor);
     
     const mono inner = s->fresh();
     s->unify(self >>= inner, s->instantiate(sig));
-
+    
     if(s->debug) {
-      std::clog << "opened: " << s->generalize(self)
-                << " as: " << s->generalize(inner) << std::endl;
+      logger(std::clog) << "opened: " << s->generalize(self) << std::endl
+                        << "...as: " << s->generalize(inner) << std::endl;
     }
     
     return inner;
@@ -273,8 +273,13 @@ namespace type {
         return ret;
       } catch(error& ) { }
       
-      if(s->debug) std::clog << "nope :/" << std::endl;        
-      throw;
+      if(s->debug) std::clog << "nope :/" << std::endl;
+      
+      std::stringstream ss;
+      ss << "error: cannot apply a function of type: "
+         << s->generalize(func) << std::endl
+         << "...to an argument of type: " << s->generalize(arg);
+      std::throw_with_nested(error(ss.str()));
     }
     
     
@@ -523,8 +528,13 @@ namespace type {
     }
     
     const package pkg = package::import(self.package);
-    
+
+    // make package content accessible
     s->vars->locals.emplace(self.package, pkg.sig());
+
+    // import module signatures
+    s->sigs->insert(pkg.ts->sigs->begin(), pkg.ts->sigs->end());
+    
     return io(unit);
   }
 
