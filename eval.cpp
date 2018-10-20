@@ -46,7 +46,7 @@ namespace eval {
 
     if(argc > self.argc) {
       // over-saturated call: call result with remaining args
-      const value* mid = first + argc;
+      const value* mid = first + self.argc;
       assert(mid > first);
       assert(mid < last);
       
