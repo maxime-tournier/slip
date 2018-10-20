@@ -11,7 +11,9 @@ namespace type {
 
   // normalized representation of a type
   static std::string show(const poly& self) {
-    return tool::quote((std::stringstream() << self).str());
+    std::stringstream ss;
+    ss << self;
+    return tool::quote(ss.str());
   }
   
 
