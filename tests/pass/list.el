@@ -15,9 +15,8 @@ test
 
 (import func)
 
-(def (map f)
-	 (list.foldr (fn (x xs)
-					 (list.cons (f x) xs)) list.nil))
+
 map
+
 (map (fn (x) (* 2 x)) test)
 

@@ -112,11 +112,12 @@ value apply(const value& self, const value* first, const value* last) {
     
     const ast::expr body = *self.body;
 
-    // note: weak ref to break cycles
-    const std::weak_ptr<state> scope = e;
+    // TODO weakr_ptr is insufficient when lambdas is not given a name
+    // but shared_ptr will create a cycle if lambda is named
+    const std::shared_ptr<state> scope = e;
     
     return closure(argc, [argc, args, scope, body](const value* values) -> value {
-      return eval(augment(scope.lock(), args, values, values + argc), body);
+      return eval(augment(scope, args, values, values + argc), body);
     });
   }
 

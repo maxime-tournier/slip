@@ -35,12 +35,11 @@
 ;; reverse a list
 (def reverse (foldl (func.flip cons) nil))
 
+
 ;; functor map
-(def (map f (list self))
-	 (match self
-			(nil _ nil)
-			(cons self (cons (f self.head)
-							 (map f self.tail)))))
+(def (map f)
+	 (foldr (fn (x xs)
+				(cons (f x) xs)) nil))
 
 
 
