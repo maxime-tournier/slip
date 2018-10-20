@@ -3,10 +3,17 @@
 #include "package.hpp"
 
 #include "substitution.hpp"
+#include "repr.hpp"
 
 #include <sstream>
 
 namespace type {
+
+  // normalized representation of a type
+  static std::string show(const poly& self) {
+    return tool::quote((std::stringstream() << self).str());
+  }
+  
 
 
   // try to open type `self` from signatures in `s`
@@ -105,12 +112,19 @@ namespace type {
       s->unify(ty(a), self);
       return a;
       // TODO don't use exceptions for control flow lol
-    } catch(error& e) {
-      auto from = s->fresh();
-      auto to = s->fresh();
-      
+    } catch(error&) { }
+    
+    auto from = s->fresh();
+    auto to = s->fresh();
+    
+    try {
       s->unify(from >>= to, self);
       return reconstruct(s, to);
+    } catch(error&) {
+      std::stringstream ss;
+      ss << "type annotation of type " << show(s->generalize(self))
+         << " does not represent a type";
+      throw error(ss.str());
     }
   }
 
@@ -195,6 +209,7 @@ namespace type {
           return s->fresh();
         },
         [&](ast::abs::typed self) {
+          try {
           // obtain reified type from annoatation
           const mono reified = infer(s, self.type);
           
@@ -204,6 +219,11 @@ namespace type {
           const mono concrete = reconstruct(s, reified);
           
           return concrete;
+          } catch(error& ) {
+            std::stringstream ss;
+            ss << "when processing type annotation: " << ast::repr(self);
+            std::throw_with_nested(error(ss.str()));
+          }
         });
       
       sub->def(arg.name(), type);

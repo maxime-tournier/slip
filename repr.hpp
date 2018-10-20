@@ -2,11 +2,12 @@
 #define SLAP_REPR_HPP
 
 #include "sexpr.hpp"
+#include "ast.hpp"
 
 namespace ast {
-  struct expr;
 
   sexpr repr(const expr& self);
+  sexpr repr(const abs::arg& self);
   
 }
 

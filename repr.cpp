@@ -41,7 +41,7 @@ namespace ast {
     return repr(self.type) >>= self.id.name >>= sexpr::list();
   }
 
-  static sexpr repr(const abs::arg& self) {
+  sexpr repr(const abs::arg& self) {
     return self.visit(repr_visitor());
   }
 

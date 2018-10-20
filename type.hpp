@@ -154,7 +154,7 @@ namespace type {
     static extension unpack(const app& self);
   };  
 
-  
+
   // debugging helper
   struct logger {
     std::ostream& out;
