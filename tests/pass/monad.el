@@ -1,3 +1,5 @@
+(import core)
+(use core)
 
 (struct (monad (ctor m))
         (pure (fn (a) (a -> (m a))))

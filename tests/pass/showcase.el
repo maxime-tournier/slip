@@ -1,12 +1,15 @@
+;; 
+(import builtin)
+(use builtin)
+
 ;; no "hello word (yet) sorry :/"
 
 ;; simple arithmetic
 (+ 1 2)
 ;; : integer = 3
 
-
 ;; empty list
-nil
+list
 ;; nil : list 'a = ()
 
 ;; list size

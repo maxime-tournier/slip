@@ -1,3 +1,5 @@
+(import core)
+(use core)
 
 (let ((fact (fn (n)
                 (if (= n 0) 1

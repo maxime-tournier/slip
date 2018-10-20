@@ -1,4 +1,5 @@
-
+(import core)
+(use core)
 
 (def (fib n)
      (if (= n 0) 0

@@ -1,3 +1,5 @@
+(import core)
+(use core)
 
 (union (maybe a)
        (none unit)

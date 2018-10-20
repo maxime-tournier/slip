@@ -1,3 +1,5 @@
+(import core)
+(use core)
 
 ;; monoid module definition
 (struct (monoid a)
@@ -10,15 +12,10 @@
           (empty 0)
           (compose +)))
 
-(def (concat (list lhs) rhs)
-     (match lhs
-            (nil _ rhs)
-            (cons self (cons self.head (concat self.tail rhs)))))
-
 ;; monoid instance for list. note that we need to help the type checker by
 ;; annotating lhs in concat
 (def list-monoid
      (new monoid
-          (empty nil)
-          (compose concat)))
+          (empty list.nil)
+          (compose list.concat)))
 
