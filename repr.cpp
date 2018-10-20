@@ -149,7 +149,7 @@ namespace ast {
   static sexpr repr(const use& self) {
     return kw::use
       >>= repr(*self.env)
-      >>= repr(*self.body)
+      // >>= repr(*self.body)
       >>= sexpr::list();
   }
 

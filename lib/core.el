@@ -1,5 +1,9 @@
 (import builtin)
 
-;; (import list)
+(import list)
 
+(def + builtin.+)
+(def - builtin.-)
+(def * builtin.*)
+(def = builtin.=)
 

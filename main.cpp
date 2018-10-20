@@ -94,9 +94,9 @@ int main(int argc, const char** argv) {
 
   const auto options = parser.parse(argc, argv);
 
-  package pkg = package::import("core");
-  pkg.ts->debug = options.flag("debug", false);
-    
+  package main;
+  main.ts->debug = options.flag("debug", false);
+  
   static const auto handler =
     [&](std::istream& in) {
     try {
@@ -104,7 +104,7 @@ int main(int argc, const char** argv) {
           if(options.flag("ast", false)) {
             std::cout << "ast: " << e << std::endl;
           }
-          pkg.exec(e, [&](type::poly p, eval::value v) {
+          main.exec(e, [&](type::poly p, eval::value v) {
               // TODO: cleanup variables with depth greater than current in
               // substitution
               if(auto self = e.get<ast::var>()) {
@@ -136,7 +136,7 @@ int main(int argc, const char** argv) {
     if(auto ifs = std::ifstream(filename->c_str())) {
       return handler(ifs) ? 0 : 1;
     } else {
-      std::cerr << "io error: " << "cannot read " << *filename << std::endl;
+      std::cerr << "io error: " << "cannot open file " << *filename << std::endl;
       return 1;
     }
   } else {

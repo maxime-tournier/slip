@@ -259,14 +259,20 @@ namespace ast {
     };
   };
 
-  // check module unpacking
-  static const auto check_use = pop() >> [](sexpr env) {
-    return pop() >> [env](sexpr body) {
-      const expr res = use(expr::check(env), expr::check(body));
-      return done(res);
-    };
-  };
+  // // check module unpacking
+  // static const auto check_use = pop() >> [](sexpr env) {
+  //   return pop() >> [env](sexpr body) {
+  //     const expr res = use(expr::check(env), expr::check(body));
+  //     return done(res);
+  //   };
+  // };
 
+  static const auto check_use = pop() >> [](sexpr env) {
+    const expr res = use(expr::check(env)); 
+    return done(res);
+  };
+  
+  
   // check package import
   static const auto check_import = pop_as<symbol> >> [](symbol package) {
     const expr res = import{package};

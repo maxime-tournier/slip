@@ -231,13 +231,14 @@ value apply(const value& self, const value* first, const value* last) {
     const value env = eval(e, *self.env);
     assert(env.get<record>() && "type error");
 
-    auto s = scope(e);
+    // auto s = scope(e);
     
     for(const auto& it : env.cast<record>().attrs) {
-      s->locals.emplace(it.first, it.second);
+      e->locals.emplace(it.first, it.second);
     }
 
-    return eval(s, *self.body);
+    // return eval(s, *self.body);
+    return unit();
   }
   
 

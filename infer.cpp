@@ -525,17 +525,25 @@ namespace type {
     const mono row = s->fresh(kind::row());
     s->unify(value, record(row));
 
-    auto sub = scope(s);
-    
-    // fill sub scope with record contents
-    using ::unit;
-    foldr_rows(unit(), s->sub->substitute(row), [&](symbol attr, mono t, unit) {
+    foldr_rows(true, s->sub->substitute(row), [&](symbol attr, mono t, bool) {
         // TODO generalization issue?
-        sub->def(attr, t);
-        return unit();
+        s->def(attr, t);
+        return true;
       });
     
-    return infer(sub, *self.body);
+    return io(unit);
+    
+    // auto sub = scope(s);
+    
+    // // fill sub scope with record contents
+    // using ::unit;
+    // foldr_rows(unit(), s->sub->substitute(row), [&](symbol attr, mono t, unit) {
+    //     // TODO generalization issue?
+    //     sub->def(attr, t);
+    //     return unit();
+    //   });
+    
+    // return infer(sub, *self.body);
   }
 
 

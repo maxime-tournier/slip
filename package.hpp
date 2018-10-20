@@ -15,7 +15,8 @@ struct package {
   package();
 
   void exec(std::string filename);
-
+  // void use(const package& other);
+  
   // exec ast
   using cont_type = std::function<void(type::poly, eval::value)>;
   void exec(ast::expr expr, cont_type cont=nullptr);
@@ -24,7 +25,8 @@ struct package {
   eval::value dict() const;
 
   static package import(symbol name);
-
+  static std::string resolve(symbol name);
+  
   static std::vector<std::string> path;
   static package builtin();
 };

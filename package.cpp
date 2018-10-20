@@ -70,7 +70,7 @@ static std::string join(const std::string& path, const std::string& file) {
   return path + "/" + file;
 }
 
-static std::string resolve(symbol name) {
+std::string package::resolve(symbol name) {
   for(const std::string& prefix : package::path) {
     const std::string filename = join(prefix, name.get() + ext);
     if(exists(filename)) {
@@ -87,6 +87,7 @@ package package::import(symbol name) {
   };
   
   const auto info = cache.emplace(name, package());
+  
   if(info.second) {
     const std::string filename = resolve(name);
     info.first->second.exec(filename);

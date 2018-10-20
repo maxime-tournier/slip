@@ -144,11 +144,13 @@ namespace ast {
   // unpack a record into the environment
   struct use {
     const ref<expr> env;
-    const ref<expr> body;
-
-    use(const expr& env, const expr& body)
-      : env(make_expr(env)),
-        body(make_expr(body)) { }
+    use(const expr& env) : env(make_expr(env)) { }
+    
+    // const ref<expr> body;
+    // use(const expr& env, const expr& body)
+    //   : env(make_expr(env)),
+    //     body(make_expr(body)) { }
+    
   };
 
   // load and add result to the environment
