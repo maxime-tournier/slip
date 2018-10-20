@@ -13,10 +13,4 @@ test
 ;; doubling our test list
 (list.map (fn (x) (* 2 x)) test)
 
-(import func)
-
-
-map
-
-(map (fn (x) (* 2 x)) test)
 
