@@ -140,6 +140,7 @@ int main(int argc, const char** argv) {
       return 1;
     }
   } else {
+    main.exec(main.resolve("repl"));
     read_loop(handler);
   }
   
