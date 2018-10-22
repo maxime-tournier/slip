@@ -1,6 +1,4 @@
 
-- fixpoint for module definitions
-  - implement a tree type
 - module construct should not `def`
   - add a separate construct
 - simple gc

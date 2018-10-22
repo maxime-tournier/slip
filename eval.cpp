@@ -148,9 +148,6 @@ value apply(const value& self, const value* first, const value* last) {
     case ast::module::product: type = module::product; break;
     case ast::module::coproduct: type = module::coproduct; break;      
     }
-    
-    auto it = e->locals.emplace(self.id.name, module{type}); (void) it;
-    assert(it.second && "redefined variable");    
     return module{type};
   }
   

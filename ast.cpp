@@ -295,6 +295,7 @@ namespace ast {
   static const auto check_module = [](enum module::type type) {
     return (module_noargs | module_args) >> [=](named_signature self) {
       return check_record_attrs >> [=](record::attr::list attrs) {
+        // sneak-in a definition
         const expr res = module{self.id, self.args, attrs, type};
         return done(res);
       };
