@@ -2,6 +2,7 @@
 #define SLAP_ENVIRONMENT_HPP
 
 #include <map>
+#include <cassert>
 
 #include "ref.hpp"
 #include "symbol.hpp"
@@ -20,6 +21,7 @@ struct environment {
 
   template<class Derived>
   friend ref<Derived> scope(const ref<Derived>& self) {
+    assert(self && "null scope parent");
     return make_ref<Derived>(self);
   }
   
