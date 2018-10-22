@@ -394,7 +394,8 @@ namespace ast {
     };
 
   }
-  
+
+
   // special forms table
   static const special_type<expr> special_expr = {
     {kw::abs, {check_abs, "(fn (`arg`...) `expr`)"}},
@@ -463,7 +464,7 @@ namespace ast {
     throw error(tool::quote(s.get()) + " cannot be used as a variable name");
   }
   
-  
+
   expr expr::check(const sexpr& e) {
     static const auto impl = check_special(special_expr) | check_app;
     
@@ -477,6 +478,17 @@ namespace ast {
                      if(!f) return make_lit(unit());
                      return impl(f).get();
                    });
+  }
+
+
+  // toplevel expression adaptor
+  expr expr::toplevel(const sexpr& e) {
+    return check(e).match([](const expr& self) {
+        return self;
+      },
+      [&](const module& self) {
+        return ast::def{self.id, self};
+      });
   }
   
 
@@ -499,8 +511,8 @@ namespace ast {
 
   void expr::iter(std::istream& in, std::function<void(expr)> cont) {
     sexpr::iter(in, [cont](sexpr e) {
-      cont(expr::check(e));
-    });
+        cont(expr::toplevel(e));
+      });
   }
   
 }

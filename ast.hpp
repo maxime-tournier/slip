@@ -176,6 +176,8 @@ namespace ast {
     friend std::ostream& operator<<(std::ostream& out, const expr& self);
 
     static expr check(const sexpr& e);
+    static expr toplevel(const sexpr& e);
+    
     static void iter(std::istream& in, std::function<void(expr)> cont);
   };
 
