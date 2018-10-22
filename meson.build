@@ -1,6 +1,6 @@
 # -*- mode: lua -*-
 
-project('slap', 'cpp',
+project('slip', 'cpp',
         default_options : ['cpp_std=c++14'])
 
 compiler = meson.get_compiler('cpp')
@@ -23,6 +23,7 @@ executable('slip',
            'builtins.cpp',
            'infer.cpp',
            'unify.cpp',
+		   'gc.cpp',
            dependencies: [readline],
            cpp_args : '-DSLIP_PATH="@0@"'.format(lib_path))
 

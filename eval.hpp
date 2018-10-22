@@ -86,6 +86,9 @@ namespace eval {
 
   value apply(const value& func, const value* first, const value* last);
   value eval(const ref<state>& e, const ast::expr& expr);
+
+  
+  void collect(const ref<state>& e);
   
 }
 

@@ -4,6 +4,7 @@
 
 #include "sexpr.hpp"
 #include "package.hpp"
+#include "gc.hpp"
 
 namespace eval {
 
@@ -382,7 +383,6 @@ struct ostream_visitor {
   void operator()(const sum& self, std::ostream& out) const {
     out << "<" << self.tag << ": " << *self.data << ">";
   }
-
   
 };
 }
@@ -392,4 +392,31 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
   return out;
 }
 
+
+  
+  
+  static void mark(value& self) {
+    self.match([&](const value& ) { },
+               [&](gc& self) { self.mark(); });
+  }
+  
+
+  static void mark(const ref<environment<value>>& e) {
+    for(auto& it : e->locals) {
+      mark(it.second);
+    }
+
+    if(e->parent) {
+      mark(e->parent);
+    }
+  }
+
+  
+  // garbage collection
+  void collect(const ref<state>& e) {
+    mark(e);
+    gc::sweep();
+  }
+
+  
 }

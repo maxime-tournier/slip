@@ -9,12 +9,12 @@ first: compile
 
 all: compile tests
 
-debug: FORCE
+debug:
 	$(eval CONFIG=debug)
 	$(eval MESON_OPTS+=-Db_sanitize=address)
 
 
-$(BUILD): meson.build
+$(BUILD):
 	meson $(BUILD) --buildtype $(CONFIG) $(MESON_OPTS)
 
 compile: $(BUILD)

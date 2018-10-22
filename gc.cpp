@@ -2,14 +2,16 @@
 
 namespace eval {
 
-  static gc* gc::first = nullptr;
+  gc* gc::all = nullptr;
 
   void gc::sweep() {
-    for(gc** it = &all; *it; it = &it->next) {
-      if(!*it->mark) {
+    for(gc** it = &all; *it; it = &(*it)->next) {
+      if(!(*it)->marked) {
         gc* obj = *it;
-        *it = it->next;
+        *it = (*it)->next;
         delete obj;
+      } else {
+        (*it)->marked = false;
       }
     }
   }
