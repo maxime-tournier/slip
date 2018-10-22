@@ -1,6 +1,4 @@
 
-- module construct should not `def`
-  - add a separate construct
 - simple gc
 
 

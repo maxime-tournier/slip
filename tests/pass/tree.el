@@ -19,12 +19,12 @@ tree
 (def node type.node)
 node
 
-;; data constructors
+;; leaf constructors
 (def (make-leaf a)
      (new tree (leaf a)))
 make-leaf
 
-;; 
+;; node constructor
 (def (make-node a lhs rhs)
      (new tree
           (node (new node
@@ -35,14 +35,18 @@ make-node
 
 (make-leaf 2)
 
-(def test (make-node 1 (make-leaf 2) (make-leaf 3)))
-test
+(def test1 (make-node 1 (make-leaf 2) (make-leaf 3)))
+(def test (make-node 10 test1 test1))
 
+;; depth-first search
 (import list)
 (def (dfs (tree self) acc)
      (match self
             (leaf a (list.cons a acc))
-            (node (node n) (dfs n.left (list.cons n.value (dfs n.right acc))))))
+            (node (node n)
+                  (dfs n.left
+                       (list.cons n.value
+                                  (dfs n.right acc))))))
 dfs
 
 (dfs test list.nil)
