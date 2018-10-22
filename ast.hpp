@@ -86,7 +86,6 @@ namespace ast {
     struct attr;
 
     const list<attr> attrs;
-    
   };
 
 

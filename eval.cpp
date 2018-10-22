@@ -70,10 +70,10 @@ value apply(const value& self, const value* first, const value* last) {
 }
 
 
-  template<class T>
-  static value eval(const ref<state>&, const T& ) {
-    throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
-  }
+  // template<class T>
+  // static value eval(const ref<state>&, const T& ) {
+  //   throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
+  // }
 
   
   template<class T>
@@ -82,7 +82,7 @@ value apply(const value& self, const value* first, const value* last) {
   }
 
 
-  static value eval(const ref<state>& e,const ast::var& self) {
+  static value eval(const ref<state>& e, const ast::var& self) {
     return e->find(self.name);
   }
 
@@ -143,11 +143,17 @@ value apply(const value& self, const value* first, const value* last) {
 
   static value eval(const ref<state>& e, const ast::module& self) {
     // just define the reified module type constructor
-    auto it = e->locals.emplace(self.id.name, unit()); (void) it;
+    enum module::type type;
+    switch(self.type) {
+    case ast::module::product: type = module::product; break;
+    case ast::module::coproduct: type = module::coproduct; break;      
+    }
+    
+    auto it = e->locals.emplace(self.id.name, module{type}); (void) it;
     assert(it.second && "redefined variable");    
-    return unit();
+    return module{type};
   }
-
+  
   static value eval(const ref<state>& e, const ast::def& self) {
     auto it = e->locals.emplace(self.id.name, eval(e, *self.value)); (void) it;
     assert(it.second && "redefined variable");
@@ -224,7 +230,18 @@ value apply(const value& self, const value* first, const value* last) {
   
 
   static value eval(const ref<state>& e, const ast::make& self) {
-    return eval(e, ast::record{self.attrs});
+    switch(eval(e, *self.type).cast<module>().type) {
+    case module::product:
+      return eval(e, ast::record{self.attrs});
+    case module::coproduct: {
+      assert(size(self.attrs) == 1);
+      const auto& attr = self.attrs->head;
+      return sum(attr.id.name, eval(e, attr.value));
+    }
+    case module::list:
+      assert(size(self.attrs) == 1);      
+      return eval(e, self.attrs->head.value);
+    };
   }
 
   
@@ -264,6 +281,7 @@ value apply(const value& self, const value* first, const value* last) {
     const ref<ast::expr> fallback = self.fallback;
 
     return closure(1, [e, dispatch, fallback](const value* args) {
+        // matching on a list
         return args[0].match([&](const value::list& self) {
             auto it = dispatch.find(self ? cons : nil);
             if(it != dispatch.end()) {
@@ -272,7 +290,7 @@ value apply(const value& self, const value* first, const value* last) {
               return eval(sub, it->second.second);
             } else {
               assert(fallback);
-              return eval(e, self);
+              return eval(e, *fallback);
             }
           },
           [&](const sum& self) {
@@ -286,7 +304,11 @@ value apply(const value& self, const value* first, const value* last) {
               return eval(e, *fallback);
             }
           },
-          [&](const value&) -> value { assert(false && "type error"); });
+          [&](const value& self) -> value {
+            std::stringstream ss;
+            ss << "attempting to match on value " << self;
+            throw std::runtime_error(ss.str());
+          });
       });
   }
 
@@ -309,33 +331,48 @@ value apply(const value& self, const value* first, const value* last) {
 namespace {
   
 struct ostream_visitor {
-  using type = void;
   
-  template<class T>
-  void operator()(const T& self, std::ostream& out) const {
-	out << self;
+
+  void operator()(const module& self, std::ostream& out) const {
+    out << "#<module>";
   }
 
+  
+  void operator()(const symbol& self, std::ostream& out) const {
+    out << self;
+  }
+
+  
+  void operator()(const value::list& self, std::ostream& out) const {
+    out << self;
+  }
+
+  
   void operator()(const closure& self, std::ostream& out) const {
 	out << "#<fun>";
   }
+
   
   void operator()(const unit& self, std::ostream& out) const {
 	out << "()";
   }
 
+  
   void operator()(const boolean& self, std::ostream& out) const {
 	out << (self ? "true" : "false");
   }
 
+  
   void operator()(const integer& self, std::ostream& out) const {
     out << self; //  << "i";
   }
 
+  
   void operator()(const real& self, std::ostream& out) const {
     out << self; // << "d";
   }
 
+  
   void operator()(const record& self, std::ostream& out) const {
     out << "{";
     bool first = true;
@@ -347,6 +384,7 @@ struct ostream_visitor {
     out << "}";
   }
 
+  
   void operator()(const sum& self, std::ostream& out) const {
     out << "<" << self.tag << ": " << *self.data << ">";
   }

@@ -127,7 +127,7 @@ package package::builtin() {
 
     {
       const mono a = self.ts->fresh();
-      self.def("list", ty(a) >>= ty(list(a)), ctor_value);
+      self.def("list", ty(a) >>= ty(list(a)), eval::module{eval::module::list});
     }
     
   }

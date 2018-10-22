@@ -173,7 +173,7 @@ namespace type {
     {
       std::stringstream ss;
       ss << "no attribute " << tool::quote(e.attr.get())
-         << " in row type: " << show(self->generalize(to));
+         << " in row type: " << tool::show(self->generalize(to));
       const unification_error e(ss.str());
       if(log) *log << prefix() << "error: " << e.what() << std::endl;
       throw e;
@@ -201,8 +201,8 @@ namespace type {
 
     if(from.kind() != to.kind()) {
       std::stringstream ss;
-      ss << "cannot unify type: " << show(self->generalize(from)) << std::endl
-         << "...with type:\t " << show(self->generalize(to));
+      ss << "cannot unify type: " << tool::show(self->generalize(from)) << std::endl
+         << "...with type:\t " << tool::show(self->generalize(to));
         
       const unification_error e(ss.str());
       
@@ -244,8 +244,8 @@ namespace type {
   
     if(from != to) {
       std::stringstream ss;
-      logger(ss) << "cannot unify types " << show(self->generalize(from))
-                 << " and " << show(self->generalize(to));
+      logger(ss) << "cannot unify types " << tool::show(self->generalize(from))
+                 << " and " << tool::show(self->generalize(to));
       
       const unification_error e(ss.str());
       if(log) *log << prefix() << "error: " << e.what() << std::endl;

@@ -2,7 +2,9 @@
 #define SLAP_TOOL_HPP
 
 #include <string>
+
 #include <utility>
+#include <sstream>
 
 namespace tool {
 
@@ -17,6 +19,21 @@ namespace tool {
   }
   
 
+  // normalized/user friendly output of a type
+  template<class T>
+  static std::string show(const T& self, std::size_t max=64) {
+    std::stringstream ss;
+    ss << self;
+    
+    std::string str = ss.str();
+    if(str.size() > max) {
+      str = str.substr(0, max) + "...";
+    }
+    return quote(str);
+  }
+    
+
+  
 }
 
 #endif

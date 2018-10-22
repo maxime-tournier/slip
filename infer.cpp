@@ -92,7 +92,7 @@ namespace type {
       return reconstruct(s, to);
     } catch(error&) {
       std::stringstream ss;
-      ss << "type annotation of type " << show(s->generalize(self))
+      ss << "type annotation of type " << tool::show(s->generalize(self))
          << " does not represent a type";
       throw error(ss.str());
     }
@@ -110,7 +110,7 @@ namespace type {
     if(auto self = t.get<cst>()) {
       return *self;
     }
-
+    
     // TODO restrictive?
     throw error("constructor must be a constant");
   }
@@ -267,8 +267,8 @@ namespace type {
       
       std::stringstream ss;
       ss << "cannot apply function type:\t"
-         << show(s->generalize(func)) << std::endl
-         << "...to argument of type:\t" << show(s->generalize(arg));
+         << tool::show(s->generalize(func)) << std::endl
+         << "...to argument of type:\t" << tool::show(s->generalize(arg));
       std::throw_with_nested(error(ss.str()));
     }
     
@@ -389,15 +389,24 @@ namespace type {
 
   // make
   static mono infer(const ref<state>& s, const ast::make& self) {
-    // get reified constructor
+    // get reified constructor and reconstruct type
     const mono reified = infer(s, *self.type);
-
     const mono type = reconstruct(s, reified);
+    
     // std::clog << "reified: " << s->generalize(reified) << std::endl
     //           << "type: " << s->generalize(type) << std::endl;
     
     // obtain actual constructor
-    const cst ctor = constructor(s, type);
+    const cst ctor = [&] {
+      try {
+        return constructor(s, type);
+      } catch(error&) {
+        std::stringstream ss;
+        ss << "could not infer type constructor for expression: " << tool::show(*self.type) << std::endl
+           << "...with type: " << tool::show(s->generalize(reified));
+        std::throw_with_nested(error(ss.str()));
+      };
+    }();
 
     // module signature
     const poly sig = signature(s, ctor);
@@ -422,6 +431,10 @@ namespace type {
 
     // TODO does this even make sense?
     const mono init = inner_ctor == record ? empty : sub->fresh(kind::row());
+    if(inner_ctor == sum && size(self.attrs) != 1) {
+      throw error("must provide exactly one alternative to construct union");
+    }
+    
     const mono provided =
       inner_ctor(foldr(init, self.attrs,
                        [&](const ast::record::attr attr, mono tail) {
@@ -516,18 +529,6 @@ namespace type {
       });
     
     return io(unit);
-    
-    // auto sub = scope(s);
-    
-    // // fill sub scope with record contents
-    // using ::unit;
-    // foldr_rows(unit(), s->sub->substitute(row), [&](symbol attr, mono t, unit) {
-    //     // TODO generalization issue?
-    //     sub->def(attr, t);
-    //     return unit();
-    //   });
-    
-    // return infer(sub, *self.body);
   }
 
 
@@ -680,7 +681,7 @@ namespace type {
       return self.visit(infer_visitor(), s);
     } catch(error& e) {
       std::stringstream ss;
-      ss << "when processing expression: " << self;
+      ss << "when processing expression: " << tool::show(self);
       std::throw_with_nested(error(ss.str()));
     }
   }

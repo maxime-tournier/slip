@@ -47,15 +47,26 @@ namespace eval {
   };
 
   
+  struct module {
+    enum type {
+      product,
+      coproduct,
+      list,
+    } type;
+  };
+
+  
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, record, sum> {
+                         closure, record, sum, module> {
     using value::variant::variant;
     using list = list<value>;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);
   };
 
+  
   const extern symbol cons, nil, head, tail;
+
   
   template<class Ret, class ... Args>
   closure::closure(Ret (*impl) (const Args&...) )
