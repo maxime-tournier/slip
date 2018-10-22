@@ -180,9 +180,9 @@ namespace eval {
   // }
 
   static value eval(const ref<state>& e, const ast::record& self) {
-    record res;
+    auto res = new record;
     for(const auto& attr : self.attrs) {
-      res.attrs.emplace(attr.id.name, eval(e, attr.value));
+      res->attrs.emplace(attr.id.name, eval(e, attr.value));
     }
     return res;
   }
@@ -199,9 +199,9 @@ namespace eval {
             if(name == tail) return self->tail;
             assert(false && "type error");
           },
-          [&](const record& self) {
-            const auto it = self.attrs.find(name); (void) it;
-            assert(it != self.attrs.end() && "type error");
+          [&](const record* self) {
+            const auto it = self->attrs.find(name); (void) it;
+            assert(it != self->attrs.end() && "type error");
             return it->second;
           },
           [&](const value& self) -> value {
@@ -237,11 +237,11 @@ namespace eval {
   
   static value eval(const ref<state>& e, const ast::use& self) {
     const value env = eval(e, *self.env);
-    assert(env.get<record>() && "type error");
+    assert(env.get<record*>() && "type error");
 
     // auto s = scope(e);
     
-    for(const auto& it : env.cast<record>().attrs) {
+    for(const auto& it : env.cast<record*>()->attrs) {
       e->locals.emplace(it.first, it.second);
     }
 
@@ -368,10 +368,10 @@ struct ostream_visitor {
   }
 
   
-  void operator()(const record& self, std::ostream& out) const {
+  void operator()(const record* self, std::ostream& out) const {
     out << "{";
     bool first = true;
-    for(const auto& it : self.attrs) {
+    for(const auto& it : self->attrs) {
       if(first) first = false;
       else out << "; ";
       out << it.first << ": " << it.second;

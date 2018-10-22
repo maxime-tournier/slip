@@ -32,10 +32,10 @@ type::poly package::sig() const {
 }
 
 eval::value package::dict() const {
-  eval::record result;
+  auto result = new eval::record;
 
   for(const auto& it : es->locals) {
-    result.attrs.emplace(it.first, it.second);
+    result->attrs.emplace(it.first, it.second);
   }
 
   return result;

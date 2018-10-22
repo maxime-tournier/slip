@@ -9,6 +9,8 @@
 #include "list.hpp"
 #include "ast.hpp"
 
+#include "gc.hpp"
+
 namespace eval {
 
   struct value;
@@ -19,7 +21,7 @@ namespace eval {
   };
 
   
-  struct record {
+  struct record : gc {
     std::map<symbol, value> attrs;
   };
 
@@ -62,7 +64,7 @@ namespace eval {
 
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, builtin, record, sum, module> {
+                         closure, builtin, record*, sum, module> {
     using value::variant::variant;
     using list = list<value>;
 

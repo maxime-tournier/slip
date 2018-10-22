@@ -1,8 +1,6 @@
 #ifndef SLIP_GC_HPP
 #define SLIP_GC_HPP
 
-#include "eval.hpp"
-
 namespace eval {
 
   class gc {

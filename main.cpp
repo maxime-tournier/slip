@@ -54,7 +54,8 @@ static void lines(const std::string& str, Func func) {
   }
 }
 
-static std::string print_error(const std::exception& e, bool verbose=true, std::size_t level=0) {
+static std::string print_error(const std::exception& e, bool verbose=true,
+                               std::size_t level=0) {
   std::stringstream ss;
 
   for(std::size_t i = 0; i < level; ++i) {
@@ -96,6 +97,12 @@ int main(int argc, const char** argv) {
 
   package main;
   main.ts->debug = options.flag("debug", false);
+
+  main.def("collect", type::unit >>= type::unit,
+           eval::builtin(0, [&](const eval::value* ) -> eval::value {
+             eval::collect(main.es);
+             return unit();
+           }));
   
   static const auto handler =
     [&](std::istream& in) {
