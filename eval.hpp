@@ -25,12 +25,11 @@ namespace eval {
 
   
   struct sum {
-    symbol tag;
-    ref<value> data;
+    const symbol tag;
+    const ref<value> data;
     sum(symbol tag, const value& self);
   };
-  
-  
+
   struct closure {
     using func_type = std::function<value(const value* args)>;
     const func_type func;
@@ -43,7 +42,8 @@ namespace eval {
     closure(const closure&);
   
     template<class Ret, class ... Args>
-    closure(Ret (*impl) (const Args&...) );
+    closure(Ret (*impl) (const Args&...));
+
   };
 
   

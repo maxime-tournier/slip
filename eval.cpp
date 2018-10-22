@@ -62,12 +62,12 @@ namespace eval {
   }
 
   
-value apply(const value& self, const value* first, const value* last) {
-  return self.match([&](const closure& self) { return apply(self, first, last); },
-                    [&](const value& self) -> value {
-                      throw std::runtime_error("type error in application");
-                    });
-}
+  value apply(const value& self, const value* first, const value* last) {
+    return self.match([&](const closure& self) { return apply(self, first, last); },
+                      [&](const value& self) -> value {
+                        throw std::runtime_error("type error in application");
+                      });
+  }
 
 
   // template<class T>
@@ -112,7 +112,7 @@ value apply(const value& self, const value* first, const value* last) {
     
     const ast::expr body = *self.body;
 
-    // TODO weakr_ptr is insufficient when lambdas is not given a name
+    // TODO weakr_ptr is insufficient when lambda is not given a name
     // but shared_ptr will create a cycle if lambda is named
     const std::shared_ptr<state> scope = e;
     
