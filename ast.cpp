@@ -289,7 +289,7 @@ namespace ast {
   static const auto module_args = pop_as<sexpr::list> >> [](sexpr::list sig) {
     return lift(check_named_signature(sig));
   };
-  
+
 
   // check module definition
   static const auto check_module = [](enum module::type type) {

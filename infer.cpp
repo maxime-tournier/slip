@@ -58,31 +58,6 @@ namespace type {
   }
 
   
-  struct let {
-    const ::list<ast::bind> defs;
-    const ast::expr body;
-
-    static symbol fix() { return "__fix__"; }
-    
-    // rewrite let as non-recursive let + fix **when defining functions**
-    static let rewrite(const ast::let& self) {
-      using ::list;
-      const list<ast::bind> defs = map(self.defs, [](ast::bind self) {
-          return self.value.match([&](const ast::abs& abs) { 
-              return ast::bind{self.id,
-                               ast::app{ast::var{fix()},
-                                        ast::abs{self.id >>= list<ast::abs::arg>(),
-                                                 self.value}
-                                        >>= list<ast::expr>()}};
-            }, 
-            [&](const ast::expr& expr) { return self; });
-        });
-
-      return {defs, *self.body};
-    }
-  };
-
-
   // rewrite app as nested unary applications
   static ast::app rewrite(const ast::app& self) {
     const ast::expr& init = *self.func;
@@ -301,26 +276,30 @@ namespace type {
   }
 
 
-  // non-recursive let
-  static mono infer(const ref<state>& s, const let& self) {
-    auto sub = scope(s);
-
-    for(ast::bind def : self.defs) {
-      sub->vars->locals.emplace(def.id.name, s->generalize(infer(s, def.value)));
-    }
-    
-    return infer(sub, self.body);
-  }
-
-  
   // recursive let
   static mono infer(const ref<state>& s, const ast::let& self) {
-    auto sub = scope(s);
+    // body scope
+    auto body = scope(s);    
 
-    const mono a = sub->fresh();
-    sub->def(let::fix(), (a >>= a) >>= a);
+    // definition scope
+    auto let = scope(body);
     
-    return infer(sub, let::rewrite(self));
+    // populate definition scope with monomorphic variables
+    for(ast::bind def : self.defs) {
+      const mono self = body->fresh();
+      
+      let->def(def.id.name, self);
+    }
+
+    // infer expression types in definition scope
+    for(ast::bind def : self.defs) {
+      const mono self = infer(let, def.id);
+      let->unify(self, infer(let, def.value));
+      body->def(def.id.name, self);
+    }
+    
+    // infer body type in let scope
+    return infer(body, *self.body);
   }
 
 
@@ -500,14 +479,10 @@ namespace type {
   // def
   static mono infer(const ref<state>& s, const ast::def& self) {
     const mono value =
-      infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(),
-                        self.id));
-    try {
-      s->def(self.id.name, value);
-      return io(unit);
-    } catch(std::runtime_error& e) {
-      throw error(e.what());
-    }
+      infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(), self.id));
+    
+    s->def(self.id.name, value);
+    return io(unit);
   }
 
 
@@ -604,6 +579,9 @@ namespace type {
       return arg >>= rhs;
     });
 
+    // expose current module signature in its own definition
+    sub->def(self.id.name, sig);
+    
     // infer attribute types in module scope
     const mono attrs = infer(sub, self.attrs);
 
@@ -645,11 +623,8 @@ namespace type {
     auto it = s->sigs->emplace(c, s->generalize(outer >>= inner));
     (void) it;
 
-    // define constructor
-    s->def(self.id.name, sig);
-
-    // return s->instantiate(it.first->second);
-    return io(unit);
+    // return reified constructor
+    return sig;
   }
 
 
