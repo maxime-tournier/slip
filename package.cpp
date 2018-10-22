@@ -83,7 +83,7 @@ std::string package::resolve(symbol name) {
 
 package package::import(symbol name) {
   static std::map<symbol, package> cache = {
-    {"builtin", builtin()}
+    {"builtins", builtins()}
   };
   
   const auto info = cache.emplace(name, package());

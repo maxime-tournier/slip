@@ -1,6 +1,6 @@
 #include "package.hpp"
 
-package package::builtin() {
+package package::builtins() {
   package self;
   
   using namespace eval;
@@ -16,30 +16,30 @@ package package::builtin() {
   // terms
   self
     .def("+", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
+         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs + rhs;
          }))
       
     .def("*", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
+         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs * rhs;
          }))
       
     .def("-", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
+         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs - rhs;
          }))
       
     .def("=", type::integer >>= type::integer >>= type::boolean,
-         closure(+[](const integer& lhs, const integer& rhs) -> boolean {
+         builtin(+[](const integer& lhs, const integer& rhs) -> boolean {
            return lhs == rhs;
          }))
     ;
 
 
   using type::ty;
-  auto ctor_value = closure(+[](const unit&) { return unit();});
-  auto ctor2_value = closure(+[](const unit&, const unit& ) { return unit();});
+  auto ctor_value = builtin(+[](const unit&) { return unit();});
+  auto ctor2_value = builtin(+[](const unit&, const unit& ) { return unit();});
   
   // function
   {
@@ -120,7 +120,7 @@ package package::builtin() {
 
     {
       const mono a = self.ts->fresh();
-      self.def("cons", a >>= list(a) >>= list(a), eval::closure(2, [](const eval::value* args) -> value {
+      self.def("cons", a >>= list(a) >>= list(a), eval::builtin(2, [](const eval::value* args) -> value {
             return args[0] >>= args[1].cast<eval::value::list>();
           }));
     }

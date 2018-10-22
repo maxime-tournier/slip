@@ -1,4 +1,4 @@
-(import builtin)
+(import builtins)
 
 ;; recursive tree/node types
 (def type

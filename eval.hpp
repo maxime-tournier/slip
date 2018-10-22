@@ -30,20 +30,24 @@ namespace eval {
     sum(symbol tag, const value& self);
   };
 
-  struct closure {
+  
+  struct builtin {
     using func_type = std::function<value(const value* args)>;
     const func_type func;
   
     const std::size_t argc;
 
-    closure(std::size_t argc, func_type func);
+    builtin(std::size_t argc, func_type func);
 
-    closure(closure&& other);
-    closure(const closure&);
-  
     template<class Ret, class ... Args>
-    closure(Ret (*impl) (const Args&...));
+    builtin(Ret (*impl) (const Args&...));
+    
+  };
 
+  struct closure {
+    const ref<state> env;
+    const std::vector<symbol> args;
+    const ast::expr body;
   };
 
   
@@ -57,7 +61,7 @@ namespace eval {
 
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, record, sum, module> {
+                         closure, builtin, record, sum, module> {
     using value::variant::variant;
     using list = list<value>;
 
@@ -69,7 +73,7 @@ namespace eval {
 
   
   template<class Ret, class ... Args>
-  closure::closure(Ret (*impl) (const Args&...) )
+  builtin::builtin(Ret (*impl) (const Args&...) )
     : func([impl](const value* args) -> value {
         const std::tuple<const Args&...> pack = {
           *(args++)->template get<Args>()...

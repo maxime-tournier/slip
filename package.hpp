@@ -28,7 +28,7 @@ struct package {
   static std::string resolve(symbol name);
   
   static std::vector<std::string> path;
-  static package builtin();
+  static package builtins();
 };
 
 #endif

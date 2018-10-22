@@ -1,10 +1,10 @@
 ;; list module
-(import builtin)
+(import builtins)
 (import func)
 
-(def list builtin.list)
-(def cons builtin.cons)
-(def nil builtin.nil)
+(def list builtins.list)
+(def cons builtins.cons)
+(def nil builtins.nil)
 
 
 ;; folds
@@ -24,12 +24,12 @@
 (def (concat (list lhs) (list rhs))
 	 (foldr cons rhs lhs))
 
-;; TODO use builtin + export size
+;; TODO use builtins + export size
 ;; list size
 (def (size (list self))
 	 (match self
 			(nil _ 0)
-			(cons self (builtin.+ 1 (size self.tail)))))
+			(cons self (builtins.+ 1 (size self.tail)))))
 
 
 ;; reverse a list

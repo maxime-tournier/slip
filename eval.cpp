@@ -14,28 +14,34 @@ namespace eval {
   const symbol tail = "tail";    
 
   
-  closure::closure(std::size_t argc, func_type func)
+  builtin::builtin(std::size_t argc, func_type func)
     : func(func),
       argc(argc) {
 
   }
 
-  closure::closure(const closure&) = default;
-  closure::closure(closure&&) = default;
+  // builtin::builtin(const builtin&) = default;
+  // builtin:builtin(builtin&&) = default;
 
   sum::sum(symbol tag, const value& data)
     : tag(tag), data(make_ref<value>(data)) { }
   
   // apply a closure to argument range
-  static value apply(const closure& self, const value* first, const value* last) {
+  value apply(const value& self, const value* first, const value* last) {
     const std::size_t argc = last - first;
-
-    if(argc < self.argc) {
+    
+    const std::size_t expected = self.match([&](const value& ) -> std::size_t {
+        throw std::runtime_error("type error in application");
+      },
+      [&](const builtin& self) { return self.argc; },
+      [&](const closure& self) { return self.args.size(); });
+    
+    if(argc < expected) {
       // unsaturated call: build wrapper
-      const std::size_t remaining = self.argc - argc;        
+      const std::size_t remaining = expected - argc;        
       const std::vector<value> saved(first, last);
     
-      return closure(remaining, [self, saved, remaining](const value* args) {
+      return builtin(remaining, [self, saved, remaining](const value* args) {
           std::vector<value> tmp = saved;
           for(auto it = args, last = args + remaining; it != last; ++it) {
             tmp.emplace_back(*it);
@@ -44,31 +50,29 @@ namespace eval {
         });
     }
 
-    if(argc > self.argc) {
+    if(argc > expected) {
       // over-saturated call: call result with remaining args
-      const value* mid = first + self.argc;
+      const value* mid = first + expected;
       assert(mid > first);
       assert(mid < last);
       
       const value func = apply(self, first, mid);
-      assert(func.get<closure>() && "type error");
-      
-      const closure& self = func.cast<closure>();
-      return apply(self, mid, last);
+      return apply(func, mid, last);
     }
 
     // saturated calls
-    return self.func(first);
+    return self.match([&](const value& ) -> value {
+        throw std::runtime_error("type error in application");
+      },
+      [&](const builtin& self) {
+        return self.func(first);
+      },
+      [&](const closure& self) {
+        return eval(augment(self.env, self.args, first, last), self.body);
+      });
   }
 
   
-  value apply(const value& self, const value* first, const value* last) {
-    return self.match([&](const closure& self) { return apply(self, first, last); },
-                      [&](const value& self) -> value {
-                        throw std::runtime_error("type error in application");
-                      });
-  }
-
 
   // template<class T>
   // static value eval(const ref<state>&, const T& ) {
@@ -88,37 +92,27 @@ namespace eval {
 
   
   static value eval(const ref<state>& e, const ast::app& self) {
+    // note: evaluate func first
     const value func = eval(e, *self.func);
-    assert(func.get<closure>() && "type error");
     
-    const closure& clos = func.cast<closure>();
-    
-    std::vector<value> args; args.reserve(clos.argc);
+    std::vector<value> args;
     foldl(unit(), self.args, [&](unit, const ast::expr& self) {
         args.emplace_back(eval(e, self));
         return unit();
       });
     
-    return apply(clos, args.data(), args.data() + args.size());
+    return apply(func, args.data(), args.data() + args.size());
   }
 
   
   static value eval(const ref<state>& e, const ast::abs& self) {
-    const list<symbol> args = map(self.args, [](const ast::abs::arg& arg) {
-        return arg.name();
-      });
-
-    const std::size_t argc = size(args);
+    std::vector<symbol> args;
+    for(const auto& arg : self.args) {
+      args.emplace_back(arg.name());
+    }
     
-    const ast::expr body = *self.body;
-
-    // TODO weakr_ptr is insufficient when lambda is not given a name
-    // but shared_ptr will create a cycle if lambda is named
-    const std::shared_ptr<state> scope = e;
-    
-    return closure(argc, [argc, args, scope, body](const value* values) -> value {
-      return eval(augment(scope, args, values, values + argc), body);
-    });
+    // TODO ref cycle if lambda gets named!
+    return closure{e, std::move(args), *self.body};
   }
 
   
@@ -150,6 +144,7 @@ namespace eval {
     }
     return module{type};
   }
+
   
   static value eval(const ref<state>& e, const ast::def& self) {
     auto it = e->locals.emplace(self.id.name, eval(e, *self.value)); (void) it;
@@ -197,7 +192,7 @@ namespace eval {
 
   static value eval(const ref<state>& e, const ast::sel& self) {
     const symbol name = self.id.name;
-    return closure(1, [name](const value* args) -> value {
+    return builtin(1, [name](const value* args) -> value {
         return args[0].match([&](const value::list& self) -> value {
             // note: the only possible way to call this is during a pattern
             // match processing a non-empty list
@@ -220,7 +215,7 @@ namespace eval {
 
   static value eval(const ref<state>& e, const ast::inj& self) {
     const symbol tag = self.id.name;
-    return closure(1, [tag](const value* args) -> value {
+    return builtin(1, [tag](const value* args) -> value {
         return sum(tag, args[0]);
       });
   }
@@ -277,7 +272,7 @@ namespace eval {
     
     const ref<ast::expr> fallback = self.fallback;
 
-    return closure(1, [e, dispatch, fallback](const value* args) {
+    return builtin(1, [e, dispatch, fallback](const value* args) {
         // matching on a list
         return args[0].match([&](const value::list& self) {
             auto it = dispatch.find(self ? cons : nil);
@@ -344,9 +339,14 @@ struct ostream_visitor {
     out << self;
   }
 
-  
+
   void operator()(const closure& self, std::ostream& out) const {
-	out << "#<fun>";
+	out << "#<closure>";
+  }
+  
+  
+  void operator()(const builtin& self, std::ostream& out) const {
+	out << "#<builtin>";
   }
 
   

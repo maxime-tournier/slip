@@ -1,17 +1,17 @@
-(import builtin)
+(import builtins)
 
 (import list)
 
-(def + builtin.+)
-(def - builtin.-)
-(def * builtin.*)
-(def = builtin.=)
+(def + builtins.+)
+(def - builtins.-)
+(def * builtins.*)
+(def = builtins.=)
 
 ;; types
-(def type builtin.type)
-(def ctor builtin.ctor)
+(def type builtins.type)
+(def ctor builtins.ctor)
 
-(def -> builtin.->)
-(def integer builtin.integer)
-(def boolean builtin.boolean)
-(def unit builtin.unit)
+(def -> builtins.->)
+(def integer builtins.integer)
+(def boolean builtins.boolean)
+(def unit builtins.unit)
