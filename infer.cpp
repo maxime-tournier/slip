@@ -280,21 +280,35 @@ namespace type {
   static mono infer(const ref<state>& s, const ast::let& self) {
     // body scope
     auto body = scope(s);    
-
-    // definition scope
-    auto let = scope(body);
     
-    // populate definition scope with monomorphic variables
+    // recursive definition scope
+    auto rec = scope(body);
+
+    // non-recursive defs scope
+    auto nonrec = scope(body);    
+    
+    // populate recursive definition scope with monomorphic variables
     for(ast::bind def : self.defs) {
       const mono self = body->fresh();
       
-      let->def(def.id.name, self);
+      rec->def(def.id.name, self);
     }
 
     // infer expression types in definition scope
     for(ast::bind def : self.defs) {
-      const mono self = infer(let, def.id);
-      let->unify(self, infer(let, def.value));
+      const mono self = infer(rec, def.id);
+
+      // functions/modules are recursive, rest is not
+      def.value.match([&](const ast::abs&) {
+          rec->unify(self, infer(rec, def.value));
+        },
+        [&](const ast::module&) {
+          rec->unify(self, infer(rec, def.value));
+        },
+        [&](const ast::expr&) {
+          rec->unify(self, infer(nonrec, def.value));
+        });
+
       body->def(def.id.name, self);
     }
     
