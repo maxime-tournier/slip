@@ -20,9 +20,6 @@ namespace eval {
 
   }
 
-  // builtin::builtin(const builtin&) = default;
-  // builtin:builtin(builtin&&) = default;
-
   sum::sum(symbol tag, const value& data)
     : tag(tag), data(make_ref<value>(data)) { }
   

@@ -25,17 +25,17 @@ namespace eval {
 
   
   struct sum {
-    const symbol tag;
-    const ref<value> data;
+    symbol tag;
+    ref<value> data;
     sum(symbol tag, const value& self);
   };
 
   
   struct builtin {
     using func_type = std::function<value(const value* args)>;
-    const func_type func;
+    func_type func;
   
-    const std::size_t argc;
+    std::size_t argc;
 
     builtin(std::size_t argc, func_type func);
 
@@ -43,11 +43,12 @@ namespace eval {
     builtin(Ret (*impl) (const Args&...));
     
   };
+  
 
   struct closure {
-    const ref<state> env;
-    const std::vector<symbol> args;
-    const ast::expr body;
+    ref<state> env;
+    std::vector<symbol> args;
+    ast::expr body;
   };
 
   
