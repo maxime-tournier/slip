@@ -17,7 +17,6 @@
 
 #include "argparse.hpp"
 
-
 struct history {
   const std::string filename;
   history(const std::string& filename="/tmp/slip.history")
@@ -96,14 +95,29 @@ int main(int argc, const char** argv) {
 
   const auto options = parser.parse(argc, argv);
 
-  package main;
+  package main("main");
   main.ts->debug = options.flag("debug-tc", false);
 
+  const auto collect = [&] {
+    const bool debug = options.flag("debug-gc", false);
+
+    // mark main package
+    eval::mark(main.es, debug);
+
+    // mark imported packages
+    for(const package* const* it = &package::first; *it; it = &(*it)->next) {
+      eval::mark((*it)->es, debug);
+    }
+
+    // and sweep
+    eval::gc::sweep(debug);
+  };
+  
   main.def("collect", type::unit >>= type::io(type::unit),
            eval::builtin(0, [&](const eval::value* ) -> eval::value {
-             eval::collect(main.es, options.flag("debug-gc", false));
-             return unit();
-           }));
+               collect();
+               return unit();
+             }));
   
   static const auto handler =
     [&](std::istream& in) {
@@ -120,8 +134,9 @@ int main(int argc, const char** argv) {
               }
 
               std::cout << " : " << p << std::flush
-              << " = " << v << std::endl;
+                        << " = " << v << std::endl;
             });
+          collect();
         });
       return true;
     } catch(sexpr::error& e) {

@@ -7,12 +7,13 @@
 
 // TODO rename? 
 struct package {
+  const symbol name;
   const ref<type::state> ts;
   eval::state* es;
   
   package& def(symbol name, type::mono t, eval::value v);
 
-  package();
+  package(symbol name);
 
   void exec(std::string filename);
   // void use(const package& other);
@@ -29,6 +30,10 @@ struct package {
   
   static std::vector<std::string> path;
   static package builtins();
+
+  // iterate imported packages
+  const package* next = nullptr;
+  static const package* first;
 };
 
 #endif

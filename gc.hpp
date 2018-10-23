@@ -7,16 +7,18 @@ namespace eval {
 
   class gc {
     gc* next;
-    bool marked;
-    
-    static gc* all;
+    bool flag;
+    static gc* first;
   public:
-    inline gc() : next(all), marked(false) {
-      all = this;
+
+    inline gc() : next(first), flag(false) {
+      first = this;
     }
 
-    inline void mark() { marked = true; }
-    static void sweep(bool debug=false);    
+    inline void mark() { flag = true; }
+    inline bool marked() const { return flag; }
+
+    static void sweep(bool debug=false);
   };
   
   

@@ -37,7 +37,6 @@ make-node
 
 (def test1 (make-node 1 (make-leaf 2) (make-leaf 3)))
 (def test (make-node 10 test1 test1))
-
 ;; depth-first search
 (import list)
 (def (dfs (tree self) acc)

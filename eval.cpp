@@ -21,8 +21,8 @@ namespace eval {
 
   }
 
-  sum::sum(symbol tag, const value& data)
-    : tag(tag), data(data) { }
+  sum::sum(const value& data, symbol tag)
+    : value(data), tag(tag) { }
 
   closure::closure(state* env, std::vector<symbol> args, ast::expr body)
     : env(std::move(env)),
@@ -113,12 +113,6 @@ namespace eval {
 
   
 
-  // template<class T>
-  // static value eval(const ref<state>&, const T& ) {
-  //   throw std::logic_error("eval unimplemented: " + tool::type_name(typeid(T)));
-  // }
-
-  
   template<class T>
   static value eval(state*, const ast::lit<T>& self) {
     return self.value;
@@ -150,7 +144,7 @@ namespace eval {
     for(const auto& arg : self.args) {
       args.emplace_back(arg.name());
     }
-    
+
     return make_ref<closure>(e, std::move(args), *self.body);
   }
 
@@ -253,7 +247,7 @@ namespace eval {
   static value eval(state* e, const ast::inj& self) {
     const symbol tag = self.id.name;
     return builtin(1, [tag](const value* args) -> value {
-        return make_ref<sum>(tag, args[0]);
+        return make_ref<sum>(args[0], tag);
     });
   }
   
@@ -265,7 +259,7 @@ namespace eval {
     case module::coproduct: {
       assert(size(self.attrs) == 1);
       const auto& attr = self.attrs->head;
-      return make_ref<sum>(attr.id.name, eval(e, attr.value));
+      return make_ref<sum>(eval(e, attr.value), attr.id.name);
     }
     case module::list:
       assert(size(self.attrs) == 1);      
@@ -326,7 +320,7 @@ namespace eval {
             auto it = dispatch.find(self->tag);
             if(it != dispatch.end()) {
               auto sub = scope(e);
-              sub->def(it->second.first, self->data);
+              sub->def(it->second.first, *self);
               return eval(sub, it->second.second);
             } else {
               assert(fallback);
@@ -420,47 +414,50 @@ struct ostream_visitor {
 
   
   void operator()(const ref<sum>& self, std::ostream& out) const {
-    out << "<" << self->tag << ": " << self->data << ">";
+    out << "<" << self->tag << ": " << *self << ">";
   }
   
 };
 }
 
-std::ostream& operator<<(std::ostream& out, const value& self) {
-  self.visit(ostream_visitor(), out);
-  return out;
-}
+  std::ostream& operator<<(std::ostream& out, const value& self) {
+    self.visit(ostream_visitor(), out);
+    return out;
+  }
 
 
-  static void mark(state* e);
-  
-  static void mark(value& self) {
+  static void mark(const value& self, bool debug) {
     self.match([&](const value& ) { },
+               [&](const ref<record>& self) {
+                 for(const auto& it : *self) {
+                   mark(it.second, debug);
+                 }
+               },
+               [&](const ref<sum>& self) {
+                 mark(*self, debug);
+               },
                [&](const ref<closure>& self) {
-                 mark(self->env);
+                 mark(self->env, debug);
                });
   }
   
 
-  static void mark(state* e) {
+  void mark(state* e, bool debug) {
+    if(debug) std::clog << "marking:\t" << e << std::endl;
+    
+    if(e->marked()) return;
+    e->mark();
+    
     for(auto& it : e->locals) {
-      mark(it.second);
+      mark(it.second, debug);
     }
 
     if(e->parent) {
-      mark(e->parent);
+      mark(e->parent, debug);
     }
   }
 
-
   
-  // garbage collection
-  void collect(state* e, bool debug) {
-    mark(e);
-    gc::sweep(debug);
-  }
-
-
   value* state::find(symbol name)  {
     auto it = locals.find(name);
     if(it != locals.end()) return &it->second;

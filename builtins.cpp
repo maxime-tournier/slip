@@ -1,7 +1,7 @@
 #include "package.hpp"
 
 package package::builtins() {
-  package self;
+  package self("builtins");
   
   using namespace eval;
   

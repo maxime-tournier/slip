@@ -5,23 +5,23 @@
 
 namespace eval {
 
-  gc* gc::all = nullptr;
+  gc* gc::first = nullptr;
 
   void gc::sweep(bool debug) {
-    gc** it = &all;
+    gc** it = &first;
     while(*it) {
       if(debug) {
-        std::clog << "processing: " << *it << std::endl;
+        std::clog << "processing:\t" << *it << std::endl;
       }
-      if(!(*it)->marked) {
+      if(!(*it)->flag) {
         gc* obj = *it; assert(obj);
         *it = (*it)->next;
         if(debug) {
-          std::clog << "deleting: " << obj << std::endl;
+          std::clog << "deleting:\t" << obj << std::endl;
         }
         delete obj;
       } else {
-        (*it)->marked = false;
+        (*it)->flag = false;
         it = &(*it)->next;
       }
     }

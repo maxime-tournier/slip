@@ -71,11 +71,9 @@ namespace eval {
   };
 
 
-  struct sum {
-    sum(symbol tag, const value& data);
-    
-    symbol tag;
-    value data;
+  struct sum : value {
+    sum(const value& data, symbol tag);
+    const symbol tag;
   };
 
   
@@ -97,7 +95,7 @@ namespace eval {
   value eval(state* e, const ast::expr& expr);
 
   
-  void collect(state* e, bool debug=false);
+  void mark(state* e, bool debug=false);
   
 }
 

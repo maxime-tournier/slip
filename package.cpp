@@ -13,15 +13,15 @@ package& package::def(symbol name, type::mono t, eval::value v) {
 }
 
 
-package::package()
-  : ts(make_ref<type::state>()),
+package::package(symbol name)
+  : name(name),
+    ts(make_ref<type::state>()),
     es(new eval::state) {
-  // TODO setup core package
 }
 
 
 type::poly package::sig() const {
-  // TODO allow private members
+  // TODO don't expose _members
   using namespace type;
   mono res = empty;
   for(const auto& it : ts->vars->locals) {
@@ -32,6 +32,7 @@ type::poly package::sig() const {
 }
 
 eval::value package::dict() const {
+  // TODO don't expose _members  
   return make_ref<eval::record>(es->locals.begin(), es->locals.end());
 }
 
@@ -75,17 +76,26 @@ std::string package::resolve(symbol name) {
   throw std::runtime_error("package " + tool::quote(name.get()) + " not found");
 }
 
+
+static std::map<symbol, package> cache = {
+  {"builtins", package::builtins()}
+};
+
+const package* package::first = &cache.begin()->second;
+
+
 package package::import(symbol name) {
-  static std::map<symbol, package> cache = {
-    {"builtins", builtins()}
-  };
+  const auto it = cache.find(name);
+  if(it != cache.end()) return it->second;
   
-  const auto info = cache.emplace(name, package());
+  auto info = cache.emplace(name, name);
+
+  // chain imported packages
+  info.first->second.next = first;
+  first = &info.first->second;
   
-  if(info.second) {
-    const std::string filename = resolve(name);
-    info.first->second.exec(filename);
-  }
+  const std::string filename = resolve(name);
+  info.first->second.exec(filename);
   
   return info.first->second;
 }
