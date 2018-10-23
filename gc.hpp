@@ -1,6 +1,8 @@
 #ifndef SLIP_GC_HPP
 #define SLIP_GC_HPP
 
+// #include <iostream>
+
 namespace eval {
 
   class gc {
@@ -14,7 +16,7 @@ namespace eval {
     }
 
     inline void mark() { marked = true; }
-    static void sweep();    
+    static void sweep(bool debug=false);    
   };
   
   

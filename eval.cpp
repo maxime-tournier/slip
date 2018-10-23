@@ -397,7 +397,9 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
   
   static void mark(value& self) {
     self.match([&](const value& ) { },
-               [&](gc& self) { self.mark(); });
+               [&](gc* self) {
+                 self->mark();
+               });
   }
   
 

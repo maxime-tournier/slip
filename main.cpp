@@ -98,7 +98,7 @@ int main(int argc, const char** argv) {
   package main;
   main.ts->debug = options.flag("debug", false);
 
-  main.def("collect", type::unit >>= type::unit,
+  main.def("collect", type::unit >>= type::io(type::unit),
            eval::builtin(0, [&](const eval::value* ) -> eval::value {
              eval::collect(main.es);
              return unit();
