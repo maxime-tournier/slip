@@ -23,6 +23,13 @@ namespace eval {
 
   sum::sum(symbol tag, const value& data)
     : tag(tag), data(data) { }
+
+  closure::closure(ref<state> env, std::vector<symbol> args, ast::expr body)
+    : env(std::move(env)),
+      args(std::move(args)),
+      body(std::move(body)){
+    
+  }
   
   // apply a closure to argument range
   value apply(const value& self, const value* first, const value* last) {
@@ -32,7 +39,7 @@ namespace eval {
         throw std::runtime_error("type error in application");
       },
       [&](const builtin& self) { return self.argc; },
-      [&](const closure& self) { return self.args.size(); });
+      [&](const closure* self) { return self->args.size(); });
     
     if(argc < expected) {
       // unsaturated call: build wrapper
@@ -65,8 +72,8 @@ namespace eval {
       [&](const builtin& self) {
         return self.func(first);
       },
-      [&](const closure& self) {
-        return eval(augment(self.env, self.args, first, last), self.body);
+      [&](const closure* self) {
+        return eval(augment(self->env, self->args, first, last), self->body);
       });
   }
 
@@ -109,8 +116,7 @@ namespace eval {
       args.emplace_back(arg.name());
     }
     
-    // TODO ref cycle if lambda gets named!
-    return closure{e, std::move(args), *self.body};
+    return new closure{e, std::move(args), *self.body};
   }
 
   
@@ -338,7 +344,7 @@ struct ostream_visitor {
   }
 
 
-  void operator()(const closure& self, std::ostream& out) const {
+  void operator()(const closure* self, std::ostream& out) const {
 	out << "#<closure>";
   }
   
@@ -406,7 +412,12 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
                  for(auto& it : self->attrs) {
                    mark(it.second);
                  }
+               },
+               [&](closure* self) {
+                 self->mark();
+                 // TODO keep the whole env alive?
                }, 
+               
                [&](gc* self) {
                  self->mark();
                });
@@ -422,6 +433,7 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
       mark(e->parent);
     }
   }
+
 
   
   // garbage collection

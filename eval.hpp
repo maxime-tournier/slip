@@ -38,11 +38,11 @@ namespace eval {
 
     template<class Ret, class ... Args>
     builtin(Ret (*impl) (const Args&...));
-    
   };
   
 
-  struct closure {
+  struct closure : gc {
+    closure(ref<state> env, std::vector<symbol> args, ast::expr body);
     ref<state> env;
     std::vector<symbol> args;
     ast::expr body;
@@ -59,7 +59,9 @@ namespace eval {
 
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, builtin, record*, sum*, module> {
+                         builtin,
+                         closure*, record*, sum*,
+                         module> {
     using value::variant::variant;
     using list = list<value>;
 

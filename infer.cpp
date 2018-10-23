@@ -206,22 +206,30 @@ namespace type {
   
   // abs
   static mono infer(const ref<state>& s, const ast::abs& self) {
+    using arg = ast::abs::arg;
+    static const arg::list nullary =
+      arg{ast::var{ast::kw::wildcard}} >>= arg::list();
 
+    // adapt nullary applications
+    const arg::list args = self.args ? self.args : nullary;
+    
     // function scope
-    const auto sub = function_scope(s, self.args);
-
+    const auto sub = function_scope(s, args);
+    
     const mono result = s->fresh();    
-    const mono sig = foldr(result, self.args, [&](auto arg, mono rhs) {
+    const mono sig = foldr(result, args, [&](auto arg, mono rhs) {
         const mono type = s->instantiate(sub->vars->find(arg.name()));
         return type >>= rhs;
       });
+
+    // adapt nullary applications
+    if(args == nullary) {
+      sub->unify(sub->instantiate(sub->vars->find(ast::kw::wildcard)), unit);
+    }
     
     // infer lambda body with augmented environment
     s->unify(result, infer(sub, *self.body));
 
-
-    // TODO not quite sure about this
-    
     return sig;
   }
   

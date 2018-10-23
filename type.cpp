@@ -134,10 +134,10 @@ namespace type {
       if(!index) return;
     }
   }
+
   
   struct ostream_visitor {
-    using type = void;
-
+    
     using map_type = std::map<ref<variable>, std::size_t>;
     map_type& map;
 
@@ -147,8 +147,6 @@ namespace type {
                     const poly::forall_type& forall, bool parens) const {
       out << self->name;
     }
-
-    
 
     
     void operator()(const ref<variable>& self, std::ostream& out,
