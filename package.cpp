@@ -7,7 +7,7 @@
 
 package& package::def(symbol name, type::mono t, eval::value v) {
   ts->def(name, t);
-  es->def(name, v);
+  es->locals.emplace(name, v);
 
   return *this;
 }
@@ -15,7 +15,7 @@ package& package::def(symbol name, type::mono t, eval::value v) {
 
 package::package()
   : ts(make_ref<type::state>()),
-    es(make_ref<eval::state>()) {
+    es(new eval::state) {
   // TODO setup core package
 }
 
@@ -32,13 +32,7 @@ type::poly package::sig() const {
 }
 
 eval::value package::dict() const {
-  auto result = new eval::record;
-
-  for(const auto& it : es->locals) {
-    result->attrs.emplace(it.first, it.second);
-  }
-
-  return result;
+  return make_ref<eval::record>(es->locals.begin(), es->locals.end());
 }
 
 

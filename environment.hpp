@@ -25,25 +25,6 @@ struct environment {
     return make_ref<Derived>(self);
   }
   
-  template<class Derived, class Symbols, class Iterator>
-  friend ref<Derived> augment(const ref<Derived>& self,
-                              const Symbols& symbols,
-                              Iterator first, Iterator last) {
-    auto res = scope(self);
-    res->parent = self;
-
-    Iterator it = first;
-    for(const symbol& s : symbols) {
-      if(it == last) throw std::runtime_error("not enough values");
-      res->locals.emplace(s, *it++);
-    }
-    
-    if(it != last) {
-      throw std::runtime_error("too many values");
-    }
-    
-    return res;
-  }
 
   T& find(const symbol& s) {
     auto it = locals.find(s);

@@ -14,17 +14,19 @@
 namespace eval {
 
   struct value;
-
   
-  struct state : environment<value> {
-    using state::environment::environment;
-  };
+  struct state : gc {
+    state* parent;
+    std::map<symbol, value> locals;
 
+    value* find(symbol name);
+    friend state* scope(state* self);
+    state(state* parent=nullptr);
+
+    void def(symbol name, const value&);
+  };
   
-  struct record : gc {
-    std::map<symbol, value> attrs;
-  };
-
+  using record = std::map<symbol, value>;
   
   struct sum;
   
@@ -41,11 +43,11 @@ namespace eval {
   };
   
 
-  struct closure : gc {
-    closure(ref<state> env, std::vector<symbol> args, ast::expr body);
-    ref<state> env;
-    std::vector<symbol> args;
-    ast::expr body;
+  struct closure {
+    closure(state* env, std::vector<symbol> args, ast::expr body);
+    state* env;                 // TODO const?
+    const std::vector<symbol> args;
+    const ast::expr body;
   };
 
   
@@ -60,7 +62,7 @@ namespace eval {
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
                          builtin,
-                         closure*, record*, sum*,
+                         ref<closure>, ref<record>, ref<sum>,
                          module> {
     using value::variant::variant;
     using list = list<value>;
@@ -69,7 +71,7 @@ namespace eval {
   };
 
 
-  struct sum : gc {
+  struct sum {
     sum(symbol tag, const value& data);
     
     symbol tag;
@@ -92,10 +94,10 @@ namespace eval {
 
 
   value apply(const value& func, const value* first, const value* last);
-  value eval(const ref<state>& e, const ast::expr& expr);
+  value eval(state* e, const ast::expr& expr);
 
   
-  void collect(const ref<state>& e, bool debug=false);
+  void collect(state* e, bool debug=false);
   
 }
 

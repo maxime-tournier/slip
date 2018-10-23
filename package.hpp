@@ -8,7 +8,7 @@
 // TODO rename? 
 struct package {
   const ref<type::state> ts;
-  const ref<eval::state> es;
+  eval::state* es;
   
   package& def(symbol name, type::mono t, eval::value v);
 
