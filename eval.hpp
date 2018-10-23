@@ -26,12 +26,7 @@ namespace eval {
   };
 
   
-  struct sum {
-    symbol tag;
-    ref<value> data;
-    sum(symbol tag, const value& self);
-  };
-
+  struct sum;
   
   struct builtin {
     using func_type = std::function<value(const value* args)>;
@@ -64,11 +59,19 @@ namespace eval {
 
   
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
-                         closure, builtin, record*, sum, module> {
+                         closure, builtin, record*, sum*, module> {
     using value::variant::variant;
     using list = list<value>;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);
+  };
+
+
+  struct sum : gc {
+    sum(symbol tag, const value& data);
+    
+    symbol tag;
+    value data;
   };
 
   
@@ -90,7 +93,7 @@ namespace eval {
   value eval(const ref<state>& e, const ast::expr& expr);
 
   
-  void collect(const ref<state>& e);
+  void collect(const ref<state>& e, bool debug=false);
   
 }
 

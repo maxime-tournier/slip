@@ -87,7 +87,8 @@ int main(int argc, const char** argv) {
 
   using namespace argparse;
   const auto parser = argparse::parser
-    (flag("debug") |
+    (flag("debug-gc") |
+     flag("debug-tc") |
      flag("ast") |
      flag("verbose") |
      argument<std::string>("filename"))
@@ -96,11 +97,11 @@ int main(int argc, const char** argv) {
   const auto options = parser.parse(argc, argv);
 
   package main;
-  main.ts->debug = options.flag("debug", false);
+  main.ts->debug = options.flag("debug-tc", false);
 
   main.def("collect", type::unit >>= type::io(type::unit),
            eval::builtin(0, [&](const eval::value* ) -> eval::value {
-             eval::collect(main.es);
+             eval::collect(main.es, options.flag("debug-gc", false));
              return unit();
            }));
   

@@ -22,7 +22,7 @@ namespace eval {
   }
 
   sum::sum(symbol tag, const value& data)
-    : tag(tag), data(make_ref<value>(data)) { }
+    : tag(tag), data(data) { }
   
   // apply a closure to argument range
   value apply(const value& self, const value* first, const value* last) {
@@ -214,8 +214,8 @@ namespace eval {
   static value eval(const ref<state>& e, const ast::inj& self) {
     const symbol tag = self.id.name;
     return builtin(1, [tag](const value* args) -> value {
-        return sum(tag, args[0]);
-      });
+      return new sum{tag, args[0]};
+    });
   }
   
 
@@ -226,7 +226,7 @@ namespace eval {
     case module::coproduct: {
       assert(size(self.attrs) == 1);
       const auto& attr = self.attrs->head;
-      return sum(attr.id.name, eval(e, attr.value));
+      return new sum{attr.id.name, eval(e, attr.value)};
     }
     case module::list:
       assert(size(self.attrs) == 1);      
@@ -283,11 +283,11 @@ namespace eval {
               return eval(e, *fallback);
             }
           },
-          [&](const sum& self) {
-            auto it = dispatch.find(self.tag);
+          [&](const sum* self) {
+            auto it = dispatch.find(self->tag);
             if(it != dispatch.end()) {
               auto sub = scope(e);
-              sub->def(it->second.first, *self.data);
+              sub->def(it->second.first, self->data);
               return eval(sub, it->second.second);
             } else {
               assert(fallback);
@@ -380,8 +380,8 @@ struct ostream_visitor {
   }
 
   
-  void operator()(const sum& self, std::ostream& out) const {
-    out << "<" << self.tag << ": " << *self.data << ">";
+  void operator()(const sum* self, std::ostream& out) const {
+    out << "<" << self->tag << ": " << self->data << ">";
   }
   
 };
@@ -397,6 +397,16 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
   
   static void mark(value& self) {
     self.match([&](const value& ) { },
+               [&](sum* self) {
+                 self->mark();
+                 mark(self->data);
+               },
+               [&](record* self) {
+                 self->mark();
+                 for(auto& it : self->attrs) {
+                   mark(it.second);
+                 }
+               }, 
                [&](gc* self) {
                  self->mark();
                });
@@ -415,9 +425,9 @@ std::ostream& operator<<(std::ostream& out, const value& self) {
 
   
   // garbage collection
-  void collect(const ref<state>& e) {
+  void collect(const ref<state>& e, bool debug) {
     mark(e);
-    gc::sweep();
+    gc::sweep(debug);
   }
 
   

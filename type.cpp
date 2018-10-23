@@ -125,6 +125,15 @@ namespace type {
       });
   }
 
+
+  static void write_var(std::ostream& out, std::size_t index) {
+    static constexpr std::size_t basis = 26;
+    while(true) {
+      out << char('a' + (index % basis));
+      index /= basis;
+      if(!index) return;
+    }
+  }
   
   struct ostream_visitor {
     using type = void;
@@ -139,6 +148,9 @@ namespace type {
       out << self->name;
     }
 
+    
+
+    
     void operator()(const ref<variable>& self, std::ostream& out,
                     const poly::forall_type& forall, bool parens) const {
       auto it = map.emplace(self, map.size()).first;
@@ -148,7 +160,7 @@ namespace type {
         bound_kind(out, self->kind);        
       }
     
-      out << char('a' + it->second);
+      write_var(out, it->second);
 
       if(show_variable_kinds) {
         out << "("
