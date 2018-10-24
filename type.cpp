@@ -33,8 +33,13 @@ namespace type {
   const mono func =
     make_constant("->", kind::term() >>= kind::term() >>= kind::term());
 
+  // state
   const mono io =
-    make_constant("io", kind::term() >>= kind::term());
+    make_constant("io", kind::term() >>= kind::term() >>= kind::term());
+
+  const mono mut =
+    make_constant("mut", kind::term() >>= kind::term());
+
   
   // records
   const mono record =
@@ -104,7 +109,7 @@ namespace type {
   
   constant::constant(symbol name, ::kind::any k) : name(name), kind(k) { }
 
-
+ 
   static void quantified_kind(std::ostream& out, kind::any k) {
     k.match([&](kind::constant self) {
         out << (k == kind::term() ? "'" : k == kind::row() ? "..." : "?");
@@ -403,15 +408,19 @@ namespace type {
     ostream_visitor::map_type map;
   };
 
+  
   logger::logger(std::ostream& out) :
     out(out), pimpl(new pimpl_type) { }
 
+  
   logger::~logger() { }
+
   
   logger& logger::operator<<(const poly& p) {
     p.type.visit(ostream_visitor{pimpl->map}, out, p.forall, false);
     return *this;
   }
+  
 
   logger& logger::operator<<(std::ostream& (*x)(std::ostream&)) {
     out << x;

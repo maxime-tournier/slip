@@ -71,6 +71,30 @@ namespace type {
       }).cast<ast::app>();
   }
 
+  // rewrite sequences
+  static ast::expr rewrite(const ast::seq& self) {
+
+    static const ast::var bind = {">>="};
+    static const ast::var pure = {"pure"};
+    static const ast::var result = {"result"};    
+    
+    static const auto make_func = [](ast::var name, ast::app value) {
+      const ast::abs func = {ast::abs::arg{name} >>= ast::abs::arg::list(), value};
+      return ast::expr(func);
+    };
+
+    static const auto make_bind = [](ast::bind self, ast::app rest) {
+      return ast::app{bind, self.value >>= make_func(self.id, rest) >>= ast::expr::list()};
+    };
+
+    static const auto make_pure = [](ast::expr value) {
+      return ast::app{pure, value >>= ast::expr::list()};
+    };
+    
+    throw std::logic_error("unimplemented");
+  }
+
+  
 
   
   // reconstruct actual type from reified type: ... -> (type 'a) yields 'a
@@ -517,7 +541,8 @@ namespace type {
       infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(), self.id));
     
     s->def(self.id.name, value);
-    return io(unit);
+    const mono a = s->fresh();
+    return io(a)(unit);
   }
 
 
@@ -535,8 +560,9 @@ namespace type {
         s->def(attr, t);
         return true;
       });
-    
-    return io(unit);
+
+    const mono a = s->fresh();
+    return io(a)(unit);
   }
 
 
@@ -555,8 +581,9 @@ namespace type {
 
     // import module signatures
     s->sigs->insert(pkg.ts->sigs->begin(), pkg.ts->sigs->end());
-    
-    return io(unit);
+
+    const mono a = s->fresh();
+    return io(a)(unit);
   }
 
 

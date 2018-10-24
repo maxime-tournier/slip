@@ -116,14 +116,16 @@ namespace type {
   };
 
 
-  // constants
+  // constructors for literals
   const extern mono unit, boolean, integer, real;
 
-  // constructors
-  const extern mono func, io;
+  // higher kinded constructors
+  const extern mono func;
+  const extern mono io, mut;
+  
   const extern mono record, sum, empty;
 
-  // type as value reification
+  // reified type constructor
   const extern mono ty;
   
   mono ext(symbol attr);

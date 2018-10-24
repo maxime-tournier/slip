@@ -112,12 +112,15 @@ int main(int argc, const char** argv) {
     // and sweep
     eval::gc::sweep(debug);
   };
-  
-  main.def("collect", type::unit >>= type::io(type::unit),
-           eval::builtin(0, [&](const eval::value* ) -> eval::value {
-               collect();
-               return unit();
-             }));
+
+  {
+    const type::mono a = main.ts->fresh();
+    main.def("collect", type::unit >>= type::io(a)(type::unit),
+             eval::builtin(0, [&](const eval::value* ) -> eval::value {
+                 collect();
+                 return unit();
+               }));
+  }
   
   static const auto handler =
     [&](std::istream& in) {

@@ -63,7 +63,8 @@ namespace eval {
   struct value : variant<unit, real, integer, boolean, symbol, list<value>,
                          builtin,
                          ref<closure>, ref<record>, ref<sum>,
-                         module> {
+                         module,
+                         ref<value>> {
     using value::variant::variant;
     using list = list<value>;
 

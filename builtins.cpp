@@ -132,6 +132,42 @@ package package::builtins() {
     
   }
 
+
+  // io
+  const mono world = make_ref<type::constant>("world", kind::term());
+
+  {
+    const mono a = self.ts->fresh();
+    const mono b = self.ts->fresh();    
+
+    self.def("ref", b >>= type::io(a)(type::mut(b)),
+             eval::builtin(1, [](const eval::value* args) -> value {
+                 return make_ref<value>(args[0]);
+               }));
+  }
+
+  {
+    const mono a = self.ts->fresh();
+    const mono b = self.ts->fresh();    
+
+    self.def("get", type::mut(b) >>= type::io(a)(b),
+             eval::builtin(1, [](const eval::value* args) -> value {
+                 return *args[0].cast<ref<value>>();
+               }));
+  }
+
+  {
+    const mono a = self.ts->fresh();
+    const mono b = self.ts->fresh();    
+ 
+    self.def("set", type::mut(b) >>= b >>= type::io(a)(type::unit),
+             eval::builtin(2, [](const eval::value* args) -> value {
+                 *args[0].cast<ref<value>>() = args[1];
+                 return unit();
+               }));
+  }
+  
+
   return self;
 }
   

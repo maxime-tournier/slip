@@ -355,7 +355,10 @@ namespace {
   
 struct ostream_visitor {
   
-
+  void operator()(const ref<value>& self, std::ostream& out) const {
+    out << "#mut<" << *self << ">";
+  }
+  
   void operator()(const module& self, std::ostream& out) const {
     out << "#<module>";
   }

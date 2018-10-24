@@ -7,7 +7,7 @@ namespace kind {
   // constants
   any term() { return constant{"*"}; }
   any row() { return constant{"..."}; }  
-
+  
   any operator>>=(any from, any to) {
     return constructor{make_ref<any>(from), make_ref<any>(to)};
   }
