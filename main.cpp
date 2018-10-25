@@ -88,7 +88,7 @@ int main(int argc, const char** argv) {
   const auto parser = argparse::parser
     (flag("debug-gc") |
      flag("debug-tc") |
-     flag("ast") |
+     flag("debug-ast") |
      flag("verbose") |
      argument<std::string>("filename"))
     ;
@@ -126,7 +126,7 @@ int main(int argc, const char** argv) {
     [&](std::istream& in) {
     try {
       ast::expr::iter(in, [&](ast::expr e) {
-          if(options.flag("ast", false)) {
+          if(options.flag("debug-ast", false)) {
             std::cout << "ast: " << e << std::endl;
           }
           main.exec(e, [&](type::poly p, eval::value v) {
