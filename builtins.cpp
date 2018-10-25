@@ -166,8 +166,17 @@ package package::builtins() {
                  return unit();
                }));
   }
-  
 
+
+  {
+    const mono a = self.ts->fresh();
+    const mono t = self.ts->fresh();
+    self.def("pure", a >>= type::io(t)(a),
+             eval::builtin(1, [](const eval::value* args) {
+               return args[0];
+             }));
+  }
+  
   return self;
 }
   

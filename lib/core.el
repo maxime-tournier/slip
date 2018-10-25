@@ -22,3 +22,5 @@
 (def ref builtins.ref)
 (def get builtins.get)
 (def set builtins.set)
+
+(def pure builtins.pure)

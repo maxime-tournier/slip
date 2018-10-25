@@ -161,10 +161,15 @@ namespace eval {
   
 
   static value eval(state* e, const ast::seq& self) {
+    auto sub = scope(e);
+    
     const value init = unit();
-    return foldl(init, self.items, [&](const value&, const ast::io& self) {
-        return eval(e, self);
+    foldl(init, self.items, [&](const value&, const ast::io& self) {
+        return eval(sub, self);
       });
+
+    // return
+    return eval(sub, *self.last);
   }
 
 

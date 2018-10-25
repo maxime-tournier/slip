@@ -31,6 +31,9 @@ namespace ast {
 
   def::def(var id, const expr& value) : id(id), value(make_expr(value)) { }
 
+  seq::seq(const list<io>& items, const expr& last)
+    : items(items),
+      last(make_expr(last)) { }
   
   static const symbol arrow = "->";
   
@@ -170,6 +173,7 @@ namespace ast {
       return {};
     });
 
+  
   // check let-bindings
   static const auto check_let = pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
     return lift(check_bindings(bindings)) >> [](list<bind> defs) {
@@ -212,8 +216,18 @@ namespace ast {
 
   // check sequences
   static slice<expr> check_seq(sexpr::list args) {
-    const expr res = seq{map(args, io::check)};
-    return {res, nullptr};
+    if(const list<io> items = map(args, io::check)) {
+    
+      const list<io> rev = reverse(items);
+      const io last = rev->head;
+      
+      if(auto e = last.get<expr>()) {
+        const expr res = seq{reverse(rev->tail), *e};
+        return {res, nullptr};
+      }
+    }    
+
+    return {{}, nullptr};
   }
 
 

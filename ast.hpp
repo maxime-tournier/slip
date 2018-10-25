@@ -138,6 +138,9 @@ namespace ast {
   
   struct seq {
     const list<io> items;
+    const ref<expr> last;
+    
+    seq(const list<io>& items, const expr& last);
   };
 
   // unpack a record into the environment
@@ -219,6 +222,7 @@ namespace ast {
     const var id;
     const expr value;
   };
+
   
   // stateful computations
   struct io : variant<bind, expr>{

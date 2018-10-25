@@ -72,26 +72,37 @@ namespace type {
   }
 
   // rewrite sequences
+  static const symbol bind_name = "__>>=__";
+  
   static ast::expr rewrite(const ast::seq& self) {
 
-    static const ast::var bind = {">>="};
-    static const ast::var pure = {"pure"};
-    static const ast::var result = {"result"};    
+    static const ast::var bind = {bind_name};
     
-    static const auto make_func = [](ast::var name, ast::app value) {
+    static const auto make_func = [](ast::var name, ast::expr value) {
       const ast::abs func = {ast::abs::arg{name} >>= ast::abs::arg::list(), value};
       return ast::expr(func);
     };
 
-    static const auto make_bind = [](ast::bind self, ast::app rest) {
-      return ast::app{bind, self.value >>= make_func(self.id, rest) >>= ast::expr::list()};
+    
+    static const auto make_bind = [](ast::bind self, ast::expr rest) {
+      return ast::app{bind, self.value >>= make_func(self.id, rest)
+          >>= ast::expr::list()};
     };
 
-    static const auto make_pure = [](ast::expr value) {
-      return ast::app{pure, value >>= ast::expr::list()};
+    
+    static const auto make_then = [](ast::expr value, ast::expr rest) {
+      return make_bind(ast::bind{{ast::kw::wildcard}, value}, rest);
     };
     
-    throw std::logic_error("unimplemented");
+
+    return foldr(*self.last, self.items, [&](ast::io step, ast::expr rest) {
+      return step.match([&](const ast::bind& self) -> ast::expr {
+        return make_bind(self, rest);
+      }, [&](const ast::expr& self) -> ast::expr {
+        return make_then(self, rest);
+      });
+    });
+    
   }
 
   
@@ -678,6 +689,18 @@ namespace type {
   }
 
 
+  // do notation
+  static mono infer(const ref<state>& s, const ast::seq& self) {
+    auto sub = scope(s);
+    mono a = sub->fresh();
+    mono b = sub->fresh();
+    mono t = sub->fresh();
+    
+    sub->def(bind_name, io(t)(a) >>= (a >>= io(t)(b)) >>= io(t)(b));
+    
+    return infer(sub, rewrite(self));
+  }
+  
   
   // lit
   static mono infer(const ref<state>&, const ast::lit<::unit>& self) {
