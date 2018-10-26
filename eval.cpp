@@ -14,6 +14,11 @@ namespace eval {
   const symbol head = "head";
   const symbol tail = "tail";    
 
+
+  template<class T>
+  static value eval(state* env, const T& ) {
+    static_assert(sizeof(T) == 0, "eval implemented");
+  }
   
   builtin::builtin(std::size_t argc, func_type func)
     : func(func),
@@ -148,6 +153,13 @@ namespace eval {
     return make_ref<closure>(e, std::move(args), *self.body);
   }
 
+
+  static value eval(state* e, const ast::bind& self) {
+    auto it = e->locals.emplace(self.id.name, eval(e, self.value)); (void) it;
+    assert(it.second && "redefined variable");
+    return unit();
+  }
+  
   
   static value eval(state* e, const ast::io& self) {
     return self.match([&](const ast::expr& self) {
@@ -184,6 +196,7 @@ namespace eval {
   }
 
   
+  
   static value eval(state* e, const ast::def& self) {
     auto it = e->locals.emplace(self.id.name, eval(e, *self.value)); (void) it;
     assert(it.second && "redefined variable");
@@ -211,11 +224,7 @@ namespace eval {
   }
 
 				   
-  
 
-  // static value eval(state* e, const ast::expr& self) {
-  //   return self.visit(expr_visitor(), e);
-  // }
 
   static value eval(state* e, const ast::record& self) {
     auto res = make_ref<record>();
