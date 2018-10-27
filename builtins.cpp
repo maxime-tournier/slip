@@ -181,6 +181,14 @@ package package::builtins() {
   }
 
 
+  // strings
+  self.def("print", type::string >>= type::io(world)(type::unit),
+           eval::builtin(+[](const ref<string>& self) {
+             std::cout << *self;
+             return unit();
+           }));
+
+
   return self;
 }
   

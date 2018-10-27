@@ -14,8 +14,6 @@ static int matches(int x) {
   return false;
 }
 
-static int all(int x) { return true; }
-
 
 const char selection_prefix = '.';
 const char injection_prefix = '|';    
@@ -118,7 +116,16 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
   static const auto backslash = chr<matches<'\\'>>();
   static const auto quote = chr<matches<'"'>>();
 
-  static const auto escaped = noskip(backslash >> then(chr<all>()));
+  static const auto escaped =
+    noskip(backslash >> then(chr<matches<'\\', 'n', '"', 't'>>() >> [](char c) {
+      switch(c) {
+      case 'n': return pure('\n');
+      case 't': return pure('\t');
+      case '"': return pure('"');
+      case '\\': return pure('\\');        
+      default: return pure(char(0));
+      }
+    }));
   
   static const auto string_parser =
     quote >> then(noskip( *(escaped | !quote) >>

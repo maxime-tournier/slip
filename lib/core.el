@@ -24,3 +24,7 @@
 (def set builtins.set)
 
 (def pure builtins.pure)
+
+
+;; strings
+(def print builtins.print)
