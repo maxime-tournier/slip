@@ -1,5 +1,5 @@
 (import core)
-(use core)
+(using core)
 
 (def (push x value)
      (do (bind y x)

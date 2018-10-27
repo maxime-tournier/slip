@@ -388,7 +388,7 @@ namespace ast {
       match("match"),
       make("new"),
       bind("bind"),
-      use("use"),
+      use("using"),
       import("import"),
 
       product("struct"),

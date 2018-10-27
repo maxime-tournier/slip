@@ -1,5 +1,5 @@
 (import core)
-(use core)
+(using core)
 
 (def (fib n)
      (if (= n 0) 0

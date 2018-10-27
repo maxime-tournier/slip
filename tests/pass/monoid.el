@@ -1,5 +1,5 @@
 (import core)
-(use core)
+(using core)
 
 ;; monoid module definition
 (struct (monoid a)

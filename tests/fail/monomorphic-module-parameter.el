@@ -1,5 +1,5 @@
 (import core)
-(use core.list)
+(using core.list)
 
 (def fst (fn (x y) x))
 

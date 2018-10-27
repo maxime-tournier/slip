@@ -1,6 +1,6 @@
 ;; 
 (import builtins)
-(use builtins)
+(using builtins)
 
 ;; no "hello word (yet) sorry :/"
 

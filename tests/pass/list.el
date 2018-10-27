@@ -1,5 +1,5 @@
 (import core)
-(use core)
+(using core)
 
 ;; build a list containing an integer range
 (def (range start end)
