@@ -4,6 +4,7 @@
 
 #include "substitution.hpp"
 #include "repr.hpp"
+#include "unify.hpp"
 
 #include <sstream>
 
@@ -358,6 +359,7 @@ namespace type {
         const mono t = s->fresh();
         const mono a = s->fresh();
         s->unify(io(t)(a), self);
+        
         std::stringstream ss;
         ss << "definition of " << tool::quote(def.id.name.get())
            << " to a non-value of type: " << tool::show(s->generalize(self));
@@ -729,16 +731,29 @@ namespace type {
     // generalization check: t should substitute to a variable that is
     // quantified in p
     const mono ts = s->sub->substitute(t);
-    if(auto v = ts.get<var>()) {
-      auto it = p.forall.find(*v);
-      if(it != p.forall.end()) {
-        // all good: t is quantified
-        return a;
+
+    try {
+      if(auto v = ts.get<var>()) {
+        auto it = p.forall.find(*v);
+        if(it != p.forall.end()) {
+          // all good: t is quantified
+          try {
+            occurs_check(s.get(), *v, s->sub->substitute(a));
+          } catch(error& e) {
+            throw error("computation state leak");
+          }
+          return a;
+        }
       }
+      throw error("computation involves external state");
+    } catch(error&) {
+      std::stringstream ss;
+      ss << "computation has observable side-effects: "
+         << tool::show(s->generalize(value));
+      
+      std::throw_with_nested(error(ss.str()));
     }
-    std::stringstream ss;
-    ss << "unsafe io escape: " << tool::show(s->generalize(value));
-    throw error(ss.str());
+    
   };
   
   

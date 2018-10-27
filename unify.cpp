@@ -9,7 +9,6 @@ namespace type {
 
 
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
-  static void occurs_check(state* self, var v, mono t);
   static void link(substitution* self, const var& from, const mono& to);
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
   static void upgrade(state* self, mono t, std::size_t level, logger* log);
@@ -61,14 +60,14 @@ namespace type {
     }
   };
   
-  static void occurs_check(state* self, var v, mono t) {
+  void occurs_check(state* self, var v, mono t) {
     if(mono(v) == t) return;
     
     if(t.visit(occurs_visitor(), v)) {
       std::stringstream ss;
       
-      logger(ss) << "type variable " << self->generalize(v)
-                 << " occurs in type " << self->generalize(t);
+      logger(ss) << "type variable: " << tool::show(self->generalize(v))
+                 << " occurs in type: " << tool::show(self->generalize(t));
       
       throw error(ss.str());
     }

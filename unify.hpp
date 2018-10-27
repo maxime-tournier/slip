@@ -10,6 +10,9 @@ namespace type {
   
   void unify_rows(state* self, substitution sub,
                   const app& from, const app& to, logger* log=nullptr);
+
+  // TODO move to type?
+  void occurs_check(state* self, var v, mono t);
   
 }
 
