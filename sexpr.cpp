@@ -14,6 +14,8 @@ static int matches(int x) {
   return false;
 }
 
+static int all(int x) { return true; }
+
 
 const char selection_prefix = '.';
 const char injection_prefix = '|';    
@@ -113,6 +115,17 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
       };
     };
   
+  static const auto backslash = chr<matches<'\\'>>();
+  static const auto quote = chr<matches<'"'>>();
+
+  static const auto escaped = noskip(backslash >> then(chr<all>()));
+  
+  static const auto string_parser =
+    quote >> then(noskip( *(escaped | !quote) >>
+                          [](std::deque<char> data) {
+                            return pure(string(data.begin(), data.end()));
+                          }
+                          >> drop(quote)));
   
   static auto expr_parser = any<sexpr>();
 
@@ -139,6 +152,7 @@ maybe<sexpr> sexpr::parse(std::istream& in) {
            | (selection_parser >> as_expr)
            | (injection_parser >> as_expr)           
            | (op_parser >> as_expr)
+           | (string_parser >> as_expr)           
            | number_parser
            | (list_parser >> as_expr))
       , 0); (void) once;

@@ -8,7 +8,7 @@ class symbol {
   const char* name;
 public:
   
-  symbol(const std::string& name);
+  explicit symbol(const std::string& name);
   symbol(const char* name) : symbol(std::string(name)) { }
 
   inline const char* get() const { return name; }

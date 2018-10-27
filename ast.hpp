@@ -170,6 +170,7 @@ namespace ast {
                         lit<boolean>,
                         lit<integer>,
                         lit<real>,
+                        lit<string>,
                         var, abs, app, let,
                         cond,
                         record, sel,

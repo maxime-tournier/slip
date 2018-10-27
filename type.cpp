@@ -28,6 +28,7 @@ namespace type {
   const mono boolean = make_constant("boolean");
   const mono integer = make_constant("integer");
   const mono real = make_constant("real");
+  const mono string = make_constant("string");  
   
 
   const mono func =

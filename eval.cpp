@@ -123,6 +123,10 @@ namespace eval {
     return self.value;
   }
 
+  static value eval(state*, const ast::lit<string>& self) {
+    return make_ref<string>(self.value);
+  }
+
 
   static value eval(state* e, const ast::var& self) {
     auto res = e->find(self.name); assert(res);
@@ -381,6 +385,10 @@ struct ostream_visitor {
     out << "#<module>";
   }
 
+
+  void operator()(const ref<string>& self, std::ostream& out) const {
+    out << '"' << *self << '"';
+  }
   
   void operator()(const symbol& self, std::ostream& out) const {
     out << self;

@@ -11,7 +11,7 @@
 #include "maybe.hpp"
 
 // s-expressions
-struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
+struct sexpr : variant<real, integer, boolean, symbol, string, list<sexpr> > {
   using sexpr::variant::variant;
   using list = list<sexpr>;
 
@@ -22,6 +22,7 @@ struct sexpr : variant<real, integer, boolean, symbol, list<sexpr> > {
   };
 
   static void iter(std::istream& in, std::function<void(sexpr)> cont);
+
 };
 
 const extern char selection_prefix, injection_prefix;

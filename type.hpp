@@ -123,7 +123,7 @@ namespace type {
 
 
   // constructors for literals
-  const extern mono unit, boolean, integer, real;
+  const extern mono unit, boolean, integer, real, string;
 
   // higher kinded constructors
   const extern mono func;

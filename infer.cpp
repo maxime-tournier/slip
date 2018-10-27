@@ -777,6 +777,10 @@ namespace type {
     return real;
   }
 
+  static mono infer(const ref<state>&, const ast::lit<::string>& self) {
+    return string;
+  }
+  
   
 
   ////////////////////////////////////////////////////////////////////////////////

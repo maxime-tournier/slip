@@ -458,7 +458,7 @@ namespace ast {
     if(s.get()[0] == selection_prefix) {
       const std::string name = std::string(s.get()).substr(1);
       if(name.empty()) throw error("empty attribute name");
-      return sel{check_var(name)};
+      return sel{check_var(symbol(name))};
     }
 
 
@@ -466,7 +466,7 @@ namespace ast {
     if(s.get()[0] == injection_prefix) {
       const std::string name = std::string(s.get()).substr(1);
       if(name.empty()) throw error("empty case name");
-      return inj{check_var(name)};
+      return inj{check_var(symbol(name))};
     }
     
     
@@ -494,6 +494,7 @@ namespace ast {
     return e.match([](boolean b) -> expr { return make_lit(b); },
                    [](integer i) -> expr { return make_lit(i); },
                    [](real r) -> expr { return make_lit(r); },
+                   [](string s) -> expr { return make_lit(s); },
                    [](symbol s) -> expr {
                      return check_symbol(s);
                    },

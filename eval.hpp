@@ -60,7 +60,8 @@ namespace eval {
   };
 
   
-  struct value : variant<unit, real, integer, boolean, symbol, list<value>,
+  struct value : variant<unit, real, integer, boolean, symbol,
+                         ref<string>, list<value>,
                          builtin,
                          ref<closure>, ref<record>, ref<sum>,
                          module,

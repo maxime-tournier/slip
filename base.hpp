@@ -1,7 +1,8 @@
-#ifndef SLAP_BASE_HPP
-#define SLAP_BASE_HPP
+#ifndef SLIP_BASE_HPP
+#define SLIP_BASE_HPP
 
 #include <iosfwd>
+#include <string>
 
 // base types
 struct unit { };
@@ -10,6 +11,6 @@ using boolean = bool;
 using integer = long;
 using real = double;
 
-// TODO add string?
+using string = std::string;
 
 #endif
