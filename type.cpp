@@ -392,11 +392,12 @@ namespace type {
 
 
 
-  void state::unify(mono from, mono to) {
-    logger log(std::clog);
-
+  void state::unify(mono from, mono to, logger* outer) {
+    logger mine(std::clog);
+    logger* log = outer ? outer : &mine;
+    
     const ref<substitution> tmp = scope(sub);
-    unify_terms(this, tmp.get(), from, to, debug ? &log : nullptr);
+    unify_terms(this, tmp.get(), from, to, debug ? log : nullptr);
     tmp->merge();
   }
 

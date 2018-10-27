@@ -37,7 +37,8 @@ namespace type {
   static void link(substitution* sub, const var& from, const mono& to) {
     assert(from->kind == to.kind());
     if(mono(from) == to) return;
-  
+
+    const lock instance;
     sub->link(from, to);
   }
 
@@ -112,35 +113,40 @@ namespace type {
   struct upgrade_visitor {
     using type = void;
     
-    void operator()(const cst& self, std::size_t level, state* s) const { }
-    void operator()(const var& self, std::size_t level, state* s) const {
+    void operator()(const cst& self, std::size_t level, state* s, logger* log) const { }
+    
+    void operator()(const var& self, std::size_t level, state* s, logger* log) const {
       const auto sub = s->sub->substitute(self);
 
       if(sub != self) {
-        sub.visit(upgrade_visitor(), level, s);
+        sub.visit(upgrade_visitor(), level, s, log);
         return;
       }
 
       if(self->level > level) {
-        s->unify(self, make_ref<variable>(level, self->kind));
+        const mono fresh = make_ref<variable>(level, self->kind);
+        if(log) {
+          *log << prefix() << "upgrading: " << s->generalize(self)  
+               << " to level: " << level
+               << " with: " << s->generalize(fresh)
+               << std::endl;
+        }
+        const lock instance;
+        s->unify(self, fresh, log);
         return;
       }
     }
 
-    void operator()(const app& self, std::size_t level, state* s) const {
-      self->ctor.visit(upgrade_visitor(), level, s);
-      self->arg.visit(upgrade_visitor(), level, s);      
+    void operator()(const app& self, std::size_t level, state* s, logger* log) const {
+      self->ctor.visit(upgrade_visitor(), level, s, log);
+      self->arg.visit(upgrade_visitor(), level, s, log);      
     }
     
   };
   
   // make sure all substituted variables in a type have at most given level
   static void upgrade(state* self, mono t, std::size_t level, logger* log) {
-    if(log) {
-      *log << prefix() << "upgrading: " << self->generalize(t) << std::endl
-           << prefix() << "to level: " << level << std::endl;
-    }
-    t.visit(upgrade_visitor(), level, self);
+    t.visit(upgrade_visitor(), level, self, log);
   }
 
   
@@ -211,10 +217,11 @@ namespace type {
     }
 
     const kind::any k = from.kind();
-  
+
+    
     // var -> mono
     if(auto v = from.get<var>()) {
-      occurs_check(self, *v, to); 
+      occurs_check(self, *v, to);
       link(sub, *v, to);
       upgrade(self, to, (*v)->level, log);
       return;

@@ -23,7 +23,8 @@ namespace type {
     using error::error;
   };
 
-
+  struct logger;
+  
   struct mono;
   struct poly;
 
@@ -59,8 +60,8 @@ namespace type {
     poly generalize(const mono& t) const;
     mono instantiate(const poly& p) const;
   
-    void unify(mono from, mono to);
-
+    void unify(mono from, mono to, logger* log=nullptr);
+    
     // define variable, generalizing t at current depth before inserting
     state& def(symbol name, mono t);
 
