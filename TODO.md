@@ -2,6 +2,8 @@
 - simple gc
 
 
+- check that fcp elimination typing rules are sound 
+
 
 # parser
 

@@ -459,7 +459,8 @@ namespace type {
         return constructor(s, type);
       } catch(error&) {
         std::stringstream ss;
-        ss << "could not infer type constructor for expression: " << tool::show(*self.type) << std::endl
+        ss << "could not infer type constructor for expression: "
+           << tool::show(*self.type) << std::endl
            << "...with type: " << tool::show(s->generalize(reified));
         std::throw_with_nested(error(ss.str()));
       };
@@ -528,6 +529,9 @@ namespace type {
       const mono vs = sub->sub->substitute(v);
       if(auto u = vs.get<var>()) {
         auto it = quantified.find(*u);
+
+        // TODO is this sufficient?
+        
         if(it != quantified.end()) {
           continue;
         }
