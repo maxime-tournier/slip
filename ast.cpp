@@ -34,6 +34,8 @@ namespace ast {
   seq::seq(const list<io>& items, const expr& last)
     : items(items),
       last(make_expr(last)) { }
+
+  run::run(const expr& value) : value(make_expr(value)) { } 
   
   static const symbol arrow = "->";
   
@@ -175,7 +177,8 @@ namespace ast {
 
   
   // check let-bindings
-  static const auto check_let = pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
+  static const auto check_let =
+    pop_as<sexpr::list> >> [](sexpr::list bindings) -> monad<expr> {
     return lift(check_bindings(bindings)) >> [](list<bind> defs) {
       return pop() >> [defs](sexpr body) {
         const expr res = let{defs, expr::check(body)};
@@ -230,6 +233,12 @@ namespace ast {
     return {{}, nullptr};
   }
 
+  // check monad escape
+  static const auto check_run = check_seq >> [](ast::expr self) {
+    const expr res = run{self};
+    return pure(res);
+  };
+  
 
   // check conditionals
   static const auto check_cond = pop() >> [](sexpr self) {
@@ -273,13 +282,6 @@ namespace ast {
     };
   };
 
-  // // check module unpacking
-  // static const auto check_use = pop() >> [](sexpr env) {
-  //   return pop() >> [env](sexpr body) {
-  //     const expr res = use(expr::check(env), expr::check(body));
-  //     return done(res);
-  //   };
-  // };
 
   static const auto check_use = pop() >> [](sexpr env) {
     const expr res = use(expr::check(env)); 
@@ -321,7 +323,8 @@ namespace ast {
   static const auto check_coproduct = check_module(module::coproduct);  
   
   // check match fallback case
-  static const auto check_fallback = pop_as<symbol> >> [](symbol name) -> monad<match::handler> {
+  static const auto check_fallback =
+    pop_as<symbol> >> [](symbol name) -> monad<match::handler> {
     if(name != kw::wildcard) return fail<match::handler>();
     return pop() >> [=](sexpr value) {
       const var wildcard = {name};
@@ -381,13 +384,16 @@ namespace ast {
     // reserved keywords
     symbol abs("fn"),
       let("let"),
-      seq("do"),
       def("def"),
       cond("if"),
       record("record"),
       match("match"),
       make("new"),
+
       bind("bind"),
+      seq("do"),
+      run("run"),
+      
       use("using"),
       import("import"),
 
@@ -395,13 +401,15 @@ namespace ast {
       coproduct("union"),      
       
       wildcard("_")
+
+      
       ;
     
     static const std::set<symbol> reserved = {
       abs, let, def, cond,
       record,
       match,
-      bind, seq,
+      bind, seq, run,
       make, use, import,
       product, coproduct,
       wildcard,
@@ -415,6 +423,7 @@ namespace ast {
     {kw::abs, {check_abs, "(fn (`arg`...) `expr`)"}},
     {kw::let, {check_let, "(let ((`symbol` `expr`)...) `expr`)"}},    
     {kw::seq, {check_seq, "(do ((bind `symbol` `expr`) | `expr`)...)"}},
+    {kw::run, {check_run, "(run ((bind `symbol` `expr`) | `expr`)...)"}},    
     {kw::cond, {check_cond, "(if `expr` `expr` `expr`)"}},
     {kw::record, {check_record, "(record (`symbol` `expr`)...)"}},
     {kw::match, {check_match, "(match `expr` (`symbol` `arg` `expr`)...)"}},

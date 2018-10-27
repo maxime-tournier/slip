@@ -185,6 +185,10 @@ namespace eval {
   }
 
 
+  static value eval(state* e, const ast::run& self) {
+    return eval(e, *self.value);
+  }
+
   static value eval(state* e, const ast::module& self) {
     // just define the reified module type constructor
     enum module::type type;

@@ -143,6 +143,11 @@ namespace ast {
     seq(const list<io>& items, const expr& last);
   };
 
+  struct run {
+    const ref<expr> value;
+    run(const expr& value);
+  };
+
   // unpack a record into the environment
   struct use {
     const ref<expr> env;
@@ -171,7 +176,8 @@ namespace ast {
                         match, inj,
                         make, use,
                         import,
-                        def, seq,
+                        def,
+                        seq, run,
                         module> {
     using expr::variant::variant;
     using list = list<expr>;
@@ -240,7 +246,7 @@ namespace ast {
     // reserved keywords
     extern symbol abs,
       let,
-      seq,
+      seq, run,
       def,
       cond,
       record,

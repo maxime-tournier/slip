@@ -23,6 +23,7 @@ namespace ast {
     // throw std::logic_error("unimplemented repr: " + tool::type_name(typeid(T)));
   }
 
+  
   template<class T>
   static sexpr repr(const lit<T>& self) {
     return self.value;
@@ -85,6 +86,13 @@ namespace ast {
       >>= sexpr::list();
   }
 
+  
+  static sexpr repr(const run& self) {
+    return kw::run
+      >>= repr(*self.value)
+      >>= sexpr::list();
+  }
+  
 
   static sexpr repr(const def& self) {
     return kw::def
