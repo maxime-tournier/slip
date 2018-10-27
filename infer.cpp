@@ -531,7 +531,6 @@ namespace type {
         auto it = quantified.find(*u);
 
         // TODO is this sufficient?
-        
         if(it != quantified.end()) {
           continue;
         }
@@ -752,8 +751,8 @@ namespace type {
       throw error("computation involves external state");
     } catch(error&) {
       std::stringstream ss;
-      ss << "computation has observable side-effects: "
-         << tool::show(s->generalize(value));
+      ss << "computation type: " << tool::show(s->generalize(value))
+         << " has observable side-effects";
       
       std::throw_with_nested(error(ss.str()));
     }

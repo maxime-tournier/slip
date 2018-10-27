@@ -14,14 +14,12 @@
 # types
 
 - better error messages
-- mutable references
-- sequencing/binds
 
 # eval
 
-- garbage collection
+- string types
+- files 
 
 # packages
 
-- toplevel `use`
 - toplevel `export`
