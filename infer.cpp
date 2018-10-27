@@ -353,6 +353,18 @@ namespace type {
         });
 
       body->def(def.id.name, self);
+
+      try {
+        const mono t = s->fresh();
+        const mono a = s->fresh();
+        s->unify(io(t)(a), self);
+        std::stringstream ss;
+        ss << "definition of " << tool::quote(def.id.name.get())
+           << " to a non-value of type: " << tool::show(s->generalize(self));
+        throw error(ss.str());
+      } catch(unification_error& e) {
+        // all good
+      }
     }
     
     // infer body type in let scope
@@ -549,7 +561,8 @@ namespace type {
   // def
   static mono infer(const ref<state>& s, const ast::def& self) {
     const mono value =
-      infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(), self.id));
+      infer(s, ast::let(ast::bind{self.id, *self.value} >>= list<ast::bind>(),
+                        self.id));
     
     s->def(self.id.name, value);
     const mono a = s->fresh();

@@ -7,10 +7,6 @@
 
 namespace type {
 
-  struct unification_error : error {
-    using error::error;
-  };
-
 
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
   static void occurs_check(state* self, var v, mono t);

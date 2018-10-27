@@ -19,6 +19,11 @@ namespace type {
     using std::runtime_error::runtime_error;
   };
 
+  struct unification_error : error {
+    using error::error;
+  };
+
+
   struct mono;
   struct poly;
 
@@ -121,7 +126,7 @@ namespace type {
 
   // higher kinded constructors
   const extern mono func;
-  const extern mono io, mut;
+  const extern mono io;
   
   const extern mono record, sum, empty;
 

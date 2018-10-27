@@ -37,10 +37,7 @@ namespace type {
   const mono io =
     make_constant("io", kind::term() >>= kind::term() >>= kind::term());
 
-  const mono mut =
-    make_constant("mut", kind::term() >>= kind::term());
 
-  
   // records
   const mono record =
     make_constant("record", kind::row() >>= kind::term());
