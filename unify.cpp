@@ -12,7 +12,7 @@ namespace type {
   static void occurs_check(state* self, var v, mono t);
   static void link(substitution* self, const var& from, const mono& to);
   static maybe<extension> rewrite(state* s, symbol attr, mono row);
-  static void upgrade(state* self, mono t, std::size_t level);
+  static void upgrade(state* self, mono t, std::size_t level, logger* log);
   
   // logging
   static std::size_t indent = 0;
@@ -135,7 +135,11 @@ namespace type {
   };
   
   // make sure all substituted variables in a type have at most given level
-  static void upgrade(state* self, mono t, std::size_t level) {
+  static void upgrade(state* self, mono t, std::size_t level, logger* log) {
+    if(log) {
+      *log << prefix() << "upgrading: " << self->generalize(t) << std::endl
+           << prefix() << "to level: " << level << std::endl;
+    }
     t.visit(upgrade_visitor(), level, self);
   }
 
@@ -212,7 +216,7 @@ namespace type {
     if(auto v = from.get<var>()) {
       occurs_check(self, *v, to); 
       link(sub, *v, to);
-      upgrade(self, to, (*v)->level);
+      upgrade(self, to, (*v)->level, log);
       return;
     }
 
@@ -220,7 +224,7 @@ namespace type {
     if(auto v = to.get<var>()) {
       occurs_check(self, *v, from);
       link(sub, *v, from);
-      upgrade(self, from, (*v)->level);
+      upgrade(self, from, (*v)->level, log);
       return;
     }
 

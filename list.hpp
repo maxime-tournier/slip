@@ -37,6 +37,12 @@ struct cons {
     if(!self) return acc;
     return reverse(self->tail, self->head >>= acc);
   }
+
+  friend list<T> concat(const list<T>& lhs, const list<T>& rhs) {
+    if(!lhs) return rhs;
+    return lhs->head >>= concat(lhs->tail, rhs);
+  }
+
   
   template<class Func>
   friend list<typename std::result_of<Func(T)>::type> map(const list<T>& self,

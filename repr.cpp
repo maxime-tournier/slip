@@ -82,8 +82,8 @@ namespace ast {
   
   static sexpr repr(const seq& self) {
     return kw::seq
-      >>= map(self.items, repr_visitor())
-      >>= sexpr::list();
+      >>= concat(map(self.items, repr_visitor()),
+                 repr(*self.last) >>= sexpr::list());
   }
 
   

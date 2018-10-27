@@ -113,7 +113,7 @@ namespace type {
 
   // polytypes
   struct poly {
-    using forall_type = std::set<ref<variable>>;
+    using forall_type = std::set<var>;
     const forall_type forall;
     const mono type;
 

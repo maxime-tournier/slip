@@ -713,6 +713,33 @@ namespace type {
     
     return infer(sub, rewrite(self));
   }
+
+
+  // monad escape
+  static mono infer(const ref<state>& s, const ast::run& self) {
+    const mono value = infer(s, *self.value);
+    
+    const mono t = s->fresh();
+    const mono a = s->fresh();
+    
+    s->unify(io(t)(a), value);
+
+    const poly p = s->generalize(value);
+
+    // generalization check: t should substitute to a variable that is
+    // quantified in p
+    const mono ts = s->sub->substitute(t);
+    if(auto v = ts.get<var>()) {
+      auto it = p.forall.find(*v);
+      if(it != p.forall.end()) {
+        // all good: t is quantified
+        return a;
+      }
+    }
+    std::stringstream ss;
+    ss << "unsafe io escape: " << tool::show(s->generalize(value));
+    throw error(ss.str());
+  };
   
   
   // lit
