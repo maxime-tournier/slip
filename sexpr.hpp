@@ -6,8 +6,9 @@
 #include "variant.hpp"
 #include "base.hpp"
 #include "symbol.hpp"
-#include "list.hpp"
+#include "string.hpp"
 
+#include "list.hpp"
 #include "maybe.hpp"
 
 // s-expressions

@@ -7,6 +7,8 @@
 #include "variant.hpp"
 #include "list.hpp"
 #include "symbol.hpp"
+#include "string.hpp"
+
 #include "base.hpp"
 
 

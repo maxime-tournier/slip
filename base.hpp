@@ -2,7 +2,6 @@
 #define SLIP_BASE_HPP
 
 #include <iosfwd>
-#include <string>
 
 // base types
 struct unit { };
@@ -11,6 +10,8 @@ using boolean = bool;
 using integer = long;
 using real = double;
 
-using string = std::string;
+struct string;
+template<class T> struct vector;
+
 
 #endif
