@@ -16,30 +16,30 @@ package package::builtins() {
   // terms
   self
     .def("+", type::integer >>= type::integer >>= type::integer,
-         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+         closure(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs + rhs;
          }))
       
     .def("*", type::integer >>= type::integer >>= type::integer,
-         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+         closure(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs * rhs;
          }))
       
     .def("-", type::integer >>= type::integer >>= type::integer,
-         builtin(+[](const integer& lhs, const integer& rhs) -> integer {
+         closure(+[](const integer& lhs, const integer& rhs) -> integer {
            return lhs - rhs;
          }))
       
     .def("=", type::integer >>= type::integer >>= type::boolean,
-         builtin(+[](const integer& lhs, const integer& rhs) -> boolean {
+         closure(+[](const integer& lhs, const integer& rhs) -> boolean {
            return lhs == rhs;
          }))
     ;
 
 
   using type::ty;
-  auto ctor_value = builtin(+[](const unit&) { return unit();});
-  auto ctor2_value = builtin(+[](const unit&, const unit& ) { return unit();});
+  auto ctor_value = closure(+[](const unit&) { return unit();});
+  auto ctor2_value = closure(+[](const unit&, const unit& ) { return unit();});
   
   // function
   {
@@ -120,7 +120,7 @@ package package::builtins() {
 
     {
       const mono a = self.ts->fresh();
-      self.def("cons", a >>= list(a) >>= list(a), eval::builtin(2, [](const eval::value* args) -> value {
+      self.def("cons", a >>= list(a) >>= list(a), eval::closure(2, [](const eval::value* args) -> value {
             return args[0] >>= args[1].cast<eval::value::list>();
           }));
     }
@@ -144,7 +144,7 @@ package package::builtins() {
     const mono b = self.ts->fresh();
 
     self.def("ref", b >>= type::io(a)(mut(a)(b)),
-             eval::builtin(1, [](const eval::value* args) -> value {
+             eval::closure(1, [](const eval::value* args) -> value {
                  return make_ref<value>(args[0]);
                }));
   }
@@ -154,7 +154,7 @@ package package::builtins() {
     const mono b = self.ts->fresh();    
 
     self.def("get", mut(a)(b) >>= type::io(a)(b),
-             eval::builtin(1, [](const eval::value* args) -> value {
+             eval::closure(1, [](const eval::value* args) -> value {
                  return *args[0].cast<ref<value>>();
                }));
   }
@@ -164,7 +164,7 @@ package package::builtins() {
     const mono b = self.ts->fresh();    
  
     self.def("set", mut(a)(b) >>= b >>= type::io(a)(type::unit),
-             eval::builtin(2, [](const eval::value* args) -> value {
+             eval::closure(2, [](const eval::value* args) -> value {
                  *args[0].cast<ref<value>>() = args[1];
                  return unit();
                }));
@@ -175,7 +175,7 @@ package package::builtins() {
     const mono a = self.ts->fresh();
     const mono t = self.ts->fresh();
     self.def("pure", a >>= type::io(t)(a),
-             eval::builtin(1, [](const eval::value* args) {
+             eval::closure(1, [](const eval::value* args) {
                return args[0];
              }));
   }
@@ -183,7 +183,7 @@ package package::builtins() {
 
   // strings
   self.def("print", type::string >>= type::io(world)(type::unit),
-           eval::builtin(+[](const ref<string>& self) {
+           eval::closure(+[](const ref<string>& self) {
              std::cout << *self;
              return unit();
            }));

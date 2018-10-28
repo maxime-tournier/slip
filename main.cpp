@@ -116,7 +116,7 @@ int main(int argc, const char** argv) {
   {
     const type::mono a = main.ts->fresh();
     main.def("collect", type::unit >>= type::io(a)(type::unit),
-             eval::builtin(0, [&](const eval::value* ) -> eval::value {
+             eval::closure(0, [&](const eval::value* ) -> eval::value {
                  collect();
                  return unit();
                }));

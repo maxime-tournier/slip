@@ -30,21 +30,21 @@ namespace eval {
   
   struct sum;
   
-  struct builtin {
+  struct closure {
     using func_type = std::function<value(const value* args)>;
     func_type func;
   
     std::size_t argc;
 
-    builtin(std::size_t argc, func_type func);
+    closure(std::size_t argc, func_type func);
 
     template<class Ret, class ... Args>
-    builtin(Ret (*impl) (const Args&...));
+    closure(Ret (*impl) (const Args&...));
   };
   
 
   // note: we need separate lambdas because we need to traverse env during gc
-  struct lambda : builtin {
+  struct lambda : closure {
     lambda(std::size_t argc, func_type func, state* env);
     state* env;
   };
@@ -61,7 +61,7 @@ namespace eval {
   
   struct value : variant<unit, real, integer, boolean, symbol,
                          ref<string>, list<value>,
-                         builtin,
+                         closure,
                          lambda, ref<record>, ref<sum>,
                          module,
                          ref<value>> {
@@ -82,7 +82,7 @@ namespace eval {
 
   
   template<class Ret, class ... Args>
-  builtin::builtin(Ret (*impl) (const Args&...) )
+  closure::closure(Ret (*impl) (const Args&...) )
     : func([impl](const value* args) -> value {
         const std::tuple<const Args&...> pack = {
           *(args++)->template get<Args>()...

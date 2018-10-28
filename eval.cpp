@@ -22,7 +22,7 @@ namespace eval {
     static_assert(sizeof(T) == 0, "eval implemented");
   }
   
-  builtin::builtin(std::size_t argc, func_type func)
+  closure::closure(std::size_t argc, func_type func)
     : func(func),
       argc(argc) {
 
@@ -33,7 +33,7 @@ namespace eval {
 
 
   lambda::lambda(std::size_t argc, func_type func, state* env)
-    : builtin(argc, func),
+    : closure(argc, func),
       env(env) { }
       
   
@@ -76,14 +76,14 @@ namespace eval {
     const std::size_t expected = self.match([&](const value& ) -> std::size_t {
         throw std::runtime_error("type error in application");
       },
-      [&](const builtin& self) { return self.argc; });
+      [&](const closure& self) { return self.argc; });
     
     if(argc < expected) {
       // unsaturated call: build wrapper
       const std::size_t remaining = expected - argc;        
       const std::vector<value> saved(first, last);
     
-      return builtin(remaining, [self, saved, remaining](const value* args) {
+      return closure(remaining, [self, saved, remaining](const value* args) {
           std::vector<value> tmp = saved;
           for(auto it = args, last = args + remaining; it != last; ++it) {
             tmp.emplace_back(*it);
@@ -106,7 +106,7 @@ namespace eval {
     return self.match([&](const value& ) -> value {
         throw std::runtime_error("type error in application");
       },
-      [&](const builtin& self) {
+      [&](const closure& self) {
         return self.func(first);
       });
   }
@@ -247,7 +247,7 @@ namespace eval {
 
   static value eval(state* e, const ast::sel& self) {
     const symbol name = self.id.name;
-    return builtin(1, [name](const value* args) -> value {
+    return closure(1, [name](const value* args) -> value {
         return args[0].match([&](const value::list& self) -> value {
             // note: the only possible way to call this is during a pattern
             // match processing a non-empty list
@@ -270,7 +270,7 @@ namespace eval {
 
   static value eval(state* e, const ast::inj& self) {
     const symbol tag = self.id.name;
-    return builtin(1, [tag](const value* args) -> value {
+    return closure(1, [tag](const value* args) -> value {
         return make_ref<sum>(args[0], tag);
     });
   }
@@ -327,7 +327,7 @@ namespace eval {
     
     const ref<ast::expr> fallback = self.fallback;
 
-    return builtin(1, [e, dispatch, fallback](const value* args) {
+    return closure(1, [e, dispatch, fallback](const value* args) {
         // matching on a list
         return args[0].match([&](const value::list& self) {
             auto it = dispatch.find(self ? cons : nil);
@@ -402,13 +402,13 @@ struct ostream_visitor {
   }
 
 
-  void operator()(const ref<lambda>& self, std::ostream& out) const {
+  void operator()(const lambda& self, std::ostream& out) const {
 	out << "#<lambda>";
   }
   
   
-  void operator()(const builtin& self, std::ostream& out) const {
-	out << "#<builtin>";
+  void operator()(const closure& self, std::ostream& out) const {
+	out << "#<closure>";
   }
 
   
