@@ -43,11 +43,10 @@ namespace eval {
   };
   
 
-  struct closure {
-    closure(state* env, std::vector<symbol> args, ast::expr body);
-    state* env;                 // TODO const?
-    const std::vector<symbol> args;
-    const ast::expr body;
+  // note: we need separate closures because we need to traverse env during gc
+  struct closure : builtin {
+    closure(std::size_t argc, func_type func, state* env);
+    state* env;
   };
 
   
@@ -63,7 +62,7 @@ namespace eval {
   struct value : variant<unit, real, integer, boolean, symbol,
                          ref<string>, list<value>,
                          builtin,
-                         ref<closure>, ref<record>, ref<sum>,
+                         closure, ref<record>, ref<sum>,
                          module,
                          ref<value>> {
     using value::variant::variant;

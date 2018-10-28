@@ -8,6 +8,8 @@
 
 namespace eval {
 
+  ////////////////////////////////////////////////////////////////////////////////
+  
   const symbol cons = "cons";
   const symbol nil = "nil";    
 
@@ -29,13 +31,12 @@ namespace eval {
   sum::sum(const value& data, symbol tag)
     : value(data), tag(tag) { }
 
-  closure::closure(state* env, std::vector<symbol> args, ast::expr body)
-    : env(std::move(env)),
-      args(std::move(args)),
-      body(std::move(body)){
-    
-  }
 
+  closure::closure(std::size_t argc, func_type func, state* env)
+    : builtin(argc, func),
+      env(env) { }
+      
+  
   state::state(state* parent) : parent(parent) { }
 
   state* scope(state* self) {
@@ -75,8 +76,7 @@ namespace eval {
     const std::size_t expected = self.match([&](const value& ) -> std::size_t {
         throw std::runtime_error("type error in application");
       },
-      [&](const builtin& self) { return self.argc; },
-      [&](const ref<closure>& self) { return self->args.size(); });
+      [&](const builtin& self) { return self.argc; });
     
     if(argc < expected) {
       // unsaturated call: build wrapper
@@ -108,11 +108,6 @@ namespace eval {
       },
       [&](const builtin& self) {
         return self.func(first);
-      },
-      [&](const ref<closure>& self) {
-        return eval(augment(self->env,
-                            begin(self->args), end(self->args),
-                            first, last), self->body);
       });
   }
 
@@ -149,12 +144,19 @@ namespace eval {
 
   
   static value eval(state* e, const ast::abs& self) {
-    std::vector<symbol> args;
+    std::vector<symbol> names;
+    
     for(const auto& arg : self.args) {
-      args.emplace_back(arg.name());
+      names.emplace_back(arg.name());
     }
 
-    return make_ref<closure>(e, std::move(args), *self.body);
+    const ast::expr body = *self.body;
+    
+    return closure(names.size(), [=](const value* args) {
+      auto sub = augment(e, names.begin(), names.end(),
+                         args, args + names.size());
+      return eval(sub, body);
+    }, e);
   }
 
 
@@ -465,8 +467,8 @@ struct ostream_visitor {
                [&](const ref<sum>& self) {
                  mark(*self, debug);
                },
-               [&](const ref<closure>& self) {
-                 mark(self->env, debug);
+               [&](const closure& self) {
+                 mark(self.env, debug);
                });
   }
   
