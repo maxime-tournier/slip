@@ -32,7 +32,7 @@ namespace eval {
     : value(data), tag(tag) { }
 
 
-  closure::closure(std::size_t argc, func_type func, state* env)
+  lambda::lambda(std::size_t argc, func_type func, state* env)
     : builtin(argc, func),
       env(env) { }
       
@@ -69,7 +69,7 @@ namespace eval {
   }
   
   
-  // apply a closure to argument range
+  // apply a lambda to argument range
   value apply(const value& self, const value* first, const value* last) {
     const std::size_t argc = last - first;
     
@@ -152,7 +152,7 @@ namespace eval {
 
     const ast::expr body = *self.body;
     
-    return closure(names.size(), [=](const value* args) {
+    return lambda(names.size(), [=](const value* args) {
       auto sub = augment(e, names.begin(), names.end(),
                          args, args + names.size());
       return eval(sub, body);
@@ -402,8 +402,8 @@ struct ostream_visitor {
   }
 
 
-  void operator()(const ref<closure>& self, std::ostream& out) const {
-	out << "#<closure>";
+  void operator()(const ref<lambda>& self, std::ostream& out) const {
+	out << "#<lambda>";
   }
   
   
@@ -467,7 +467,7 @@ struct ostream_visitor {
                [&](const ref<sum>& self) {
                  mark(*self, debug);
                },
-               [&](const closure& self) {
+               [&](const lambda& self) {
                  mark(self.env, debug);
                });
   }

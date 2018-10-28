@@ -43,9 +43,9 @@ namespace eval {
   };
   
 
-  // note: we need separate closures because we need to traverse env during gc
-  struct closure : builtin {
-    closure(std::size_t argc, func_type func, state* env);
+  // note: we need separate lambdas because we need to traverse env during gc
+  struct lambda : builtin {
+    lambda(std::size_t argc, func_type func, state* env);
     state* env;
   };
 
@@ -62,7 +62,7 @@ namespace eval {
   struct value : variant<unit, real, integer, boolean, symbol,
                          ref<string>, list<value>,
                          builtin,
-                         closure, ref<record>, ref<sum>,
+                         lambda, ref<record>, ref<sum>,
                          module,
                          ref<value>> {
     using value::variant::variant;
