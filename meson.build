@@ -10,7 +10,8 @@ lib_path = join_paths(meson.source_root(), 'lib')
 
 cpp_args = ['-DSLIP_PATH="@0@"'.format(lib_path)]
 
-if get_option('buildtype') == 'release'
+build_type = get_option('buildtype')
+if build_type == 'release'
    cpp_args += ['-DNDEBUG']
 endif
 

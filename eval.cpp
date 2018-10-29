@@ -153,7 +153,7 @@ namespace eval {
  
   static value eval(state* e, const ast::abs& self) {
     std::vector<symbol> names;
-    
+
     for(const auto& arg : self.args) {
       names.emplace_back(arg.name());
     }
