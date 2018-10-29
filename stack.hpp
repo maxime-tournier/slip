@@ -8,27 +8,28 @@
 template<class T>
 class stack {
   using value_type = typename std::aligned_union<0, T>::type;
+
   using storage_type = std::vector<value_type>;
   storage_type storage;
-  using iterator_type = typename storage_type::iterator;
 
-  std::size_t top;
-  
+  std::size_t sp;
 public:
-  stack(std::size_t size) : storage(size), top(0) { }
+  T* top() { return reinterpret_cast<T*>(&storage[sp]); }
+  
+  stack(std::size_t size) : storage(size), sp(0) { }
 
   T* allocate(std::size_t n) {
-    T* res = reinterpret_cast<T*>(&storage[top]);
-    top += n;
-    assert(top <= storage.size() && "stack overflow");
+    T* res = top();
+    sp += n;
+    assert(sp <= storage.size() && "stack overflow");
     
     return res;
   }
 
   void deallocate(T* ptr, std::size_t n) {
-    assert(n <= top && "stack corruption"); 
-    top -= n;
-    assert(ptr == reinterpret_cast<T*>(&storage[top]) && "stack corruption");
+    assert(n <= sp && "stack corruption"); 
+    sp -= n;
+    assert(ptr == top() && "stack corruption");
   }
   
   struct allocator {
