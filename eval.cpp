@@ -6,6 +6,8 @@
 #include "package.hpp"
 #include "gc.hpp"
 
+#include "stack.hpp"
+
 namespace eval {
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -128,12 +130,17 @@ namespace eval {
     return *res;
   }
 
+  using stack_type = stack<value>;
+  static stack_type stack{1000};
+  
   
   static value eval(state* e, const ast::app& self) {
     // note: evaluate func first
     const value func = eval(e, *self.func);
-    
-    std::vector<value> args;
+
+    // TODO use allocator
+    using allocator_type = stack_type::allocator;
+    std::vector<value, allocator_type> args{allocator_type{stack}}; args.reserve(self.argc);
     
     for(const auto& arg : self.args) {
       args.emplace_back(eval(e, arg));
@@ -142,7 +149,7 @@ namespace eval {
     return apply(func, args.data(), args.data() + args.size());
   }
 
-  
+ 
   static value eval(state* e, const ast::abs& self) {
     std::vector<symbol> names;
     

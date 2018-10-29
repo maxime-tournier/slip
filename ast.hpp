@@ -32,12 +32,11 @@ namespace ast {
   static inline ref<expr> make_expr(expr&& e) { return make_ref<expr>(std::move(e)); }  
   
   struct app {
-    app(const expr& func, const list<expr>& args)
-      : func(make_ref<expr>(func)),
-        args(args) { }
+    app(const expr& func, const list<expr>& args);
     
     const ref<expr> func;
     const list<expr> args;
+    const std::size_t argc;
   };
 
 
@@ -47,10 +46,10 @@ namespace ast {
     
     const list<arg> args;
     const ref<expr> body;
+    const std::size_t argc;
 
-    abs(const list<arg>& args, const expr& body)
-      : args(args), body(make_expr(body)) { }
-
+    abs(const list<arg>& args, const expr& body);
+    
   };
 
   struct bind;

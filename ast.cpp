@@ -36,7 +36,15 @@ namespace ast {
       last(make_expr(last)) { }
 
   run::run(const expr& value) : value(make_expr(value)) { } 
-  
+
+  abs::abs(const list<arg>& args, const expr& body)
+    : args(args), body(make_expr(body)), argc(size(args)) { }
+
+  app::app(const expr& func, const list<expr>& args)
+    : func(make_ref<expr>(func)),
+      args(args),
+      argc(size(args)) { }
+
   static const symbol arrow = "->";
   
   static sexpr::list rewrite_arrows(sexpr::list args) {
