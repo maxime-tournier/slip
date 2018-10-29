@@ -134,10 +134,10 @@ namespace eval {
     const value func = eval(e, *self.func);
     
     std::vector<value> args;
-    foldl(unit(), self.args, [&](unit, const ast::expr& self) {
-        args.emplace_back(eval(e, self));
-        return unit();
-      });
+    
+    for(const auto& arg : self.args) {
+      args.emplace_back(eval(e, arg));
+    };
     
     return apply(func, args.data(), args.data() + args.size());
   }
