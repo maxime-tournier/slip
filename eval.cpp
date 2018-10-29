@@ -74,11 +74,15 @@ namespace eval {
   // apply a lambda to argument range
   value apply(const value& self, const value* first, const value* last) {
     const std::size_t argc = last - first;
-    
+
+    const closure* ptr = nullptr;
     const std::size_t expected = self.match([&](const value& ) -> std::size_t {
         throw std::runtime_error("type error in application");
       },
-      [&](const closure& self) { return self.argc; });
+      [&](const closure& self) {
+        ptr = &self;
+        return self.argc;
+      });
     
     if(argc < expected) {
       // unsaturated call: build wrapper
@@ -105,12 +109,7 @@ namespace eval {
     }
 
     // saturated calls
-    return self.match([&](const value& ) -> value {
-        throw std::runtime_error("type error in application");
-      },
-      [&](const closure& self) {
-        return self.func(first);
-      });
+    return ptr->func(first);
   }
 
   
