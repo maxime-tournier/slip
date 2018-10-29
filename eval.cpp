@@ -75,7 +75,7 @@ namespace eval {
   value apply(const value& self, const value* first, const value* last) {
     const std::size_t argc = last - first;
 
-    const closure* ptr = nullptr;
+    const closure* ptr;
     const std::size_t expected = self.match([&](const value& ) -> std::size_t {
         throw std::runtime_error("type error in application");
       },
@@ -83,7 +83,7 @@ namespace eval {
         ptr = &self;
         return self.argc;
       });
-    
+
     if(argc < expected) {
       // unsaturated call: build wrapper
       const std::size_t remaining = expected - argc;        
