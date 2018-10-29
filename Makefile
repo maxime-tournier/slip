@@ -5,9 +5,9 @@ MESON_OPTS?=
 
 export SLIP=$(abspath $(BUILD)/slip)
 
-first: compile
+first: build
 
-all: compile tests
+all: build tests
 
 
 debug: FORCE
@@ -16,7 +16,8 @@ debug: FORCE
 	$(eval MESON_OPTS+=-Db_sanitize=address)
 
 
-$(BUILD): configure
+$(BUILD):
+	$(MAKE) configure
 
 build: $(BUILD)
 	ninja -C $(BUILD)
