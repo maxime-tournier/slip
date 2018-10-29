@@ -8,6 +8,12 @@ readline = compiler.find_library('readline', required: true)
 
 lib_path = join_paths(meson.source_root(), 'lib')
 
+cpp_args = ['-DSLIP_PATH="@0@"'.format(lib_path)]
+
+if get_option('buildtype') == 'release'
+   cpp_args += ['-DNDEBUG']
+endif
+
 executable('slip',
            'main.cpp',
            'sexpr.cpp',
@@ -25,6 +31,6 @@ executable('slip',
            'unify.cpp',
 		   'gc.cpp',
            dependencies: [readline],
-           cpp_args : '-DSLIP_PATH="@0@"'.format(lib_path))
+           cpp_args : cpp_args)
 
 
