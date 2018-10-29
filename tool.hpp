@@ -6,6 +6,8 @@
 #include <utility>
 #include <sstream>
 
+#include <chrono>
+
 namespace tool {
 
   std::string quote(const std::string& s, char q='"');
@@ -31,8 +33,19 @@ namespace tool {
     }
     return quote(str);
   }
-    
 
+
+  template<class Func, class Resolution = std::chrono::milliseconds,
+           class Clock = std::chrono::high_resolution_clock>
+  static auto timer(double* duration, Func func) {
+    typename Clock::time_point start = Clock::now();
+    auto res = func();
+    typename Clock::time_point stop = Clock::now();
+    
+    std::chrono::duration<double> diff = stop - start;
+    *duration = diff.count();
+    return res;
+  }
   
 }
 
