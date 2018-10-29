@@ -2,12 +2,15 @@
 #define SLAP_ARGPARSE_HPP
 
 #include "slice.hpp"
+
 #include <sstream>
+#include <iomanip>
 
 namespace argparse {
 
   using namespace slice;
 
+  // using the slice monad on list<const char*> with item values
   using thrower = std::function<void()>;
   using item = std::pair<const char*, thrower>;
 
@@ -23,7 +26,8 @@ namespace argparse {
         return pure(res);
       }
       
-      throw std::runtime_error("type error when parsing argument " + tool::quote(name));
+      throw std::runtime_error("type error when parsing argument "
+                               + tool::quote(name));
     };
   };
   
@@ -46,7 +50,8 @@ namespace argparse {
       };
     };
     
-    return parser("--" + std::string(name), true) | parser("--no-" + std::string(name), false);
+    return parser("--" + std::string(name), true)
+      | parser("--no-" + std::string(name), false);
   };
 
   
@@ -70,7 +75,8 @@ namespace argparse {
       } catch(const T* result) {
         return result;
       } catch(...) {
-        throw std::runtime_error("type error when accessing argument " + tool::quote(name));
+        throw std::runtime_error("type error when accessing argument "
+                                 + tool::quote(name));
       }
 
       throw std::logic_error("thrower did not throw");
@@ -85,10 +91,15 @@ namespace argparse {
     }
   };
   
-  template<class Options>
-  struct parser_type {
-    const Options options;
+  class parser {
+    monad<const char*, item> options = fail<item>();
+    std::vector<std::pair<std::string, maybe<std::string>>> help;
 
+    void add(std::string name, const char* doc) {
+      help.emplace_back(name, doc ? just(std::string(doc)) : maybe<std::string>());
+    }
+    
+  public:
     result parse(int argc, const char** argv) const {
       const list<const char*> args = make_list(argv, argv + argc);
 
@@ -110,11 +121,39 @@ namespace argparse {
       }
       return res;
     }
+
+    parser& flag(const char* name, const char* doc=nullptr) {
+      add("--" + std::string(name), doc);
+      options = argparse::flag(name) | options;
+      return *this;
+    }
+
+    template<class T>
+    parser& option(const char*  name, const char* doc=nullptr) {
+      add("--" + std::string(name), doc);
+      options = argparse::option<T>(name) | options;
+      return *this;
+    }
+
+    template<class T>
+    parser& argument(const char* name, const char* doc=nullptr) {
+      add(name, doc);      
+      options = options | argparse::argument<T>(name);
+      return *this;
+    }
+
+    void describe(std::ostream& out) const {
+      out << "available options:" << std::endl;
+      std::size_t width = 24;
+      for(auto it : help) {
+        out << "\t" << std::setw(width) << std::left << it.first;
+        if(it.second) out << std::setw(width) << std::left << it.second.get();
+        out << std::endl;
+      }
+    }
+    
   };
   
-  template<class Options>
-  static parser_type<Options> parser(Options options) { return {options}; }
-
 
   // TODO higher-level class that provides help message etc
 }

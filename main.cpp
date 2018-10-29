@@ -85,16 +85,23 @@ static std::string print_error(const std::exception& e, bool verbose=true,
 int main(int argc, const char** argv) {
 
   using namespace argparse;
-  const auto parser = argparse::parser
-    (flag("debug-gc") |
-     flag("debug-tc") |
-     flag("debug-ast") |
-     flag("verbose") |
-     argument<std::string>("filename"))
+  const auto parser = argparse::parser()
+    .flag("debug-gc", "debug garbage collector")
+    .flag("debug-tc", "debug type checking")
+    .flag("debug-ast", "debug abstract syntax tree")
+    .flag("time", "time evaluations")
+    .flag("verbose", "be verbose")
+    .flag("help", "show help")
+    .argument<std::string>("filename", "file to run")
     ;
-
+  
   const auto options = parser.parse(argc, argv);
-
+  if(options.flag("help", false)) {
+    parser.describe(std::cout);
+    return 0;
+  }
+  
+  
   package main("main");
   main.ts->debug = options.flag("debug-tc", false);
 
