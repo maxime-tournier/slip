@@ -140,7 +140,8 @@ namespace eval {
 
     // TODO use allocator
     using allocator_type = stack_type::allocator;
-    std::vector<value, allocator_type> args{allocator_type{stack}}; args.reserve(self.argc);
+    std::vector<value, allocator_type> args{allocator_type{stack}};
+    args.reserve(self.argc);
     
     for(const auto& arg : self.args) {
       args.emplace_back(eval(e, arg));
