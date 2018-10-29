@@ -89,7 +89,7 @@ int main(int argc, const char** argv) {
     .flag("debug-gc", "debug garbage collector")
     .flag("debug-tc", "debug type checking")
     .flag("debug-ast", "debug abstract syntax tree")
-    .flag("time", "time evaluations")
+    // .flag("time", "time evaluations")
     .flag("verbose", "be verbose")
     .flag("help", "show help")
     .argument<std::string>("filename", "file to run")
