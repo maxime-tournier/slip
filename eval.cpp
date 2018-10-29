@@ -34,7 +34,7 @@ namespace eval {
     : value(data), tag(tag) { }
 
 
-  lambda::lambda(std::size_t argc, func_type func, state* env)
+  lambda::lambda(state* env, std::size_t argc, func_type func)
     : closure(argc, func),
       env(env) { }
       
@@ -160,11 +160,11 @@ namespace eval {
 
     const ast::expr body = *self.body;
     
-    return lambda(names.size(), [=](const value* args) {
+    return lambda(e, names.size(), [=](const value* args) {
       auto sub = augment(e, names.begin(), names.end(),
                          args, args + names.size());
       return eval(sub, body);
-    }, e);
+    });
   }
 
 

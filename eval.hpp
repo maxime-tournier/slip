@@ -45,8 +45,8 @@ namespace eval {
 
   // note: we need separate lambdas because we need to traverse env during gc
   struct lambda : closure {
-    lambda(std::size_t argc, func_type func, state* env);
     state* env;
+    lambda(state* env, std::size_t argc, func_type func);
   };
 
   
