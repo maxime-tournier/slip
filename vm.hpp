@@ -8,11 +8,30 @@
 
 namespace vm {
 
-  using value = eval::value;
+  using builtin = eval::closure;
+  
+  struct value;
+  struct closure;
+  
+  struct value : variant<unit, boolean, integer, real, ref<string>, builtin, ref<closure>> {
+    using value::variant::variant;
+  };
+                         
+  struct closure {
+    const std::vector<value> captures;
+    const ir::expr body;
+    closure(std::vector<value> captures, const ir::expr& body)
+      : captures(std::move(captures)),
+        body(body) { }
+  };
+
   
   struct frame {
     const value* sp;
     const value* captures;
+    frame(const value* sp, const value* captures)
+      : sp(sp),
+        captures(captures) { }
   };
   
 

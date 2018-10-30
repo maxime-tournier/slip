@@ -111,6 +111,13 @@ namespace ir {
 
     return call{make_ref<expr>(func), args};
   }
+
+
+  static expr compile(state* ctx, ast::cond self) {
+    return make_ref<cond>(compile(ctx, *self.test),
+                          compile(ctx, *self.conseq),
+                          compile(ctx, *self.alt));
+  }
   
 
   static expr compile(state* ctx, ast::expr self) {

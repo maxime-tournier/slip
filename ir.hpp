@@ -18,7 +18,9 @@ namespace ast {
 namespace ir {
 
   struct expr;
+
   struct closure;
+  struct cond;
   
   struct local {
     std::size_t index;
@@ -48,6 +50,7 @@ namespace ir {
 
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
+                        ref<cond>,
                         ref<closure>, call> {
     using expr::variant::variant;
   };
@@ -61,6 +64,13 @@ namespace ir {
     closure(std::size_t argc, std::vector<expr> captures, expr body);
   };
 
+  struct cond {
+    const expr test;
+    const expr conseq;
+    const expr alt;
+    cond(expr test, expr conseq, expr alt)
+      : test(test), conseq(conseq), alt(alt) { }
+  };
   
   // toplevel compilation
   expr compile(const ast::expr& self);
