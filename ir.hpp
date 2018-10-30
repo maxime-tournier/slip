@@ -25,13 +25,16 @@ namespace ir {
     inline local(std::size_t index) : index(index) { }
   };
 
-  
+
   struct capture {
     std::size_t index;
     inline capture(std::size_t index) : index(index) { }
   };
 
-
+  struct global {
+    symbol name;
+  };
+  
   struct call {
     const ref<expr> func;
     const std::vector<expr> args;
@@ -45,7 +48,7 @@ namespace ir {
   
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
-                        local, capture,
+                        local, capture, global,
                         ref<closure>, call> {
     using expr::variant::variant;
   };
@@ -60,24 +63,8 @@ namespace ir {
   };
 
   
-  struct state {
-    ref<state> parent;
-    inline state(ref<state> parent={}) : parent(parent) { }
-    
-    std::map<symbol, local> locals;
-    std::map<symbol, capture> captures;
-
-    state& def(symbol name);
-    
-    expr find(symbol name);
-
-    inline friend ref<state> scope(ref<state> self) {
-      return make_ref<state>(self);
-    }
-    
-  };
-
-  expr compile(ref<state> ctx, const ast::expr& self);
+  // toplevel compilation
+  expr compile(const ast::expr& self);
   
 }
 

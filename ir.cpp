@@ -13,12 +13,25 @@ namespace ir {
       body(body) { }
 
   
+  struct state {
+    const state* parent;
+    
+    std::map<symbol, local> locals;
+    std::map<symbol, capture> captures;
+
+    state& def(symbol name);
+    
+    expr find(symbol name);
+
+  };
+
+  
   state& state::def(symbol name) {
     auto info = locals.emplace(name, locals.size());
     (void) info; assert(info.second);
     return *this;
   }
-
+  
   
   expr state::find(symbol name) {
     // try locals first
@@ -30,43 +43,50 @@ namespace ir {
     if(cap != captures.end()) return cap->second;
 
     // add capture
-    return captures.emplace(name, captures.size()).first->second;
+    if(parent) {
+      return captures.emplace(name, captures.size()).first->second;
+    } else {
+      return global{name};
+    }
   }
 
 
 
   ////////////////////////////////////////////////////////////////////////////////
+
+
+
   
   template<class T>
-  static expr compile(ref<state> ctx, const T& self) {
+  static expr compile(state* ctx, const T& self) {
     throw std::runtime_error("compile not implemented");
   };
 
 
   template<class T>
-  static expr compile(ref<state> ctx, ast::lit<T> self) {
+  static expr compile(state* ctx, ast::lit<T> self) {
     return lit<T>{self.value};
   }
 
-  static expr compile(ref<state> ctx, ast::var self) {
+  static expr compile(state* ctx, ast::var self) {
     return ctx->find(self.name);
   }
 
 
-  static expr compile(ref<state> ctx, ast::abs self) {
-    auto sub = scope(ctx);
+  static expr compile(state* ctx, ast::abs self) {
+    state sub = {ctx};
 
     // allocate stack for function arguments
     for(auto arg : self.args) {
-      sub->def(arg.name());
+      sub.def(arg.name());
     }
 
     // compile function body
-    const expr body = compile(sub, *self.body);
+    const expr body = compile(&sub, *self.body);
 
     // order captures by index
-    std::vector<std::pair<symbol, capture>> ordered = {sub->captures.begin(),
-                                                       sub->captures.end()};
+    std::vector<std::pair<symbol, capture>> ordered = {sub.captures.begin(),
+                                                       sub.captures.end()};
     std::sort(ordered.begin(), ordered.end(), [](auto lhs, auto rhs) {
         return lhs.second.index < rhs.second.index;
       });
@@ -81,7 +101,7 @@ namespace ir {
   }
 
   
-  static expr compile(ref<state> ctx, ast::app self) {
+  static expr compile(state* ctx, ast::app self) {
     const expr func = compile(ctx, *self.func);
 
     std::vector<expr> args;
@@ -93,10 +113,16 @@ namespace ir {
   }
   
 
-  expr compile(ref<state> ctx, const ast::expr& self) {
+  static expr compile(state* ctx, ast::expr self) {
     return self.match([&](auto self) {
         return compile(ctx, self);
       });
   };
 
+
+  expr compile(const ast::expr& self) {
+    state ctx;
+    return compile(&ctx, self);
+  }
+  
 }
