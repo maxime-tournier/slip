@@ -30,7 +30,8 @@ executable('slip',
            'builtins.cpp',
            'infer.cpp',
            'unify.cpp',
-		   'gc.cpp',
+           'gc.cpp',
+           'ir.cpp',
            dependencies: [readline],
            cpp_args : cpp_args)
 

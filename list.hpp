@@ -62,9 +62,12 @@ struct cons {
   }
 
   struct iterator {
-    cons* ptr;
-
+    using iterator_category = std::input_iterator_tag;
+    using value_type = T;
     using reference = const T&;
+    using pointer = const T*;
+    
+    cons* ptr;
     
     bool operator!=(const iterator& other) const { return ptr != other.ptr; }
     iterator& operator++() { ptr = ptr->tail.get(); return *this; };
