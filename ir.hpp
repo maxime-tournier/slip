@@ -45,8 +45,7 @@ namespace ir {
   struct lit {
     const T value;
   };
-  
-  
+
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
                         ref<closure>, call> {

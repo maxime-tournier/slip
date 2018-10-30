@@ -32,6 +32,7 @@ executable('slip',
            'unify.cpp',
            'gc.cpp',
            'ir.cpp',
+           'vm.cpp',
            dependencies: [readline],
            cpp_args : cpp_args)
 
