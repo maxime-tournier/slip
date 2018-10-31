@@ -82,7 +82,7 @@ namespace vm {
   }
 
 
-  static value apply(state* s, const value* sp, const closure& self) {
+  static value call(state* s, const value* sp, const closure& self) {
     // push frame
     s->frames.emplace_back(sp, self.captures.data(), &self);
     
@@ -132,11 +132,11 @@ namespace vm {
         return self.func(sp);
       },
       [&](const ref<closure>& self) {
-        return apply(s, sp, *self);
+        return call(s, sp, *self);
       },
       [&](const unit& self) {
         assert(s->frames.back().self);
-        return apply(s, sp, *s->frames.back().self);
+        return call(s, sp, *s->frames.back().self);
       });
   }
 
