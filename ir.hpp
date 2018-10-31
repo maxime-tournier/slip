@@ -74,7 +74,7 @@ namespace ir {
 
     call(expr func, vector<expr> args):
       func(func),
-      args(args) { }
+      args(std::move(args)) { }
   };
 
 

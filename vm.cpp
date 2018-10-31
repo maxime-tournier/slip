@@ -1,4 +1,5 @@
 #include "vm.hpp"
+#include "sexpr.hpp"
 
 namespace vm {
 
@@ -81,68 +82,116 @@ namespace vm {
     }
   }
 
+  static value apply(state* s, const builtin& self, const value* args, std::size_t argc);
+  static value apply(state* s, const ref<closure>& self, const value* args, std::size_t argc);
+  static value apply(state* s, const unit& self, const value* args, std::size_t argc);
+  static value apply(state* s, const value& self, const value* args, std::size_t argc);  
+  
 
-  static value call(state* s, const value* sp, const closure& self) {
+  static value unsaturated(state* s, const value& self, std::size_t expected,
+                           const value* args, std::size_t argc) {
+    assert(argc != expected);
+    if(expected > argc) {
+      // under-saturated: close over available arguments + function
+      vector<value> captures(args, args + argc);
+      captures.emplace_back(self);
+      
+      // closure call
+      vector<ir::expr> args; args.reserve(argc + expected);
+
+      // argc first args come from capture
+      for(std::size_t i = 0; i < argc; ++i) {
+        args.emplace_back(ir::capture(i));
+      }
+
+      // remaining args come from stack
+      for(std::size_t i = 0, n = expected - argc; i < n; ++i) {
+        args.emplace_back(ir::local(i));
+      }
+      
+      const ir::expr body = make_ref<ir::call>(ir::capture(argc), std::move(args));
+      
+      return make_ref<closure>(expected - argc, std::move(captures), body);
+    } else {
+      // over-saturated: call expected arguments then call remaining args
+      // regularly
+      value tmp = apply(s, self, args, expected);
+      return tmp.match([&](const auto& self) {
+          return apply(s, self, args + expected, argc - expected);
+        });
+    }    
+  }
+  
+
+
+  // builtin call
+  static value apply(state* s, const builtin& self, const value* args, std::size_t argc) {
+    if(self.argc != argc) {
+      return unsaturated(s, self, self.argc, args, argc);
+    }
+    
+    return self.func(args);
+  }
+
+  // closure call
+  static value apply(state* s, const ref<closure>& self, const value* args, std::size_t argc) {
+    if(self->argc != argc) {
+      return unsaturated(s, self, self->argc, args, argc);      
+    }
+
     // push frame
-    s->frames.emplace_back(sp, self.captures.data(), &self);
+    s->frames.emplace_back(args, self->captures.data(), self);
     
     // evaluate stuff
-    value result = run(s, self.body);
+    value result = run(s, self->body);
 
-    // TODO exception safety
+    // TODO exception safety on frames?
     
     // pop frame
     s->frames.pop_back();
     return result;
   }
   
+  // recursive closure call
+  static value apply(state* s, const unit& self, const value* args, std::size_t argc) {
+    assert(s->frames.back().self);
+    return apply(s, s->frames.back().self, args, argc);
+  }
+
+
+  template<class T>
+  static value apply(state* s, const T& self, const value* args, std::size_t argc) {
+    throw std::runtime_error("type error in application: " + tool::type_name(typeid(T)));
+  }
+
+  // main dispatch
+  static value apply(state* s, const value& self, const value* args, std::size_t argc) {
+    // delegate call based on actual function type
+    return self.match([&](const auto& self) {
+        return apply(s, self, args, argc);
+      });
+  }
+
+  
   static value run(state* s, const ref<ir::call>& self) {
+    // evaluation function
     const value func = run(s, self->func);
 
-    // TODO handle saturated/unsaturated calls
-    const std::size_t argc = func.match([&](const auto& self) -> std::size_t {
-        throw std::runtime_error("type error in application: " + tool::type_name(typeid(self)));
-      },
-      [&](const ref<closure>& self) { return self->argc; },
-      [&](const builtin& self) { return self.argc; },
-      [&](const unit& self) {
-        assert(s->frames.back().self);
-        return s->frames.back().self->argc;
-      });
-
-    if(argc != self->args.size()) {
-      throw std::runtime_error("unimplemented: non-saturated calls");
-    }
-    
-    // stack pointer
-    const value* sp = s->stack.top();
-
     // allocate temporary stack space for args
-    std::vector<value, stack<value>::allocator> storage({s->stack});
-    storage.reserve(self->args.size());
-    
+    std::vector<value, stack<value>::allocator> args({s->stack});
+    args.reserve(self->args.size());
+
+    // evaluate args
     for(const auto& arg: self->args) {
-      storage.emplace_back(run(s, arg));
+      args.emplace_back(run(s, arg));
     }
-    
-    return func.match([&](const auto& self) -> value {
-        throw std::runtime_error("type error in application: " + tool::type_name(typeid(self)));
-      },
-      [&](const builtin& self) {
-        return self.func(sp);
-      },
-      [&](const ref<closure>& self) {
-        return call(s, sp, *self);
-      },
-      [&](const unit& self) {
-        assert(s->frames.back().self);
-        return call(s, sp, *s->frames.back().self);
-      });
+
+    // call
+    return apply(s, func, args.data(), args.size());
   }
 
 
   static value run(state* s, const ref<ir::closure>& self) {
-
     // compute captured variables
     std::vector<value> captures;
     captures.reserve(self->captures.size());
