@@ -157,12 +157,23 @@ namespace ir {
   }
   
 
+  static expr compile(state* ctx, ast::import self) {
+    return import{self.package};
+  }
+
+  static expr compile(state* ctx, ast::use self) {
+    return make_ref<use>(compile(ctx, *self.env));
+  }
+
+  
+  ////////////////////////////////////////////////////////////////////////////////  
   static expr compile(state* ctx, ast::expr self) {
     return self.match([&](auto self) {
         return compile(ctx, self);
       });
   };
 
+  
 
   expr compile(const ast::expr& self) {
     state ctx;

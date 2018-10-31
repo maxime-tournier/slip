@@ -53,17 +53,28 @@ namespace ir {
   struct seq {
     std::vector<expr> items;
   };
+
+  struct import {
+    const symbol package;
+  };
+
+  struct use;
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
                         ref<scope>, ref<push>,
                         ref<closure>, call,
                         seq,
-                        ref<cond>> {
+                        ref<cond>,
+                        import, ref<use>> {
     using expr::variant::variant;
   };
 
-
+  struct use {
+    const expr env;
+    use(expr env):
+      env(env) { }
+  };
   
   struct push {
     const expr value;

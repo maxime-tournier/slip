@@ -44,8 +44,8 @@ namespace vm {
 
 
   static value run(state* s, const ref<ir::push>& self) {
-    value x = run(s, self->value);
-    *s->stack.allocate(1) = std::move(x);
+    // TODO clarify when should the allocation take place
+    new (s->stack.allocate(1)) value(run(s, self->value));
     return unit();
   }
   
@@ -60,8 +60,23 @@ namespace vm {
   static value run(state* s, const ref<ir::scope>& self) {
     value* sp = s->stack.top();
     value res = run(s, self->body);
+
+    // destruct
+    for(std::size_t i = self->size; i > 0; --i) {
+      sp[i - 1].~value();
+    }
+    
     s->stack.deallocate(sp, self->size);
     return res;
+  }
+
+
+  static value run(state* s, const ref<ir::cond>& self) {
+    if(run(s, self->test).cast<boolean>()) {
+      return run(s, self->conseq);
+    } else {
+      return run(s, self->alt);
+    }
   }
   
   static value run(state* s, const ir::call& self) {
@@ -117,7 +132,23 @@ namespace vm {
     
     return make_ref<closure>(self->argc, captures, self->body);
   }
+
+
+
+  static value run(state* s, const ir::import& self) {
+    // TODO
+    std::clog << "warning: stub impl for import" << std::endl;
+    return unit();
+  }
+
+  static value run(state* s, const ref<ir::use>& self) {
+    // TODO
+    std::clog << "warning: stub impl for use" << std::endl;
+    return unit();
+  }
   
+
+  ////////////////////////////////////////////////////////////////////////////////
   
   value run(state* s, const ir::expr& self) {
     return self.match([&](const auto& self) {
@@ -128,6 +159,7 @@ namespace vm {
 
   std::ostream& operator<<(std::ostream& out, const value& self) {
     self.match([&](const auto& self) { out << self; },
+               [&](const unit& self) { out << "()"; },
                [&](const ref<closure>& ) { out << "#<closure>"; },
                [&](const builtin& ) { out << "#<builtin>"; },
                [&](const ref<string>& self) { out << '"' << *self << '"';} );
