@@ -42,10 +42,12 @@ namespace vm {
     return it->second;
   }
 
+  // this is the value that will end up in closure captures for recursive calls
+  static const value recursive = unit();
 
   static value run(state* s, const ref<ir::push>& self) {
-    // TODO clarify when should the allocation take place
-    new (s->stack.allocate(1)) value(run(s, self->value));
+    value* storage = new (s->stack.allocate(1)) value(recursive);
+    *storage = run(s, self->value);
     return unit();
   }
   
@@ -78,16 +80,35 @@ namespace vm {
       return run(s, self->alt);
     }
   }
+
+
+  static value apply(state* s, const value* sp, const closure& self) {
+    // push frame
+    s->frames.emplace_back(sp, self.captures.data(), &self);
+    
+    // evaluate stuff
+    value result = run(s, self.body);
+
+    // TODO exception safety
+    
+    // pop frame
+    s->frames.pop_back();
+    return result;
+  }
   
   static value run(state* s, const ref<ir::call>& self) {
     const value func = run(s, self->func);
 
     // TODO handle saturated/unsaturated calls
-    const std::size_t argc = func.match([&](const auto& ) -> std::size_t {
-        throw std::runtime_error("type error in application");
+    const std::size_t argc = func.match([&](const auto& self) -> std::size_t {
+        throw std::runtime_error("type error in application: " + tool::type_name(typeid(self)));
       },
       [&](const ref<closure>& self) { return self->argc; },
-      [&](const builtin& self) { return self.argc; });
+      [&](const builtin& self) { return self.argc; },
+      [&](const unit& self) {
+        assert(s->frames.back().self);
+        return s->frames.back().self->argc;
+      });
 
     if(argc != self->args.size()) {
       throw std::runtime_error("unimplemented: non-saturated calls");
@@ -104,25 +125,25 @@ namespace vm {
       storage.emplace_back(run(s, arg));
     }
     
-    return func.match([&](const value& ) -> value {
-        throw std::runtime_error("type error in application");
+    return func.match([&](const auto& self) -> value {
+        throw std::runtime_error("type error in application: " + tool::type_name(typeid(self)));
+      },
+      [&](const builtin& self) {
+        return self.func(sp);
       },
       [&](const ref<closure>& self) {
-        // push frame
-        s->frames.emplace_back(sp, self->captures.data());
-
-        // evaluate stuff
-        value result = run(s, self->body);
-        
-        // pop frame
-        s->frames.pop_back();
-        return result;
+        return apply(s, sp, *self);
+      },
+      [&](const unit& self) {
+        assert(s->frames.back().self);
+        return apply(s, sp, *s->frames.back().self);
       });
   }
 
 
   static value run(state* s, const ref<ir::closure>& self) {
 
+    // compute captured variables
     std::vector<value> captures;
     captures.reserve(self->captures.size());
     
@@ -162,6 +183,7 @@ namespace vm {
                [&](const unit& self) { out << "()"; },
                [&](const ref<closure>& ) { out << "#<closure>"; },
                [&](const builtin& ) { out << "#<builtin>"; },
+               [&](const boolean& self) { out << (self ? "true" : "false"); },
                [&](const ref<string>& self) { out << '"' << *self << '"';} );
     return out;
   }

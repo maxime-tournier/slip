@@ -31,6 +31,7 @@ type::poly package::sig() const {
   return ts->generalize(record(res));
 }
 
+
 eval::value package::dict() const {
   // TODO don't expose _members  
   return make_ref<eval::record>(es->locals.begin(), es->locals.end());
@@ -44,6 +45,7 @@ void package::exec(ast::expr e, cont_type cont) {
   const eval::value v = eval::eval(es, e);
   if(cont) cont(p, v);
 }
+
 
 void package::exec(std::string filename) {
   // execute a file in current package

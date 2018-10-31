@@ -13,11 +13,10 @@ namespace tool {
   std::string quote(const std::string& s, char q='"');
   std::string type_name(const std::type_info& self);
 
-  template<class F, class ... Args, std::size_t ... I>
-  static typename std::result_of< F(const Args&...) >::type
-  apply(const F& f, const std::tuple<const Args&...>& args,
-        std::index_sequence<I...>) {
-    return f(std::get<I>(args)...);
+  template<class Func, class ... Args, std::size_t ... I>
+  static auto apply(const Func& func, const std::tuple<const Args&...>& args,
+                    std::index_sequence<I...>) {
+    return func(std::get<I>(args)...);
   }
   
 

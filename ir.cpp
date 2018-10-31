@@ -27,6 +27,10 @@ namespace ir {
     
     expr find(symbol name);
 
+    // currently defined value, if any
+    const symbol* self = nullptr;
+    
+    
     struct scope {
       state* owner;
       locals_type locals;
@@ -97,10 +101,16 @@ namespace ir {
       ctx->def(def.id.name);
     }
 
-    // push defs
+    // push defined values
     vector<expr> items;
     for(ast::bind def : self.defs) {
-      items.emplace_back(make_ref<push>(compile(ctx, def.value)));
+
+      // TODO exception safety
+      ctx->self = &def.id.name;
+      const ir::expr value = compile(ctx, def.value);
+      ctx->self = nullptr;
+      
+      items.emplace_back(make_ref<push>(value));
     }
     const std::size_t size = items.size();
     
@@ -125,6 +135,7 @@ namespace ir {
     // order captures by index
     std::vector<std::pair<symbol, capture>> ordered = {sub.captures.begin(),
                                                        sub.captures.end()};
+    
     std::sort(ordered.begin(), ordered.end(), [](auto lhs, auto rhs) {
         return lhs.second.index < rhs.second.index;
       });

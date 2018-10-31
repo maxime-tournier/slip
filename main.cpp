@@ -135,15 +135,23 @@ int main(int argc, const char** argv) {
   vm::state s(1000);
 
   {
-    package builtins = package::builtins();
+    s
+      .def("=", vm::builtin([](const integer& lhs, const integer& rhs) {
+            return lhs == rhs;
+          }))
+      .def("+", vm::builtin([](const integer& lhs, const integer& rhs) {
+            return lhs + rhs;
+          }))
+      .def("-", vm::builtin([](const integer& lhs, const integer& rhs) {
+            return lhs - rhs;
+          }))
+      .def("*", vm::builtin([](const integer& lhs, const integer& rhs) {
+            return lhs * rhs;
+          }))
+      ;
     
-    // define builtins as globals
-    for(auto it : builtins.es->locals) {
-      it.second.match([&](const auto& self) { },
-                      [&](vm::builtin self) {
-                        s.globals.emplace(it.first, self);
-                      });
-    }
+    
+    
   }
 
   
