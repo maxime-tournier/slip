@@ -8,10 +8,14 @@
 
 namespace vm {
 
-  using builtin = eval::closure;
-  
   struct value;
   struct closure;
+
+  struct builtin {
+    std::size_t argc;
+    using func_type = value (*)(const value* args);
+    func_type func;
+  };
   
   struct value : variant<unit, boolean, integer, real, ref<string>, builtin, ref<closure>> {
     using value::variant::variant;
