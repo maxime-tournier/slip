@@ -33,6 +33,24 @@ namespace {
   };
   
 
+  template<class Sig, class Self, class Func, class ... Args> struct dispatch;
+
+  template<class Ret, class Self, class Func, class ... Params, class ... Args>
+  struct dispatch<Ret(Params...), Self, Func, Args...> {
+
+    using thunk_type = Ret (*)(Self&&, Func&&, Params&&...);
+
+    static const thunk_type table[];
+  };
+
+  template<class Ret, class Self, class Func, class ... Params, class ... Args>
+  const typename dispatch<Ret(Params...), Self, Func, Args...>::thunk_type
+  dispatch<Ret(Params...), Self, Func, Args...>::table[] = {
+    [](Self& self, Func&& func, Params&& ... params) -> Ret {
+      return std::forward<Func>(func)(self.template cast<Args>(), std::forward<Params>(params)...);
+    }...
+  };
+  
 }
   
   
@@ -60,12 +78,14 @@ public:
     return reinterpret_cast<const T&>(storage);
   }
 
+  
   template<class T, index_type index=index_of<T>::value>
   T& cast() {
     assert(index == this->index);
     return reinterpret_cast<T&>(storage);
   }
 
+  
   // accessors
   template<class T, index_type index=index_of<T>::value>
   const T* get() const {
@@ -73,23 +93,27 @@ public:
     return nullptr;
   }
 
+  
   template<class T, index_type index=index_of<T>()>
   T* get() {
     if(this->index == index) { return &cast<T>(); }
     return nullptr;
   }
 
+  
   // constructors/destructors
   template<class T, index_type index=index_of<T>::value>
   variant(T&& value) : index(index) {
     helper_type::construct(&storage, std::forward<T>(value));
   }
 
+  
   variant(variant&& other) : index(other.index) {
     match([&](const Args& self) {
         new (&storage) Args(std::move(other.cast<Args>()));
       }...);
   }
+
   
   variant(const variant& other) : index(other.index) {
     match([&](const Args& self) {
@@ -97,47 +121,39 @@ public:
       }...);
   }
 
+  
   ~variant() {
     match([](const Args& self) { self.~Args(); }...);
   }
 
+  
   // visitors (const)
   template<class Func, class ... Params>
-  auto visit(Func&& func, Params&& ... params) const {
+  inline auto visit(Func&& func, Params&& ... params) const {
     using ret_type = typename std::common_type<decltype(func(this->template cast<Args>(),
                                                              std::forward<Params>(params)...))...>::type;
     using self_type = decltype(*this);
-    using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
+    using dispatch_type = dispatch<ret_type(Params...), self_type, Func, Args...>;
     
-    static const thunk_type table[] = {
-      [](self_type& self, Func&& func, Params&& ... params) -> ret_type {
-        return std::forward<Func>(func)(self.template cast<Args>(), std::forward<Params>(params)...);
-      }...
-    };
-     
-    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
+    return dispatch_type::table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
   }
 
+  
   // visitors (non-const)
   template<class Func, class ... Params>
-  auto visit(Func&& func, Params&& ... params) {
+  inline auto visit(Func&& func, Params&& ... params) {
     using ret_type = typename std::common_type<decltype(func(this->template cast<Args>(),
                                                              std::forward<Params>(params)...))...>::type;
     using self_type = decltype(*this);
-    using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
+    using dispatch_type = dispatch<ret_type(Params...), self_type, Func, Args...>;    
     
-    static const thunk_type table[] = {
-      [](self_type& self, Func&& func, Params&& ... params) -> ret_type {
-        return std::forward<Func>(func)(self.template cast<Args>(), std::forward<Params>(params)...);
-      }...
-    };
-    
-    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
+    return dispatch_type::table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
   }
 
+  
   // pattern matching with lambdas
   template<class ... Func>
-  auto match(const Func& ... func) const {
+  inline auto match(const Func& ... func) const {
     struct overload : Func... {
       overload(const Func& ... func) : Func(func)... { }
     };
@@ -145,8 +161,9 @@ public:
     return visit(overload(func...));
   }
 
+  
   template<class ... Func>
-  auto match(const Func& ... func) {
+  inline auto match(const Func& ... func) {
     struct overload : Func... {
       overload(const Func& ... func) : Func(func)... { }
     };
@@ -154,6 +171,7 @@ public:
     return visit(overload(func...));
   }
 
+  
   // copy assignment
   variant& operator=(const variant& other) {
     if(this == &other) return *this;
@@ -175,6 +193,7 @@ public:
     return *this;
   }
 
+  
   // move-assignment
   variant& operator=(variant&& other) {
     if(this == &other) return *this;
@@ -214,6 +233,7 @@ public:
       }...);
   }
 
+  
   bool operator!=(const variant& other) const {
     return !operator==(other);
   }
