@@ -44,8 +44,7 @@ namespace vm {
     std::vector<frame> frames;
     std::map<symbol, value> globals;
 
-    state(std::size_t size):
-      stack(size) { }
+    state(std::size_t size);
   };
 
 
