@@ -1,6 +1,7 @@
 #include "ir.hpp"
 
 #include "ast.hpp"
+#include "tool.hpp"
 
 #include <algorithm>
 
@@ -16,15 +17,31 @@ namespace ir {
   struct state {
     const state* parent;
     
-    std::map<symbol, local> locals;
+    using locals_type = std::map<symbol, local>;
+    locals_type locals;
+    
     std::map<symbol, capture> captures;
 
     state& def(symbol name);
     
     expr find(symbol name);
 
+    struct scope {
+      state* owner;
+      locals_type locals;
+
+      scope(state* owner):
+        owner(owner),
+        locals(owner->locals) { }
+
+      ~scope() {
+        owner->locals = std::move(locals);
+      }
+    };
+    
   };
 
+  
   
   state& state::def(symbol name) {
     auto info = locals.emplace(name, locals.size());
@@ -53,13 +70,11 @@ namespace ir {
 
 
   ////////////////////////////////////////////////////////////////////////////////
-
-
-
+  static expr compile(state* ctx, ast::expr self);
   
   template<class T>
   static expr compile(state* ctx, const T& self) {
-    throw std::runtime_error("compile not implemented");
+    throw std::runtime_error("compile not implemented for: " + tool::type_name(typeid(T)));
   };
 
 
@@ -72,7 +87,29 @@ namespace ir {
     return ctx->find(self.name);
   }
 
+  
+  static expr compile(state* ctx, ast::let self) {
+    const state::scope backup(ctx);
+    
+    // allocate space for variables
+    for(ast::bind def : self.defs) {
+      ctx->def(def.id.name);
+    }
 
+    // push defs
+    std::vector<expr> items;
+    for(ast::bind def : self.defs) {
+      items.emplace_back(make_ref<push>(compile(ctx, def.value)));
+    }
+    const std::size_t size = items.size();
+    
+    // compile let body
+    items.emplace_back(compile(ctx, *self.body));
+    
+    return make_ref<scope>(size, seq{items});
+  }
+
+  
   static expr compile(state* ctx, ast::abs self) {
     state sub = {ctx};
 

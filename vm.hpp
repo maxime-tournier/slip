@@ -15,14 +15,18 @@ namespace vm {
   
   struct value : variant<unit, boolean, integer, real, ref<string>, builtin, ref<closure>> {
     using value::variant::variant;
+
+    friend std::ostream& operator<<(std::ostream& out, const value& self);
   };
                          
   struct closure {
+    const std::size_t argc;
     const std::vector<value> captures;
     const ir::expr body;
-    closure(std::vector<value> captures, const ir::expr& body)
-      : captures(std::move(captures)),
-        body(body) { }
+    closure(std::size_t argc, std::vector<value> captures, const ir::expr& body):
+      argc(argc),
+      captures(std::move(captures)),
+      body(body) { }
   };
 
   
@@ -39,6 +43,9 @@ namespace vm {
     class stack<value> stack;
     std::vector<frame> frames;
     std::map<symbol, value> globals;
+
+    state(std::size_t size):
+      stack(size) { }
   };
 
 

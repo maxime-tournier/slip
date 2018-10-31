@@ -41,6 +41,18 @@ namespace vm {
   static value run(state* s, const ir::call& self) {
     const value func = run(s, *self.func);
 
+    // TODO handle saturated/unsaturated calls
+    const std::size_t argc = func.match([&](const auto& ) -> std::size_t {
+        throw std::runtime_error("type error in application");
+      },
+      [&](const ref<closure>& self) { return self->argc; },
+      [&](const builtin& self) { return self.argc; });
+
+    if(argc != self.args.size()) {
+      throw std::runtime_error("unimplemented: non-saturated calls");
+    }
+    
+    // stack pointer
     const value* sp = s->stack.top();
     
     std::vector<value, stack<value>::allocator> args({s->stack});
@@ -76,7 +88,7 @@ namespace vm {
       captures.emplace_back(run(s, c));
     }
     
-    return make_ref<closure>(captures, self->body);
+    return make_ref<closure>(self->argc, captures, self->body);
   }
   
   
@@ -85,5 +97,15 @@ namespace vm {
         return run(s, self);
       });
   }
+
+
+  std::ostream& operator<<(std::ostream& out, const value& self) {
+    self.match([&](const auto& self) { out << self; },
+               [&](const ref<closure>& ) { out << "#<closure>"; },
+               [&](const builtin& ) { out << "#<builtin>"; },
+               [&](const ref<string>& self) { out << '"' << *self << '"';} );
+    return out;
+  }
+
   
 }

@@ -176,19 +176,18 @@ package package::builtins() {
     const mono t = self.ts->fresh();
     self.def("pure", a >>= type::io(t)(a),
              eval::closure(1, [](const eval::value* args) {
-               return args[0];
-             }));
+                 return args[0];
+               }));
   }
-
-
+  
+  
   // strings
   self.def("print", type::string >>= type::io(world)(type::unit),
            eval::closure(+[](const ref<string>& self) {
-             std::cout << *self;
-             return unit();
-           }));
-
-
+               std::cout << *self;
+               return unit();
+             }));
+  
   return self;
 }
   

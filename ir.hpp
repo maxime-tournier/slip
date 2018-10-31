@@ -21,6 +21,8 @@ namespace ir {
 
   struct closure;
   struct cond;
+  struct push;
+  struct scope;
   
   struct local {
     std::size_t index;
@@ -48,14 +50,37 @@ namespace ir {
     const T value;
   };
 
+  struct seq {
+    std::vector<expr> items;
+  };
+  
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
-                        ref<cond>,
-                        ref<closure>, call> {
+                        ref<scope>, ref<push>,
+                        ref<closure>, call,
+                        seq,
+                        ref<cond>> {
     using expr::variant::variant;
   };
 
 
+  
+  struct push {
+    const expr value;
+
+    push(expr value):
+      value(value) { }
+  };
+  
+  struct scope {
+    const std::size_t size;
+    const expr body;
+    scope(std::size_t size, expr body):
+      size(size),
+      body(body) { }
+  };
+
+  
   struct closure {
     const std::size_t argc;
     const std::vector<expr> captures;

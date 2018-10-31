@@ -17,6 +17,9 @@
 
 #include "argparse.hpp"
 
+#include "ir.hpp"
+#include "vm.hpp"
+
 struct history {
   const std::string filename;
   history(const std::string& filename="/tmp/slip.history")
@@ -128,6 +131,8 @@ int main(int argc, const char** argv) {
                  return unit();
                }));
   }
+
+  vm::state s(1000);
   
   static const auto handler =
     [&](std::istream& in) {
@@ -137,8 +142,7 @@ int main(int argc, const char** argv) {
             std::cout << "ast: " << e << std::endl;
           }
           main.exec(e, [&](type::poly p, eval::value v) {
-              // TODO: cleanup variables with depth greater than current in
-              // substitution
+              // TODO: cleanup substitution?
               if(auto self = e.get<ast::var>()) {
                 std::cout << self->name;
               }
@@ -147,6 +151,10 @@ int main(int argc, const char** argv) {
                         << " = " << v << std::endl;
             });
           collect();
+
+          const ir::expr c = ir::compile(e);
+          const vm::value x = vm::run(&s, c);
+          std::clog << x << std::endl;
         });
       return true;
     } catch(sexpr::error& e) {
