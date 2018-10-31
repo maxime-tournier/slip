@@ -133,6 +133,19 @@ int main(int argc, const char** argv) {
   }
 
   vm::state s(1000);
+
+  {
+    package builtins = package::builtins();
+    
+    // define builtins as globals
+    for(auto it : builtins.es->locals) {
+      it.second.match([&](const auto& self) { },
+                      [&](vm::builtin self) {
+                        s.globals.emplace(it.first, self);
+                      });
+    }
+  }
+
   
   static const auto handler =
     [&](std::istream& in) {

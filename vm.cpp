@@ -105,7 +105,7 @@ namespace vm {
     }
     
     return func.match([&](const value& ) -> value {
-        throw std::runtime_error("type error");
+        throw std::runtime_error("type error in application");
       },
       [&](const ref<closure>& self) {
         // push frame

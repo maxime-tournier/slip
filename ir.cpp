@@ -16,7 +16,7 @@ namespace ir {
 
   
   struct state {
-    const state* parent;
+    const state* parent = nullptr;
     
     using locals_type = std::map<symbol, local>;
     locals_type locals;
