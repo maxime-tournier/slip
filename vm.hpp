@@ -49,9 +49,9 @@ namespace vm {
   struct frame {
     const value* sp;
     const value* captures;
-    ref<closure> self;
+    const ref<closure>* self;
     
-    frame(const value* sp, const value* captures, const ref<closure> self={}):
+    frame(const value* sp, const value* captures, const ref<closure>* self=nullptr):
       sp(sp),
       captures(captures),
       self(self) { }

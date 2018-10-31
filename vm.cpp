@@ -5,6 +5,7 @@ namespace vm {
 
   state::state(std::size_t size):
     stack(size) {
+    frames.reserve(size);    
     frames.emplace_back(stack.top(), nullptr);
   }
   
@@ -140,7 +141,7 @@ namespace vm {
     }
 
     // push frame
-    s->frames.emplace_back(args, self->captures.data(), self);
+    s->frames.emplace_back(args, self->captures.data(), &self);
     
     // evaluate stuff
     value result = run(s, self->body);
@@ -155,8 +156,8 @@ namespace vm {
   // recursive closure call
   static value apply(state* s, const unit&, const value* args, std::size_t argc) {
     assert(s->frames.back().self);
-    const ref<closure> self = s->frames.back().self;
-    return apply(s, self, args, argc);
+    const ref<closure>* self = s->frames.back().self;
+    return apply(s, *self, args, argc);
   }
 
 
@@ -167,6 +168,14 @@ namespace vm {
 
   // main dispatch
   static value apply(state* s, const value& self, const value* args, std::size_t argc) {
+
+    switch(self.type()) {
+    case value::index_of<builtin>::value: return apply(s, self.cast<builtin>(), args, argc);
+    case value::index_of<ref<closure>>::value: return apply(s, self.cast<ref<closure>>(), args, argc);
+    case value::index_of<unit>::value: return apply(s, unit(), args, argc);
+    default: break;
+    }
+    
     // delegate call based on actual function type
     return self.match([&](const auto& self) {
         return apply(s, self, args, argc);

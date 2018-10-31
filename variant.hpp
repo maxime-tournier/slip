@@ -32,25 +32,6 @@ namespace {
     using other_types::construct;
   };
   
-
-  template<class Sig, class Self, class Func, class ... Args> struct dispatch;
-
-  template<class Ret, class Self, class Func, class ... Params, class ... Args>
-  struct dispatch<Ret(Params...), Self, Func, Args...> {
-
-    using thunk_type = Ret (*)(Self&&, Func&&, Params&&...);
-
-    static const thunk_type table[];
-  };
-
-  template<class Ret, class Self, class Func, class ... Params, class ... Args>
-  const typename dispatch<Ret(Params...), Self, Func, Args...>::thunk_type
-  dispatch<Ret(Params...), Self, Func, Args...>::table[] = {
-    [](Self& self, Func&& func, Params&& ... params) -> Ret {
-      return std::forward<Func>(func)(self.template cast<Args>(), std::forward<Params>(params)...);
-    }...
-  };
-  
 }
   
   
@@ -64,13 +45,15 @@ class variant {
 
   using helper_type = helper<0, Args...>;
 
-  template<class T, index_type index=helper_type::index((typename std::decay<T>::type*) 0)>
-  struct index_of {
-    static constexpr std::size_t value = index;
-  };
-  
 public:
 
+  index_type type() const { return index; }
+  
+  template<class T, index_type index=helper_type::index((typename std::decay<T>::type*) 0)>
+  struct index_of {
+    static constexpr index_type value = index;
+  };
+  
   // unsafe cast
   template<class T, index_type index=index_of<T>::value>
   const T& cast() const {
@@ -126,6 +109,12 @@ public:
     match([](const Args& self) { self.~Args(); }...);
   }
 
+
+  template<class T, class Ret, class Self, class Func, class ... Params>
+  static Ret thunk(Self& self, Func&& func, Params&& ... params) {
+    return std::forward<Func>(func)(self.template cast<T>(), std::forward<Params>(params)...);
+  }
+  
   
   // visitors (const)
   template<class Func, class ... Params>
@@ -133,9 +122,11 @@ public:
     using ret_type = typename std::common_type<decltype(func(this->template cast<Args>(),
                                                              std::forward<Params>(params)...))...>::type;
     using self_type = decltype(*this);
-    using dispatch_type = dispatch<ret_type(Params...), self_type, Func, Args...>;
+    using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
     
-    return dispatch_type::table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
+    static constexpr thunk_type table[] = { thunk<Args, ret_type, self_type, Func, Params...>... };
+     
+    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
   }
 
   
@@ -145,9 +136,11 @@ public:
     using ret_type = typename std::common_type<decltype(func(this->template cast<Args>(),
                                                              std::forward<Params>(params)...))...>::type;
     using self_type = decltype(*this);
-    using dispatch_type = dispatch<ret_type(Params...), self_type, Func, Args...>;    
+    using thunk_type = ret_type (*) (self_type&&, Func&&, Params&&...);
     
-    return dispatch_type::table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);
+    static constexpr thunk_type table[] = { thunk<Args, ret_type, self_type, Func, Params...>... };
+    
+    return table[index](*this, std::forward<Func>(func), std::forward<Params>(params)...);    
   }
 
   
