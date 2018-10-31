@@ -59,7 +59,7 @@ namespace vm {
 
   static value run(state* s, const ref<ir::scope>& self) {
     value* sp = s->stack.top();
-    value res = run(s, self->body);
+    value res = run(s, self->value);
 
     // destruct
     for(std::size_t i = self->size; i > 0; --i) {
@@ -79,8 +79,8 @@ namespace vm {
     }
   }
   
-  static value run(state* s, const ir::call& self) {
-    const value func = run(s, *self.func);
+  static value run(state* s, const ref<ir::call>& self) {
+    const value func = run(s, self->func);
 
     // TODO handle saturated/unsaturated calls
     const std::size_t argc = func.match([&](const auto& ) -> std::size_t {
@@ -89,7 +89,7 @@ namespace vm {
       [&](const ref<closure>& self) { return self->argc; },
       [&](const builtin& self) { return self.argc; });
 
-    if(argc != self.args.size()) {
+    if(argc != self->args.size()) {
       throw std::runtime_error("unimplemented: non-saturated calls");
     }
     
@@ -98,9 +98,9 @@ namespace vm {
 
     // allocate temporary stack space for args
     std::vector<value, stack<value>::allocator> storage({s->stack});
-    storage.reserve(self.args.size());
+    storage.reserve(self->args.size());
     
-    for(const auto& arg: self.args) {
+    for(const auto& arg: self->args) {
       storage.emplace_back(run(s, arg));
     }
     

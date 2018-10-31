@@ -5,10 +5,11 @@
 
 #include <algorithm>
 
+#include "sexpr.hpp"
 
 namespace ir {
 
-  closure::closure(std::size_t argc, std::vector<expr> captures, expr body)
+  closure::closure(std::size_t argc, vector<expr> captures, expr body)
     : argc(argc),
       captures(captures),
       body(body) { }
@@ -97,7 +98,7 @@ namespace ir {
     }
 
     // push defs
-    std::vector<expr> items;
+    vector<expr> items;
     for(ast::bind def : self.defs) {
       items.emplace_back(make_ref<push>(compile(ctx, def.value)));
     }
@@ -129,7 +130,7 @@ namespace ir {
       });
     
     // define function captures
-    std::vector<expr> captures;
+    vector<expr> captures;
     for(auto cap : ordered) {
       captures.emplace_back(ctx->find(cap.first));
     }
@@ -141,12 +142,12 @@ namespace ir {
   static expr compile(state* ctx, ast::app self) {
     const expr func = compile(ctx, *self.func);
 
-    std::vector<expr> args;
+    vector<expr> args;
     for(ast::expr arg : self.args) {
       args.emplace_back(compile(ctx, arg));
     };
 
-    return call{make_ref<expr>(func), args};
+    return make_ref<call>(func, args);
   }
 
 
@@ -179,5 +180,88 @@ namespace ir {
     state ctx;
     return compile(&ctx, self);
   }
+
+
+  struct repr_visitor {
+    template<class T>
+    sexpr operator()(const T& self) const {
+      string res;
+      res += "#<" + tool::type_name(typeid(T)) + ">";
+      return res;
+    }
+
+    template<class T>
+    sexpr operator()(const lit<T>& self) const { return self.value; }
+
+    sexpr operator()(const lit<unit>& self) const { return sexpr::list(); }
+
+    sexpr operator()(const seq& self) const {
+      return symbol("seq") >>= foldr(sexpr::list(), self.items, [&](sexpr::list rhs, ir::expr lhs) {
+          return repr(lhs) >>= rhs;
+        });
+    }
+
+    sexpr operator()(const ref<scope>& self) const {
+      return symbol("scope")
+        >>= integer(self->size)
+        >>= repr(self->value)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const ref<push>& self) const {
+      return symbol("push")
+        >>= repr(self->value)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const ref<closure>& self) const {
+      return symbol("closure")
+        >>= integer(self->argc)
+        >>= foldr(sexpr::list(), self->captures, [&](sexpr::list tail, ir::expr head) {
+            return repr(head) >>= tail;
+          })
+        >>= repr(self->body)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const global& self) const {
+      return symbol("global")
+        >>= self.name
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const local& self) const {
+      return symbol("local")
+        >>= integer(self.index)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const capture& self) const {
+      return symbol("capture")
+        >>= integer(self.index)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const ref<cond>& self) const {
+      return symbol("if")
+        >>= repr(self->test)
+        >>= repr(self->conseq)
+        >>= repr(self->alt)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const ref<call>& self) const {
+      return repr(self->func)
+        >>= foldr(sexpr::list(), self->args, [](sexpr::list tail, ir::expr head) {
+            return repr(head) >>= tail;
+          });
+    }
+    
+  };
+  
+  sexpr repr(const ir::expr& self) {
+    return self.match(repr_visitor());
+  }
+
   
 }

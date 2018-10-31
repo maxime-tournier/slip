@@ -5,6 +5,7 @@
 
 struct string : std::string {
   using std::string::string;
+  
 };
 
 

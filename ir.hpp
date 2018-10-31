@@ -7,9 +7,11 @@
 #include "base.hpp"
 #include "symbol.hpp"
 #include "string.hpp"
+#include "vector.hpp"
 
-#include <vector>
 #include <map>
+
+struct sexpr;
 
 namespace ast {
   struct expr;
@@ -23,6 +25,7 @@ namespace ir {
   struct cond;
   struct push;
   struct scope;
+  struct call;
   
   struct local {
     std::size_t index;
@@ -39,11 +42,6 @@ namespace ir {
     symbol name;
   };
   
-  struct call {
-    const ref<expr> func;
-    const std::vector<expr> args;
-  };
-
   
   template<class T>
   struct lit {
@@ -51,7 +49,7 @@ namespace ir {
   };
 
   struct seq {
-    std::vector<expr> items;
+    vector<expr> items;
   };
 
   struct import {
@@ -63,13 +61,24 @@ namespace ir {
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
                         ref<scope>, ref<push>,
-                        ref<closure>, call,
+                        ref<closure>, ref<call>,
                         seq,
                         ref<cond>,
                         import, ref<use>> {
     using expr::variant::variant;
   };
 
+  struct call {
+    const expr func;
+    const vector<expr> args;
+
+    call(expr func, vector<expr> args):
+      func(func),
+      args(args) { }
+  };
+
+
+  
   struct use {
     const expr env;
     use(expr env):
@@ -85,31 +94,37 @@ namespace ir {
   
   struct scope {
     const std::size_t size;
-    const expr body;
-    scope(std::size_t size, expr body):
+    const expr value;
+
+    scope(std::size_t size, expr value):
       size(size),
-      body(body) { }
+      value(value) { }
   };
 
   
   struct closure {
     const std::size_t argc;
-    const std::vector<expr> captures;
+    const vector<expr> captures;
     const expr body;
 
-    closure(std::size_t argc, std::vector<expr> captures, expr body);
+    closure(std::size_t argc, vector<expr> captures, expr body);
   };
 
   struct cond {
     const expr test;
     const expr conseq;
     const expr alt;
+    
     cond(expr test, expr conseq, expr alt)
       : test(test), conseq(conseq), alt(alt) { }
   };
   
   // toplevel compilation
   expr compile(const ast::expr& self);
+
+
+  // 
+  sexpr repr(const expr& self);
   
 }
 

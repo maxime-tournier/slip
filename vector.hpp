@@ -9,7 +9,7 @@ struct vector : std::vector<T> {
 
   template<class Init, class Func>
   friend Init foldl(Init init, const vector& self, Func func) {
-    for(auto it = self.begin(), end = it.end(); it != end; ++it) {
+    for(auto it = self.begin(), end = self.end(); it != end; ++it) {
       init = func(init, *it);
     }
     return init;
@@ -17,7 +17,7 @@ struct vector : std::vector<T> {
 
   template<class Init, class Func>
   friend Init foldr(Init init, const vector& self, Func func) {
-    for(auto it = self.rbegin(), end = it.rend(); it != end; ++it) {
+    for(auto it = self.rbegin(), end = self.rend(); it != end; ++it) {
       init = func(init, *it);
     }
     return init;
