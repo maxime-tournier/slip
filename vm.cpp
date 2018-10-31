@@ -64,7 +64,7 @@ namespace vm {
     value* sp = s->stack.top();
     value res = run(s, self->value);
 
-    // destruct
+    // destruct values
     for(std::size_t i = self->size; i > 0; --i) {
       sp[i - 1].~value();
     }
@@ -153,9 +153,10 @@ namespace vm {
   }
   
   // recursive closure call
-  static value apply(state* s, const unit& self, const value* args, std::size_t argc) {
+  static value apply(state* s, const unit&, const value* args, std::size_t argc) {
     assert(s->frames.back().self);
-    return apply(s, s->frames.back().self, args, argc);
+    const ref<closure> self = s->frames.back().self;
+    return apply(s, self, args, argc);
   }
 
 
