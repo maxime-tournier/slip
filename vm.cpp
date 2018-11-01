@@ -284,7 +284,7 @@ namespace vm {
     }
     
     // TODO move values from the stack into vector
-    std::vector<value> captures = {first, first + self->argc};
+    std::vector<value> captures = {first, first + self->captures.size()};
 
     // result
     value res = make_ref<closure>(self->argc, std::move(captures), self->body);
@@ -303,10 +303,12 @@ namespace vm {
 
   static void run(state* s, const ir::import& self) {
     std::clog << "warning: stub impl for import" << std::endl;
+    push(s, unit());
   }
 
   static void run(state* s, const ref<ir::use>& self) {
     std::clog << "warning: stub impl for use" << std::endl;
+    push(s, unit());
   }
   
   static void run(state* s, const ir::expr& self) {
