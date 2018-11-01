@@ -44,7 +44,7 @@ public:
 
     using value_type = U;
     
-    template<class V> struct rebind { using other = typename stack<V>::allocator; };
+    template<class V> struct rebind { using other = allocator<V>; };
     
     U* allocate(std::size_t n) {
       std::size_t m = (sizeof(U) * n) / sizeof(T);
