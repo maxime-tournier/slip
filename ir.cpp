@@ -231,19 +231,19 @@ namespace ir {
     }
 
     sexpr operator()(const global& self) const {
-      return symbol("global")
+      return symbol("glob")
         >>= self.name
         >>= sexpr::list();
     }
 
     sexpr operator()(const local& self) const {
-      return symbol("local")
+      return symbol("var")
         >>= integer(self.index)
         >>= sexpr::list();
     }
 
     sexpr operator()(const capture& self) const {
-      return symbol("capture")
+      return symbol("cap")
         >>= integer(self.index)
         >>= sexpr::list();
     }

@@ -26,9 +26,8 @@ namespace vm {
   }
   
   static void peek(state* s) {
-    std::clog << s->stack.size() << std::endl;
     for(std::size_t i = 0; i < s->stack.size(); ++i) {
-      std::clog << "\t" << i << std::endl;
+      std::clog << "\t" << i << ":\t" << *(s->stack.next() - (i + 1))<< std::endl;
     }
   }
   
