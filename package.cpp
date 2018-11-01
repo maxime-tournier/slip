@@ -42,8 +42,7 @@ void package::exec(ast::expr e, cont_type cont) {
   const type::mono t = type::infer(ts, e);
   const type::poly p = ts->generalize(t);
   
-  const eval::value v = eval::eval(es, e);
-  if(cont) cont(p, v);
+  if(cont) cont(p);
 }
 
 

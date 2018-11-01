@@ -92,7 +92,7 @@ int main(int argc, const char** argv) {
     .flag("debug-gc", "debug garbage collector")
     .flag("debug-tc", "debug type checking")
     .flag("debug-ast", "debug abstract syntax tree")
-    // .flag("time", "time evaluations")
+    .flag("time", "time evaluations")
     .flag("verbose", "be verbose")
     .flag("help", "show help")
     .argument<std::string>("filename", "file to run")
@@ -162,22 +162,37 @@ int main(int argc, const char** argv) {
           if(options.flag("debug-ast", false)) {
             std::cout << "ast: " << e << std::endl;
           }
-          main.exec(e, [&](type::poly p, eval::value v) {
+          main.exec(e, [&](type::poly p) {
               // TODO: cleanup substitution?
               if(auto self = e.get<ast::var>()) {
                 std::cout << self->name;
               }
 
+              double duration;
+              const eval::value v = tool::timer(&duration, [&] {
+                  return eval::eval(main.es, e);
+                });
+              
               std::cout << " : " << p << std::flush
                         << " = " << v << std::endl;
+              if(options.flag("time", false)) {
+                std::cout << "time: " << duration << std::endl;
+              }
             });
           collect();
 
           const ir::expr c = ir::compile(e);
           std::clog << "compiled: " << repr(c) << std::endl;
+
+          double duration;          
+          const vm::value x = tool::timer(&duration, [&] {
+              return vm::eval(&s, c);
+            });
           
-          const vm::value x = vm::eval(&s, c);
-          std::clog << x << std::endl;
+          std::clog << "vm: " << x << std::endl;
+          if(options.flag("time", false)) {
+            std::cout << "time: " << duration << std::endl;
+          }
         });
       return true;
     } catch(sexpr::error& e) {
