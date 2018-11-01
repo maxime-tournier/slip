@@ -138,7 +138,7 @@ namespace eval {
     const value func = eval(e, *self.func);
 
     // TODO use allocator
-    using allocator_type = stack_type::allocator;
+    using allocator_type = stack_allocator<value>;
     std::vector<value, allocator_type> args{allocator_type{stack}};
     args.reserve(self.argc);
     

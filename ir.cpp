@@ -110,7 +110,7 @@ namespace ir {
       const ir::expr value = compile(ctx, def.value);
       ctx->self = nullptr;
       
-      items.emplace_back(make_ref<push>(value));
+      items.emplace_back(make_ref<ir::def>(value));
     }
     const std::size_t size = items.size();
     
@@ -207,7 +207,8 @@ namespace ir {
     sexpr operator()(const lit<unit>& self) const { return sexpr::list(); }
 
     sexpr operator()(const seq& self) const {
-      return symbol("seq") >>= foldr(sexpr::list(), self.items, [&](sexpr::list rhs, ir::expr lhs) {
+      return symbol("seq")
+        >>= foldr(sexpr::list(), self.items, [&](sexpr::list rhs, ir::expr lhs) {
           return repr(lhs) >>= rhs;
         });
     }
@@ -219,8 +220,8 @@ namespace ir {
         >>= sexpr::list();
     }
 
-    sexpr operator()(const ref<push>& self) const {
-      return symbol("push")
+    sexpr operator()(const ref<def>& self) const {
+      return symbol("def")
         >>= repr(self->value)
         >>= sexpr::list();
     }

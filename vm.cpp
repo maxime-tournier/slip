@@ -6,7 +6,7 @@ namespace vm {
   state::state(std::size_t size):
     stack(size) {
     frames.reserve(size);    
-    frames.emplace_back(stack.top(), nullptr);
+    frames.emplace_back(stack.next(), nullptr);
   }
   
   template<class T>
@@ -16,68 +16,89 @@ namespace vm {
   }
 
 
+  template<class ... Args>
+  static value* push(state* s, Args&& ... args) {
+    return new (s->stack.allocate(1)) value(std::forward<Args>(args)...);
+  }
+
+  static value* top(state* s) {
+    return s->stack.next() - 1;
+  }
+  
+  static void pop(state* s, std::size_t n=1) {
+    for(std::size_t i=0; i < n; ++i) {
+      (top(s) - i)->~value();
+    }
+  }
+
+  
   template<class T>
-  static value run(state* s, const ir::lit<T>& expr) {
-    return expr.value;
+  static void run(state* s, const ir::lit<T>& self) {
+    push(s, self.value);
   }
 
 
-  static value run(state* s, const ir::lit<string>& expr) {
-    return make_ref<string>(expr.value);
+  static void run(state* s, const ir::lit<string>& self) {
+    push(s, make_ref<string>(self.value));
   }
 
 
-  static value run(state* s, const ir::local& self) {
+
+  static void run(state* s, const ref<ir::def>& self) {
+    run(s, self->value);
+  }
+  
+
+  static void run(state* s, const ir::local& self) {
     assert(s->frames.back().sp);
-    return s->frames.back().sp[self.index];
+    push(s, s->frames.back().sp[self.index]);
   }
   
   
-  static value run(state* s, const ir::capture& self) {
+  static void run(state* s, const ir::capture& self) {
     assert(s->frames.back().captures);    
-    return s->frames.back().captures[self.index];
+    push(s, s->frames.back().captures[self.index]);
   }
 
   
-  static value run(state* s, const ir::global& self) {
+  static void run(state* s, const ir::global& self) {
     auto it = s->globals.find(self.name);
     assert(it != s->globals.end());
-    return it->second;
+    push(s, it->second);
   }
 
   // this is the value that will end up in closure captures for recursive calls
   static const value recursive = unit();
 
-  static value run(state* s, const ref<ir::push>& self) {
-    value* storage = new (s->stack.allocate(1)) value(recursive);
-    *storage = run(s, self->value);
-    return unit();
-  }
-  
-  static value run(state* s, const ir::seq& self) {
-    value res = unit();
-    for(const ir::expr& e: self.items) {
-      res = run(s, e);
-    }
-    return res;
-  }
-
-  static value run(state* s, const ref<ir::scope>& self) {
-    value* sp = s->stack.top();
-    value res = run(s, self->value);
-
-    // destruct values
-    for(std::size_t i = self->size; i > 0; --i) {
-      sp[i - 1].~value();
-    }
+  static void run(state* s, const ir::seq& self) {
+    push(s, unit());
     
-    s->stack.deallocate(sp, self->size);
-    return res;
+    for(const ir::expr& e: self.items) {
+      pop(s);
+      run(s, e);
+    }
+  }
+
+  static void run(state* s, const ref<ir::scope>& self) {
+    // run and fetch scope result
+    run(s, self->value);
+    value result = std::move(*top(s));
+
+    // pop scope size
+    pop(s, self->size + 1);
+
+    // put back result
+    *top(s) = std::move(result);
   }
 
 
   static value run(state* s, const ref<ir::cond>& self) {
-    if(run(s, self->test).cast<boolean>()) {
+    // evaluate test
+    run(s, self->test);
+    const bool test = top(s)->cast<boolean>();
+    pop(s);
+
+    if(test) {
       return run(s, self->conseq);
     } else {
       return run(s, self->alt);
@@ -96,6 +117,8 @@ namespace vm {
 
   static value unsaturated(state* s, const value& self, std::size_t expected,
                            const value* args, std::size_t argc) {
+    throw std::runtime_error("unimplemented: unsaturated");
+    
     assert(argc != expected);
     if(expected > argc) {
       // under-saturated: close over available arguments + function
@@ -151,9 +174,14 @@ namespace vm {
     s->frames.emplace_back(args, self->captures.data(), &self);
     
     // evaluate stuff
-    value result = run(s, self->body);
+    run(s, self->body);
 
-    // TODO exception safety on frames?
+    // pop result
+    value result = std::move(*top(s));
+    pop(s);
+
+    // sanity check
+    assert(s->stack.next() - s->frames.back().sp == argc);
     
     // pop frame
     s->frames.pop_back();
@@ -175,9 +203,9 @@ namespace vm {
   }
 
   // main dispatch
-  static value apply(state* s, const value& self,
-                     const value* args, std::size_t argc) {
-
+  static value call(state* s, const value* args, std::size_t argc) {
+    const value& self = args[-1];
+    
     switch(self.type()) {
     case value::index_of<builtin>::value:
       return apply(s, self.cast<builtin>(), args, argc);
@@ -194,58 +222,65 @@ namespace vm {
       });
   }
 
-  
-  static value run(state* s, const ref<ir::call>& self) {
-    // evaluation function
-    const value func = run(s, self->func);
 
-    // allocate temporary stack space for args
-    std::vector<value, stack<value>::allocator> args({s->stack});
-    args.reserve(self->args.size());
+  static void run(state* s, const ref<ir::call>& self) {
+    // evaluate/push function
+    run(s, self->func);
 
-    // evaluate args
+    // evaluate/push args
+    const value* args = s->stack.next();
+    const std::size_t argc = self->args.size();
     for(const auto& arg: self->args) {
-      args.emplace_back(run(s, arg));
+      run(s, arg);
     }
+    
+    // call function: call must cleanup the stack leaving exactly the function
+    // arguments in place
+    value result = call(s, args, argc);
 
-    // call
-    return apply(s, func, args.data(), args.size());
+    // pop arguments
+    pop(s, argc);
+
+    // push function result
+    *top(s) = std::move(result);
   }
 
 
-  static value run(state* s, const ref<ir::closure>& self) {
-    // compute captured variables
-    std::vector<value> captures;
-    captures.reserve(self->captures.size());
-    
+  static void run(state* s, const ref<ir::closure>& self) {
+
+    const value* first = s->stack.next();
+    // push captured variables
     for(const ir::expr& c : self->captures) {
-      captures.emplace_back(run(s, c));
+      run(s, c);
     }
     
-    return make_ref<closure>(self->argc, captures, self->body);
+    // TODO move values from the stack into vector
+    std::vector<value> captures = {first, first + self->argc};
+    
+    push(s, make_ref<closure>(self->argc, std::move(captures), self->body));
   }
 
 
 
-  static value run(state* s, const ir::import& self) {
-    // TODO
+  static void run(state* s, const ir::import& self) {
     std::clog << "warning: stub impl for import" << std::endl;
-    return unit();
   }
 
-  static value run(state* s, const ref<ir::use>& self) {
-    // TODO
+  static void run(state* s, const ref<ir::use>& self) {
     std::clog << "warning: stub impl for use" << std::endl;
-    return unit();
   }
   
 
   ////////////////////////////////////////////////////////////////////////////////
   
   value run(state* s, const ir::expr& self) {
-    return self.match([&](const auto& self) {
-        return run(s, self);
+    self.match([&](const auto& self) {
+        run(s, self);
       });
+    
+    value res = std::move(*top(s));
+    pop(s);
+    return res;
   }
 
 

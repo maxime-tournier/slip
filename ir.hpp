@@ -23,7 +23,7 @@ namespace ir {
 
   struct closure;
   struct cond;
-  struct push;
+  struct def;
   struct scope;
   struct call;
   
@@ -60,7 +60,7 @@ namespace ir {
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
-                        ref<scope>, ref<push>,
+                        ref<scope>, ref<def>,
                         ref<closure>, ref<call>,
                         seq,
                         ref<cond>,
@@ -85,10 +85,10 @@ namespace ir {
       env(env) { }
   };
   
-  struct push {
+  struct def {
     const expr value;
 
-    push(expr value):
+    def(expr value):
       value(value) { }
   };
   

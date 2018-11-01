@@ -17,12 +17,12 @@ public:
   stack(const stack& other) = default;
   stack(stack&& other) = default;
   
-  T* top() { return reinterpret_cast<T*>(&storage[sp]); }
+  T* next() { return reinterpret_cast<T*>(&storage[sp]); }
   
   stack(std::size_t size) : storage(size), sp(0) { }
 
   T* allocate(std::size_t n) {
-    T* res = top();
+    T* res = next();
     sp += n;
     assert(sp <= storage.size() && "stack overflow");
 
@@ -32,7 +32,7 @@ public:
   void deallocate(T* ptr, std::size_t n) {
     assert(n <= sp && "stack corruption"); 
     sp -= n;
-    assert(ptr == top() && "stack corruption");
+    assert(ptr == next() && "stack corruption");
   }
 
   template<class U=T>
