@@ -55,7 +55,7 @@ namespace vm {
 
 
   static void run(state* s, const ir::lit<string>& self) {
-    push(s, make_ref<string>(self.value));
+    push(s, gc::make_ref<string>(self.value));
   }
 
 
@@ -77,9 +77,7 @@ namespace vm {
     push(s, it->second);
   }
 
-  // this is the value that will end up in closure captures for recursive calls
-  static const value recursive = unit();
-
+  
   static void run(state* s, const ir::seq& self) {
     push(s, unit());
     
@@ -126,8 +124,6 @@ namespace vm {
                      const value* args, std::size_t argc);
   static value apply(state* s, const ref<closure>& self,
                      const value* args, std::size_t argc);
-  static value apply(state* s, const unit& self,
-                     const value* args, std::size_t argc);
   static value apply(state* s, const value& self,
                      const value* args, std::size_t argc);  
   
@@ -158,7 +154,7 @@ namespace vm {
       
       const ir::expr body = make_ref<ir::call>(ir::capture(argc), std::move(args));
       
-      return make_ref<closure>(expected - argc, body, std::move(captures));
+      return gc::make_ref<closure>(expected - argc, body, std::move(captures));
     } else {
       // over-saturated: call expected arguments then call remaining args
       // regularly
@@ -182,14 +178,14 @@ namespace vm {
   }
 
   // closure call
-  static value apply(state* s, const ref<closure>& self,
+  static value apply(state* s, const gc::ref<closure>& self,
                      const value* args, std::size_t argc) {
     if(self->argc != argc) {
       return unsaturated(s, self, self->argc, args, argc);      
     }
 
     // push frame
-    s->frames.emplace_back(args, self->captures.data(), &self);
+    s->frames.emplace_back(args, self->captures.data());
     
     // evaluate stuff
     run(s, self->body);
@@ -206,13 +202,6 @@ namespace vm {
     return result;
   }
   
-  // recursive closure call
-  static value apply(state* s, const unit&, const value* args, std::size_t argc) {
-    assert(s->frames.back().self);
-    const ref<closure>* self = s->frames.back().self;
-    return apply(s, *self, args, argc);
-  }
-
 
   template<class T>
   static value apply(state* s, const T& self, const value* args, std::size_t argc) {
@@ -227,10 +216,8 @@ namespace vm {
     switch(self.type()) {
     case value::index_of<builtin>::value:
       return apply(s, self.cast<builtin>(), args, argc);
-    case value::index_of<ref<closure>>::value:
-      return apply(s, self.cast<ref<closure>>(), args, argc);
-    case value::index_of<unit>::value:
-      return apply(s, unit(), args, argc);
+    case value::index_of<gc::ref<closure>>::value:
+      return apply(s, self.cast<gc::ref<closure>>(), args, argc);
     default: break;
     }
     
@@ -278,7 +265,7 @@ namespace vm {
     // std::clog << "closure: " << repr(self) << std::endl;
 
     // result
-    auto res = make_ref<closure>(self->argc, self->body);
+    auto res = gc::make_ref<closure>(self->argc, self->body);
 
     // note: pushing closure *before* filling captures so that it can be
     // captured itself (recursive definitions)

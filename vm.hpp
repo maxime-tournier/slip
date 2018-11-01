@@ -8,6 +8,9 @@
 
 namespace vm {
 
+  struct tag;
+  using gc = class gc<tag>;
+  
   struct value;
   struct closure;
 
@@ -20,13 +23,12 @@ namespace vm {
       argc(argc),
       func(func) { }
 
-
     template<class Func>
     explicit builtin(Func func);
   };
 
 
-  struct value : variant<unit, boolean, integer, real, ref<string>, builtin, ref<closure>> {
+  struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin, gc::ref<closure>> {
     using value::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);
@@ -50,12 +52,10 @@ namespace vm {
   struct frame {
     const value* sp;
     const value* captures;
-    const ref<closure>* self;
     
-    frame(const value* sp, const value* captures, const ref<closure>* self=nullptr):
+    frame(const value* sp, const value* captures):
       sp(sp),
-      captures(captures),
-      self(self) { }
+      captures(captures) { }
   };
   
 
@@ -73,7 +73,7 @@ namespace vm {
 
   };
 
-
+  void mark(state* self);
   value eval(state* self, const ir::expr& expr);
 
 
