@@ -17,17 +17,26 @@ namespace vm {
                              + tool::type_name(typeid(T)));
   }
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
+
+
+  static value* top(state* s) {
+    return s->stack.next() - 1;
+  }
+  
+  static void peek(state* s) {
+    std::clog << s->stack.size() << std::endl;
+    for(std::size_t i = 0; i < s->stack.size(); ++i) {
+      std::clog << "\t" << i << std::endl;
+    }
+  }
+  
   template<class ... Args>
   static value* push(state* s, Args&& ... args) {
     value* res = new (s->stack.allocate(1)) value(std::forward<Args>(args)...);
     if(debug) std::clog << "push: " << *res << std::endl;
     return res;
-  }
-
-  static value* top(state* s) {
-    return s->stack.next() - 1;
   }
   
   static void pop(state* s, std::size_t n=1) {
@@ -35,6 +44,8 @@ namespace vm {
       if(debug) std::clog << "pop: " << *(top(s) - i) << std::endl;
       (top(s) - i)->~value();
     }
+    
+    s->stack.deallocate(s->stack.next() - n, n);
   }
 
   
@@ -125,6 +136,8 @@ namespace vm {
 
   static value unsaturated(state* s, const value& self, std::size_t expected,
                            const value* args, std::size_t argc) {
+    std::clog << "calling: " << self << " " << expected << " / " << argc << std::endl;
+    
     throw std::runtime_error("unimplemented: unsaturated");
     
     assert(argc != expected);
@@ -232,15 +245,22 @@ namespace vm {
 
 
   static void run(state* s, const ref<ir::call>& self) {
+    std::clog << "call: " << ir::repr(self) << std::endl;
+    std::clog << "before: " << std::endl;
+    peek(s);
+    
     // evaluate/push function
     run(s, self->func);
 
     // evaluate/push args
     const value* args = s->stack.next();
+    
     const std::size_t argc = self->args.size();
     for(const auto& arg: self->args) {
       run(s, arg);
     }
+
+    peek(s);
     
     // call function: call must cleanup the stack leaving exactly the function
     // arguments in place
@@ -255,7 +275,8 @@ namespace vm {
 
 
   static void run(state* s, const ref<ir::closure>& self) {
-
+    std::clog << "before: " << std::endl;
+    
     const value* first = s->stack.next();
     // push captured variables
     for(const ir::expr& c : self->captures) {
@@ -264,8 +285,18 @@ namespace vm {
     
     // TODO move values from the stack into vector
     std::vector<value> captures = {first, first + self->argc};
+
+    // result
+    value res = make_ref<closure>(self->argc, std::move(captures), self->body);
+
+    // pop captures
+    pop(s, self->captures.size());
     
-    push(s, make_ref<closure>(self->argc, std::move(captures), self->body));
+    // push result
+    push(s, std::move(res));
+    
+    std::clog << "after: " << std::endl;
+    peek(s);    
   }
 
 

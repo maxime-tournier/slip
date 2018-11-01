@@ -18,6 +18,7 @@ public:
   stack(stack&& other) = default;
   
   T* next() { return reinterpret_cast<T*>(&storage[sp]); }
+  std::size_t size() const { return sp; }
   
   stack(std::size_t size) : storage(size), sp(0) { }
 
