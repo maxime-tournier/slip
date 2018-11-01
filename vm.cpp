@@ -11,7 +11,8 @@ namespace vm {
   
   template<class T>
   static value run(state* s, const T& ) {
-    throw std::runtime_error("run unimplemented for: " + tool::type_name(typeid(T)));
+    throw std::runtime_error("run unimplemented for: "
+                             + tool::type_name(typeid(T)));
   }
 
 
@@ -83,10 +84,14 @@ namespace vm {
     }
   }
 
-  static value apply(state* s, const builtin& self, const value* args, std::size_t argc);
-  static value apply(state* s, const ref<closure>& self, const value* args, std::size_t argc);
-  static value apply(state* s, const unit& self, const value* args, std::size_t argc);
-  static value apply(state* s, const value& self, const value* args, std::size_t argc);  
+  static value apply(state* s, const builtin& self,
+                     const value* args, std::size_t argc);
+  static value apply(state* s, const ref<closure>& self,
+                     const value* args, std::size_t argc);
+  static value apply(state* s, const unit& self,
+                     const value* args, std::size_t argc);
+  static value apply(state* s, const value& self,
+                     const value* args, std::size_t argc);  
   
 
   static value unsaturated(state* s, const value& self, std::size_t expected,
@@ -126,7 +131,8 @@ namespace vm {
 
 
   // builtin call
-  static value apply(state* s, const builtin& self, const value* args, std::size_t argc) {
+  static value apply(state* s, const builtin& self,
+                     const value* args, std::size_t argc) {
     if(self.argc != argc) {
       return unsaturated(s, self, self.argc, args, argc);
     }
@@ -135,7 +141,8 @@ namespace vm {
   }
 
   // closure call
-  static value apply(state* s, const ref<closure>& self, const value* args, std::size_t argc) {
+  static value apply(state* s, const ref<closure>& self,
+                     const value* args, std::size_t argc) {
     if(self->argc != argc) {
       return unsaturated(s, self, self->argc, args, argc);      
     }
@@ -163,16 +170,21 @@ namespace vm {
 
   template<class T>
   static value apply(state* s, const T& self, const value* args, std::size_t argc) {
-    throw std::runtime_error("type error in application: " + tool::type_name(typeid(T)));
+    throw std::runtime_error("type error in application: "
+                             + tool::type_name(typeid(T)));
   }
 
   // main dispatch
-  static value apply(state* s, const value& self, const value* args, std::size_t argc) {
+  static value apply(state* s, const value& self,
+                     const value* args, std::size_t argc) {
 
     switch(self.type()) {
-    case value::index_of<builtin>::value: return apply(s, self.cast<builtin>(), args, argc);
-    case value::index_of<ref<closure>>::value: return apply(s, self.cast<ref<closure>>(), args, argc);
-    case value::index_of<unit>::value: return apply(s, unit(), args, argc);
+    case value::index_of<builtin>::value:
+      return apply(s, self.cast<builtin>(), args, argc);
+    case value::index_of<ref<closure>>::value:
+      return apply(s, self.cast<ref<closure>>(), args, argc);
+    case value::index_of<unit>::value:
+      return apply(s, unit(), args, argc);
     default: break;
     }
     
