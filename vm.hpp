@@ -36,13 +36,14 @@ namespace vm {
                          
   struct closure {
     const std::size_t argc;
-    const std::vector<value> captures;
     const ir::expr body;
+
+    std::vector<value> captures;
     
-    closure(std::size_t argc, std::vector<value> captures, const ir::expr& body):
+    closure(std::size_t argc, const ir::expr& body, std::vector<value> captures={}):
       argc(argc),
-      captures(std::move(captures)),
-      body(body) { }
+      body(body),
+      captures(std::move(captures)){ }
   };
 
   
