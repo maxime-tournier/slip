@@ -8,6 +8,8 @@ namespace vm {
     frames.reserve(size);    
     frames.emplace_back(stack.next(), nullptr);
   }
+
+  static void run(state* s, const ir::expr& self);  
   
   template<class T>
   static value run(state* s, const T& ) {
@@ -15,10 +17,13 @@ namespace vm {
                              + tool::type_name(typeid(T)));
   }
 
+  static constexpr bool debug = false;
 
   template<class ... Args>
   static value* push(state* s, Args&& ... args) {
-    return new (s->stack.allocate(1)) value(std::forward<Args>(args)...);
+    value* res = new (s->stack.allocate(1)) value(std::forward<Args>(args)...);
+    if(debug) std::clog << "push: " << *res << std::endl;
+    return res;
   }
 
   static value* top(state* s) {
@@ -27,6 +32,7 @@ namespace vm {
   
   static void pop(state* s, std::size_t n=1) {
     for(std::size_t i=0; i < n; ++i) {
+      if(debug) std::clog << "pop: " << *(top(s) - i) << std::endl;
       (top(s) - i)->~value();
     }
   }
@@ -42,12 +48,6 @@ namespace vm {
     push(s, make_ref<string>(self.value));
   }
 
-
-
-  static void run(state* s, const ref<ir::def>& self) {
-    run(s, self->value);
-  }
-  
 
   static void run(state* s, const ir::local& self) {
     assert(s->frames.back().sp);
@@ -80,28 +80,36 @@ namespace vm {
   }
 
   static void run(state* s, const ref<ir::scope>& self) {
-    // run and fetch scope result
+
+    // push scope defs
+    for(const ir::expr& def : self->defs) {
+      run(s, def);
+    }
+    
+    // push scope value
     run(s, self->value);
+
+    // fetch result
     value result = std::move(*top(s));
-
+    
     // pop scope size
-    pop(s, self->size + 1);
-
+    pop(s, self->defs.size());
+    
     // put back result
     *top(s) = std::move(result);
   }
 
 
-  static value run(state* s, const ref<ir::cond>& self) {
+  static void run(state* s, const ref<ir::cond>& self) {
     // evaluate test
     run(s, self->test);
     const bool test = top(s)->cast<boolean>();
     pop(s);
 
     if(test) {
-      return run(s, self->conseq);
+      run(s, self->conseq);
     } else {
-      return run(s, self->alt);
+      run(s, self->alt);
     }
   }
 
@@ -270,14 +278,17 @@ namespace vm {
     std::clog << "warning: stub impl for use" << std::endl;
   }
   
+  static void run(state* s, const ir::expr& self) {
+    self.match([&](const auto& self) {
+      run(s, self);
+    });
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   
-  value run(state* s, const ir::expr& self) {
-    self.match([&](const auto& self) {
-        run(s, self);
-      });
-    
+
+  value eval(state* s, const ir::expr& self) {
+    run(s, self);
     value res = std::move(*top(s));
     pop(s);
     return res;

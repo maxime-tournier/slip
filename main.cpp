@@ -176,7 +176,7 @@ int main(int argc, const char** argv) {
           const ir::expr c = ir::compile(e);
           std::clog << "compiled: " << repr(c) << std::endl;
           
-          const vm::value x = vm::run(&s, c);
+          const vm::value x = vm::eval(&s, c);
           std::clog << x << std::endl;
         });
       return true;

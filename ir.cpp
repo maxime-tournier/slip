@@ -102,22 +102,20 @@ namespace ir {
     }
 
     // push defined values
-    vector<expr> items;
+    vector<expr> defs;
     for(ast::bind def : self.defs) {
-
       // TODO exception safety
       ctx->self = &def.id.name;
-      const ir::expr value = compile(ctx, def.value);
+      ir::expr value = compile(ctx, def.value);
       ctx->self = nullptr;
-      
-      items.emplace_back(make_ref<ir::def>(value));
+
+      defs.emplace_back(std::move(value));
     }
-    const std::size_t size = items.size();
     
     // compile let body
-    items.emplace_back(compile(ctx, *self.body));
+    expr value = compile(ctx, *self.body);
     
-    return make_ref<scope>(size, seq{items});
+    return make_ref<scope>(defs, value);
   }
 
   
@@ -215,13 +213,9 @@ namespace ir {
 
     sexpr operator()(const ref<scope>& self) const {
       return symbol("scope")
-        >>= integer(self->size)
-        >>= repr(self->value)
-        >>= sexpr::list();
-    }
-
-    sexpr operator()(const ref<def>& self) const {
-      return symbol("def")
+        >>= foldr(sexpr::list(), self->defs, [&](sexpr::list rhs, ir::expr lhs) {
+            return repr(lhs) >>= rhs;
+          })
         >>= repr(self->value)
         >>= sexpr::list();
     }

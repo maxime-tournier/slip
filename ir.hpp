@@ -23,7 +23,6 @@ namespace ir {
 
   struct closure;
   struct cond;
-  struct def;
   struct scope;
   struct call;
   
@@ -60,13 +59,13 @@ namespace ir {
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
-                        ref<scope>, ref<def>,
-                        ref<closure>, ref<call>,
+                        ref<scope>, ref<closure>, ref<call>,
                         seq,
                         ref<cond>,
                         import, ref<use>> {
     using expr::variant::variant;
   };
+  
 
   struct call {
     const expr func;
@@ -85,19 +84,12 @@ namespace ir {
       env(env) { }
   };
   
-  struct def {
-    const expr value;
-
-    def(expr value):
-      value(value) { }
-  };
-  
   struct scope {
-    const std::size_t size;
+    const vector<expr> defs;
     const expr value;
-
-    scope(std::size_t size, expr value):
-      size(size),
+    
+    scope(vector<expr> defs, expr value):
+      defs(std::move(defs)),
       value(value) { }
   };
 
@@ -115,8 +107,10 @@ namespace ir {
     const expr conseq;
     const expr alt;
     
-    cond(expr test, expr conseq, expr alt)
-      : test(test), conseq(conseq), alt(alt) { }
+    cond(expr test, expr conseq, expr alt):
+      test(test),
+      conseq(conseq),
+      alt(alt) { }
   };
   
   // toplevel compilation

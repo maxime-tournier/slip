@@ -73,7 +73,7 @@ namespace vm {
   };
 
 
-  value run(state* self, const ir::expr& expr);
+  value eval(state* self, const ir::expr& expr);
 
 
   template<class Func, class Ret, class ... Args>
