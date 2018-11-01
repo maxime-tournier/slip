@@ -73,7 +73,7 @@ namespace vm {
 
   };
 
-  void mark(state* self);
+  void collect(state* self);
   value eval(state* self, const ir::expr& expr);
 
 

@@ -312,6 +312,7 @@ namespace vm {
     run(s, self);
     value res = std::move(*top(s));
     pop(s);
+    collect(s);
     return res;
   }
 
@@ -326,5 +327,27 @@ namespace vm {
     return out;
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  struct mark_visitor {
+    template<class T>
+    void operator()(T& self) const { }
+
+    template<class T>
+    void operator()(gc::ref<T>& self) const {
+      self.mark();
+    }
+    
+  };
+  
+  static void mark(state* self) {
+    for(auto& it : self->globals) {
+      it.second.visit(mark_visitor());
+    }
+  }
+
+  void collect(state* self) {
+    mark(self);
+    gc::sweep();
+  }
   
 }

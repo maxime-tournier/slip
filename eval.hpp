@@ -16,9 +16,9 @@ namespace eval {
   struct value;
 
   struct tag;
+  using gc = class gc<tag>;
 
   struct state {
-    using gc = class gc<tag>;
     using ref = gc::ref<state>;
     
     ref parent;
@@ -26,6 +26,7 @@ namespace eval {
 
     value* find(symbol name);
     friend ref scope(ref self);
+    
     state(ref parent={});
 
     void def(symbol name, const value&);

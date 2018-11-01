@@ -120,7 +120,7 @@ int main(int argc, const char** argv) {
     }
 
     // and sweep
-    eval::state::gc::sweep();
+    eval::gc::sweep();
   };
 
   {

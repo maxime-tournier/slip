@@ -43,7 +43,7 @@ namespace eval {
 
   state::ref scope(state::ref self) {
     assert(self);
-    return state::gc::make_ref<state>(self);
+    return gc::make_ref<state>(self);
   }
 
 
@@ -377,7 +377,15 @@ namespace eval {
     };
   }
 
+  static void debug(state::ref e) {
+    for(auto& it : e->locals) {
+      std::clog << it.first << ": " << it.second << std::endl;
+    }
+  }
+  
   value eval(state::ref e, const ast::expr& self) {
+    std::clog << self << std::endl;
+    debug(e);
     return self.visit(eval_visitor(), e);
   }
 
