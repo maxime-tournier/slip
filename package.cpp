@@ -16,7 +16,7 @@ package& package::def(symbol name, type::mono t, eval::value v) {
 package::package(symbol name)
   : name(name),
     ts(make_ref<type::state>()),
-    es(new eval::state) {
+    es(eval::state::gc::make_ref<eval::state>()) {
 }
 
 

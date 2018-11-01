@@ -9,7 +9,7 @@
 struct package {
   const symbol name;
   const ref<type::state> ts;
-  eval::state* es;
+  eval::state::ref es;
   
   package& def(symbol name, type::mono t, eval::value v);
 

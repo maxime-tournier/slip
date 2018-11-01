@@ -20,7 +20,7 @@ namespace eval {
 
 
   template<class T>
-  static value eval(state* env, const T& ) {
+  static value eval(state::ref env, const T& ) {
     static_assert(sizeof(T) == 0, "eval implemented");
   }
   
@@ -34,16 +34,16 @@ namespace eval {
     : value(data), tag(tag) { }
 
 
-  lambda::lambda(state* env, std::size_t argc, func_type func)
+  lambda::lambda(state::ref env, std::size_t argc, func_type func)
     : closure(argc, func),
       env(env) { }
       
   
-  state::state(state* parent) : parent(parent) { }
+  state::state(ref parent): parent(parent) { }
 
-  state* scope(state* self) {
+  state::ref scope(state::ref self) {
     assert(self);
-    return new state(self);
+    return state::gc::make_ref<state>(self);
   }
 
 
@@ -54,9 +54,9 @@ namespace eval {
 
   
   template<class NameIterator, class ValueIterator>
-  static state* augment(state* self,
-                        NameIterator name_first, NameIterator name_last,
-                        ValueIterator value_first, ValueIterator value_last) {
+  static state::ref augment(state::ref self,
+                            NameIterator name_first, NameIterator name_last,
+                            ValueIterator value_first, ValueIterator value_last) {
     auto res = scope(self);
 
     ValueIterator value = value_first;
@@ -115,16 +115,16 @@ namespace eval {
   
 
   template<class T>
-  static value eval(state*, const ast::lit<T>& self) {
+  static value eval(state::ref, const ast::lit<T>& self) {
     return self.value;
   }
 
-  static value eval(state*, const ast::lit<string>& self) {
+  static value eval(state::ref, const ast::lit<string>& self) {
     return make_ref<string>(self.value);
   }
 
 
-  static value eval(state* e, const ast::var& self) {
+  static value eval(state::ref e, const ast::var& self) {
     auto res = e->find(self.name); assert(res);
     return *res;
   }
@@ -133,7 +133,7 @@ namespace eval {
   static stack_type stack{1000};
   
   
-  static value eval(state* e, const ast::app& self) {
+  static value eval(state::ref e, const ast::app& self) {
     // note: evaluate func first
     const value func = eval(e, *self.func);
 
@@ -150,7 +150,7 @@ namespace eval {
   }
 
  
-  static value eval(state* e, const ast::abs& self) {
+  static value eval(state::ref e, const ast::abs& self) {
     std::vector<symbol> names;
 
     for(const auto& arg : self.args) {
@@ -167,14 +167,14 @@ namespace eval {
   }
 
 
-  static value eval(state* e, const ast::bind& self) {
+  static value eval(state::ref e, const ast::bind& self) {
     auto it = e->locals.emplace(self.id.name, eval(e, self.value)); (void) it;
     assert(it.second && "redefined variable");
     return unit();
   }
   
   
-  static value eval(state* e, const ast::io& self) {
+  static value eval(state::ref e, const ast::io& self) {
     return self.match([&](const ast::expr& self) {
         return eval(e, self);
       },
@@ -185,7 +185,7 @@ namespace eval {
 
   
 
-  static value eval(state* e, const ast::seq& self) {
+  static value eval(state::ref e, const ast::seq& self) {
     auto sub = scope(e);
     
     const value init = unit();
@@ -198,11 +198,11 @@ namespace eval {
   }
 
 
-  static value eval(state* e, const ast::run& self) {
+  static value eval(state::ref e, const ast::run& self) {
     return eval(e, *self.value);
   }
 
-  static value eval(state* e, const ast::module& self) {
+  static value eval(state::ref e, const ast::module& self) {
     // just define the reified module type constructor
     enum module::type type;
     switch(self.type) {
@@ -214,14 +214,14 @@ namespace eval {
 
   
   
-  static value eval(state* e, const ast::def& self) {
+  static value eval(state::ref e, const ast::def& self) {
     auto it = e->locals.emplace(self.id.name, eval(e, *self.value)); (void) it;
     assert(it.second && "redefined variable");
     return unit();
   }
   
   
-  static value eval(state* e, const ast::let& self) {
+  static value eval(state::ref e, const ast::let& self) {
     auto sub = scope(e);
     
     for(const ast::bind& def : self.defs) {
@@ -232,7 +232,7 @@ namespace eval {
   }
 
   
-  static value eval(state* e, const ast::cond& self) {
+  static value eval(state::ref e, const ast::cond& self) {
     const value test = eval(e, *self.test);
     assert(test.get<boolean>() && "type error");
     
@@ -243,7 +243,7 @@ namespace eval {
 				   
 
 
-  static value eval(state* e, const ast::record& self) {
+  static value eval(state::ref e, const ast::record& self) {
     auto res = make_ref<record>();
     for(const auto& attr : self.attrs) {
       res->emplace(attr.id.name, eval(e, attr.value));
@@ -252,7 +252,7 @@ namespace eval {
   }
 
 
-  static value eval(state* e, const ast::sel& self) {
+  static value eval(state::ref e, const ast::sel& self) {
     const symbol name = self.id.name;
     return closure(1, [name](const value* args) -> value {
         return args[0].match([&](const value::list& self) -> value {
@@ -275,7 +275,7 @@ namespace eval {
   }
 
 
-  static value eval(state* e, const ast::inj& self) {
+  static value eval(state::ref e, const ast::inj& self) {
     const symbol tag = self.id.name;
     return closure(1, [tag](const value* args) -> value {
         return make_ref<sum>(args[0], tag);
@@ -283,7 +283,7 @@ namespace eval {
   }
   
 
-  static value eval(state* e, const ast::make& self) {
+  static value eval(state::ref e, const ast::make& self) {
     switch(eval(e, *self.type).cast<module>().type) {
     case module::product:
       return eval(e, ast::record{self.attrs});
@@ -299,7 +299,7 @@ namespace eval {
   }
 
   
-  static value eval(state* e, const ast::use& self) {
+  static value eval(state::ref e, const ast::use& self) {
     const value env = eval(e, *self.env);
     assert(env.get<ref<record>>() && "type error");
 
@@ -314,7 +314,7 @@ namespace eval {
   }
   
 
-  static value eval(state* e, const ast::import& self) {
+  static value eval(state::ref e, const ast::import& self) {
     const package pkg = package::import(self.package);
     e->def(self.package, pkg.dict());
     return unit();
@@ -322,7 +322,7 @@ namespace eval {
 
 
 
-  static value eval(state* e, const ast::match& self) {
+  static value eval(state::ref e, const ast::match& self) {
     std::map<symbol, std::pair<symbol, ast::expr>> dispatch;
 
     for(const auto& handler : self.cases) {
@@ -370,14 +370,14 @@ namespace eval {
     struct eval_visitor {
   
       template<class T>
-      value operator()(const T& self, state* e) const {
+      value operator()(const T& self, state::ref e) const {
         return eval(e, self);
       }
   
     };
   }
 
-  value eval(state* e, const ast::expr& self) {
+  value eval(state::ref e, const ast::expr& self) {
     return self.visit(eval_visitor(), e);
   }
 
@@ -480,11 +480,11 @@ struct ostream_visitor {
   }
   
 
-  void mark(state* e, bool debug) {
-    if(debug) std::clog << "marking:\t" << e << std::endl;
+  void mark(state::ref e, bool debug) {
+    if(debug) std::clog << "marking:\t" << e.get() << std::endl;
     
-    if(e->marked()) return;
-    e->mark();
+    if(e.marked()) return;
+    e.mark();
     
     for(auto& it : e->locals) {
       mark(it.second, debug);

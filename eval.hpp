@@ -14,14 +14,19 @@
 namespace eval {
 
   struct value;
-  
-  struct state : gc {
-    state* parent;
+
+  struct tag;
+
+  struct state {
+    using gc = class gc<tag>;
+    using ref = gc::ref<state>;
+    
+    ref parent;
     std::map<symbol, value> locals;
 
     value* find(symbol name);
-    friend state* scope(state* self);
-    state(state* parent=nullptr);
+    friend ref scope(ref self);
+    state(ref parent={});
 
     void def(symbol name, const value&);
   };
@@ -45,8 +50,8 @@ namespace eval {
 
   // note: we need separate lambdas because we need to traverse env during gc
   struct lambda : closure {
-    state* env;
-    lambda(state* env, std::size_t argc, func_type func);
+    state::ref env;
+    lambda(state::ref env, std::size_t argc, func_type func);
   };
 
   
@@ -93,10 +98,10 @@ namespace eval {
 
 
   value apply(const value& func, const value* first, const value* last);
-  value eval(state* e, const ast::expr& expr);
+  value eval(state::ref e, const ast::expr& expr);
 
   
-  void mark(state* e, bool debug=false);
+  void mark(state::ref e, bool debug=false);
   
 }
 
