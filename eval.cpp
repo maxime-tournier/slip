@@ -384,8 +384,6 @@ namespace eval {
   }
   
   value eval(state::ref e, const ast::expr& self) {
-    std::clog << self << std::endl;
-    debug(e);
     return self.visit(eval_visitor(), e);
   }
 

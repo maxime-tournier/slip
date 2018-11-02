@@ -20,7 +20,7 @@ struct package {
   
   // exec ast
   using cont_type = std::function<void(type::poly)>;
-  void exec(ast::expr expr, cont_type cont=nullptr);
+  void exec(ast::expr expr, cont_type cont);
   
   type::poly sig() const;
   eval::value dict() const;

@@ -41,8 +41,8 @@ eval::value package::dict() const {
 void package::exec(ast::expr e, cont_type cont) {
   const type::mono t = type::infer(ts, e);
   const type::poly p = ts->generalize(t);
-  
-  if(cont) cont(p);
+
+  cont(p);
 }
 
 
@@ -50,8 +50,10 @@ void package::exec(std::string filename) {
   // execute a file in current package
   std::ifstream in(filename);
   ast::expr::iter(in, [&](const ast::expr& e) {
-    exec(e);
-  });
+      exec(e, [&](const type::poly& p) {
+          eval::eval(es, e);
+        });
+    });
 }
 
 
