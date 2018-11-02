@@ -105,7 +105,6 @@ int main(int argc, const char** argv) {
     return 0;
   }
   
-  
   package main("main");
   main.ts->debug = options.flag("debug-tc", false);
 

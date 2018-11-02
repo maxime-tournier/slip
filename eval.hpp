@@ -29,7 +29,7 @@ namespace eval {
     
     state(ref parent={});
 
-    void def(symbol name, const value&);
+    state& def(symbol name, const value&);
   };
   
   using record = std::map<symbol, value>;

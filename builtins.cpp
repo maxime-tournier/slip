@@ -1,193 +1,208 @@
 #include "package.hpp"
 
-package package::builtins() {
-  package self("builtins");
-  
-  using namespace eval;
-  
-  using type::real;
-    
-  using type::record;
-  using type::row;
-  using type::empty;
-  using type::mono;
-  using type::constant;
+#include "infer.hpp"
+#include "eval.hpp"
+#include "vm.hpp"
 
-  // terms
-  self
-    .def("+", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
-           return lhs + rhs;
-         }))
-      
-    .def("*", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
-           return lhs * rhs;
-         }))
-      
-    .def("-", type::integer >>= type::integer >>= type::integer,
-         closure(+[](const integer& lhs, const integer& rhs) -> integer {
-           return lhs - rhs;
-         }))
-      
-    .def("=", type::integer >>= type::integer >>= type::boolean,
-         closure(+[](const integer& lhs, const integer& rhs) -> boolean {
-           return lhs == rhs;
-         }))
-    ;
+namespace kw {
+static const symbol nil = "nil";
+static const symbol cons = "cons";
 
-
-  using type::ty;
-  auto ctor_value = closure(+[](const unit&) { return unit();});
-  auto ctor2_value = closure(+[](const unit&, const unit& ) { return unit();});
-  
-  // function
-  {
-    const mono a = self.ts->fresh(kind::term());
-    const mono b = self.ts->fresh(kind::term());    
-    self.def("->", ty(a) >>= ty(b) >>= ty(a >>= b), ctor2_value);
-  }
-
-  {
-    const mono a = self.ts->fresh(kind::term());
-    const mono b = self.ts->fresh(kind::term());    
-
-    const mono sig = (a >>= b) >>= (a >>= b);
-    self.ts->sigs->emplace(*type::func.get<type::cst>(),
-                           self.ts->generalize(sig));
-  }
-
-
-  // type
-  {
-    const mono a = self.ts->fresh(kind::term());
-    const mono sig = ty(a) >>= ty(a);
-
-    self.ts->sigs->emplace(*type::ty.get<type::cst>(),
-                           self.ts->generalize(sig));
-  }
-
-
-  {
-    const mono a = self.ts->fresh(kind::term());
-
-    self.def("type", ty(a) >>= ty(ty(a)), ctor_value);
-
-  }
-
-  // ctor
-  const mono ctor =
-    make_ref<type::constant>("ctor",
-                             (kind::term() >>= kind::term()) >>= kind::term());
-  
-  {
-    const mono c = self.ts->fresh(kind::term() >>= kind::term());
-    const mono a = self.ts->fresh(kind::term());
-
-    const mono sig = ctor(c) >>= (ty(a) >>= ty(c(a)));
-    
-    self.ts->sigs->emplace(ctor.cast<type::cst>(), self.ts->generalize(sig));
-  }
-
-  {
-    const mono c = self.ts->fresh(kind::term() >>= kind::term());    
-    self.def("ctor", ctor(c) >>= ty(ctor(c)), ctor_value);
-  }
-
-  self.def("integer", ty(type::integer), unit());
-  self.def("boolean", ty(type::boolean), unit());
-  self.def("unit", ty(type::unit), unit());
-
-  
-  // list
-  {
-    const mono list = make_ref<type::constant>("list", kind::term() >>= kind::term());
-    
-    {
-      const mono a = self.ts->fresh();
-      const mono sig = list(a) >>=
-        type::sum(row(eval::cons, type::record(row(eval::head, a) |= row(eval::tail, list(a)) |= type::empty))
-                  |= row(eval::nil, type::unit)
-                  |= type::empty);
-      
-      self.ts->sigs->emplace(list.cast<type::cst>(), self.ts->generalize(sig));
-    }
-    
-    {
-      const mono a = self.ts->fresh();
-      self.def("nil", list(a), eval::value::list());
-    }
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("cons", a >>= list(a) >>= list(a), eval::closure(2, [](const eval::value* args) -> value {
-            return args[0] >>= args[1].cast<eval::value::list>();
-          }));
-    }
-
-    {
-      const mono a = self.ts->fresh();
-      self.def("list", ty(a) >>= ty(list(a)), eval::module{eval::module::list});
-    }
-    
-  }
-
-
-  // io
-  const mono world = make_ref<type::constant>("world", kind::term());
-
-  const mono mut =
-    make_ref<type::constant>("mut", kind::term() >>= kind::term() >>= kind::term());
-  
-  {
-    const mono a = self.ts->fresh();
-    const mono b = self.ts->fresh();
-
-    self.def("ref", b >>= type::io(a)(mut(a)(b)),
-             eval::closure(1, [](const eval::value* args) -> value {
-                 return make_ref<value>(args[0]);
-               }));
-  }
-
-  {
-    const mono a = self.ts->fresh();
-    const mono b = self.ts->fresh();    
-
-    self.def("get", mut(a)(b) >>= type::io(a)(b),
-             eval::closure(1, [](const eval::value* args) -> value {
-                 return *args[0].cast<ref<value>>();
-               }));
-  }
-
-  {
-    const mono a = self.ts->fresh();
-    const mono b = self.ts->fresh();    
- 
-    self.def("set", mut(a)(b) >>= b >>= type::io(a)(type::unit),
-             eval::closure(2, [](const eval::value* args) -> value {
-                 *args[0].cast<ref<value>>() = args[1];
-                 return unit();
-               }));
-  }
-
-
-  {
-    const mono a = self.ts->fresh();
-    const mono t = self.ts->fresh();
-    self.def("pure", a >>= type::io(t)(a),
-             eval::closure(1, [](const eval::value* args) {
-                 return args[0];
-               }));
-  }
-  
-  
-  // strings
-  self.def("print", type::string >>= type::io(world)(type::unit),
-           eval::closure(+[](const ref<string>& self) {
-               std::cout << *self;
-               return unit();
-             }));
-  
-  return self;
+static const symbol head = "head";
+static const symbol tail = "tail";
 }
+
+namespace type {
+
+  static ref<state> builtins() {
   
+    ref<state> self = make_ref<state>();
+  
+    (*self)
+      .def("+", integer >>= integer >>= integer)
+      .def("*", integer >>= integer >>= integer)
+      .def("-", integer >>= integer >>= integer)
+      .def("=", integer >>= integer >>= boolean)
+      ;
+
+    // function
+    {
+      const mono a = self->fresh(kind::term());
+      const mono b = self->fresh(kind::term());
+    
+      self->def("->", ty(a) >>= ty(b) >>= ty(a >>= b));
+    }
+
+
+    // type
+    {
+      const mono a = self->fresh(kind::term());
+      self->def("type", ty(a) >>= ty(ty(a)));
+    }
+  
+    // ctor
+    const mono ctor = 
+      make_ref<type::constant>("ctor",
+                               (kind::term() >>= kind::term()) >>= kind::term());
+  
+    {
+      const mono c = self->fresh(kind::term() >>= kind::term());
+      const mono a = self->fresh(kind::term());
+
+      const mono sig = ctor(c) >>= (ty(a) >>= ty(c(a)));
+    
+      self->sigs->emplace(ctor.cast<cst>(), self->generalize(sig));
+    }
+  
+    {
+      const mono c = self->fresh(kind::term() >>= kind::term());    
+      self->def("ctor", ctor(c) >>= ty(ctor(c)));
+    }
+
+    // base types
+    self->def("integer", ty(integer));
+    self->def("boolean", ty(boolean));
+    self->def("unit", ty(unit));
+  
+    // list
+    const mono list = make_ref<constant>("list", kind::term() >>= kind::term());
+    {
+      const mono a = self->fresh();
+      const mono sig = list(a) >>=
+        sum(row(kw::cons, record(row(kw::head, a)
+                                 |= row(kw::tail, list(a)) |= empty))
+            |= row(kw::nil, unit)
+            |= empty);
+    
+      self->sigs->emplace(list.cast<cst>(), self->generalize(sig));
+    }
+  
+    {
+      const mono a = self->fresh();
+      self->def(kw::nil, list(a));
+    }
+
+    {
+      const mono a = self->fresh();
+      self->def(kw::cons, a >>= list(a) >>= list(a));
+    }
+
+    {
+      const mono a = self->fresh();
+      self->def("list", ty(a) >>= ty(list(a)));
+    }
+
+    //  io
+    const mono world = make_ref<constant>("world", kind::term());
+  
+    const mono mut =
+      make_ref<constant>("mut", kind::term() >>= kind::term() >>= kind::term());
+  
+    {
+      const mono a = self->fresh();
+      const mono b = self->fresh();
+    
+      self->def("ref", b >>= io(a)(mut(a)(b)));
+    }
+
+    {
+      const mono a = self->fresh();
+      const mono b = self->fresh();    
+
+      self->def("get", mut(a)(b) >>= io(a)(b));
+    }
+
+    {
+      const mono a = self->fresh();
+      const mono b = self->fresh();    
+ 
+      self->def("set", mut(a)(b) >>= b >>= io(a)(unit));
+    }
+
+
+    {
+      const mono a = self->fresh();
+      const mono t = self->fresh();
+    
+      self->def("pure", a >>= io(t)(a));
+    }
+  
+  
+    // strings
+    self->def("print", string >>= io(world)(unit));
+
+    return self;
+  };
+}
+
+namespace eval {
+  
+  static state::ref builtins() {
+    state::ref self = gc::make_ref<state>();
+
+    (*self)
+      .def("+", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+        return lhs + rhs;
+      }))
+    
+      .def("*", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+        return lhs * rhs;
+      }))
+    
+      .def("-", closure(+[](const integer& lhs, const integer& rhs) -> integer {
+        return lhs - rhs;
+      }))
+    
+      .def("=", closure(+[](const integer& lhs, const integer& rhs) -> boolean {
+        return lhs == rhs;
+      }))
+
+      ;
+
+
+    // list
+    self->def(kw::nil, eval::value::list());
+  
+    self->def(kw::cons, eval::closure(2, [](const eval::value* args) -> value {
+      return args[0] >>= args[1].cast<eval::value::list>();
+    }));
+
+
+
+    // io
+    self->def("ref", eval::closure(1, [](const eval::value* args) -> value {
+      return make_ref<value>(args[0]);
+    }));
+
+    self->def("get", eval::closure(1, [](const eval::value* args) -> value {
+      return *args[0].cast<ref<value>>();
+    }));
+
+    self->def("set", eval::closure(2, [](const eval::value* args) -> value {
+      *args[0].cast<ref<value>>() = args[1];
+      return unit();
+    }));
+
+    self->def("pure", eval::closure(1, [](const eval::value* args) {
+      return args[0];
+    }));
+  
+  
+    // strings
+    self->def("print", eval::closure(+[](const ref<string>& self) {
+      std::cout << *self;
+      return unit();
+    }));
+  
+    return self;
+  };
+}
+
+
+void builtins() {
+  static const symbol name = "builtins";
+
+  package::import<ref<type::state>>(name, type::builtins);
+  package::import<eval::state::ref>(name, eval::builtins);  
+}
+

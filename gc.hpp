@@ -56,7 +56,7 @@ public:
     explicit operator bool() const { return ptr; }
       
     T* get() const { return &ptr->value; }
-    T& operator*() const { return *ptr; }
+    T& operator*() const { return ptr->value; }
     T* operator->() const { return get();}
 
     inline void mark() { ptr->set_mark(true); }

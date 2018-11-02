@@ -47,9 +47,10 @@ namespace eval {
   }
 
 
-  void state::def(symbol name, const value& self) {
+  state& state::def(symbol name, const value& self) {
     auto err = locals.emplace(name, self); (void) err;
     assert(err.second && "redefined variable");
+    return *this;
   }
 
   
