@@ -64,6 +64,8 @@ namespace ast {
 
   struct var {
     const symbol name;
+    var(symbol name):
+      name(name) { }
   };
 
 
@@ -164,6 +166,8 @@ namespace ast {
   // load and add result to the environment
   struct import {
     const symbol package;
+    import(symbol package):
+      package(package) { }
   };
   
   

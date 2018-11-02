@@ -199,10 +199,13 @@ namespace eval {
 }
 
 
-void builtins() {
-  static const symbol name = "builtins";
-
-  package::import<ref<type::state>>(name, type::builtins);
-  package::import<eval::state::ref>(name, eval::builtins);  
+namespace package {
+  void builtins() {
+    static const symbol name = "builtins";
+    
+    import<ref<type::state>>(name, type::builtins);
+    
+    import<eval::state::ref>(name, eval::builtins);
+  }
 }
 

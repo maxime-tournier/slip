@@ -20,6 +20,7 @@
 #include "ir.hpp"
 #include "vm.hpp"
 #include "infer.hpp"
+#include "builtins.hpp"
 
 struct history {
   const std::string filename;
@@ -105,6 +106,9 @@ int main(int argc, const char** argv) {
     parser.describe(std::cout);
     return 0;
   }
+
+  // init builtins
+  package::builtins();
   
   // type checker
   auto ts = make_ref<type::state>();
@@ -146,14 +150,18 @@ int main(int argc, const char** argv) {
     };
   }
 
+  // ast debug
+  if(options.flag("debug-ast", false)) {
+    evaluator = [evaluator](ast::expr e) {
+      std::cout << "ast: " << e << std::endl;
+      return evaluator(e);
+    };
+  }
+
   // read loop
   static const auto reader = [&](std::istream& in) {
     try {
       ast::expr::iter(in, [&](ast::expr e) {
-        if(options.flag("debug-ast", false)) {
-          std::cout << "ast: " << e << std::endl;
-        }
-
         const type::mono t = type::infer(ts, e);
         const type::poly p = ts->generalize(t);
         // TODO: cleanup substitution?
@@ -194,8 +202,11 @@ int main(int argc, const char** argv) {
       return 1;
     }
   } else {
-
-    // TODO import/exec module 'repl'
+    const symbol repl = "repl";
+    
+    // evaluator(ast::import(repl));
+    // evaluator(ast::use(ast::var(repl)));
+    
     read_loop(reader);
   }
   

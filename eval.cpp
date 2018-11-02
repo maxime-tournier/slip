@@ -255,6 +255,7 @@ namespace eval {
 
   static value eval(state::ref e, const ast::sel& self) {
     const symbol name = self.id.name;
+    
     return closure(1, [name](const value* args) -> value {
         return args[0].match([&](const value::list& self) -> value {
             // note: the only possible way to call this is during a pattern
@@ -266,7 +267,7 @@ namespace eval {
           },
           [&](const ref<record>& self) {
             const auto it = self->find(name); (void) it;
-            assert(it != self->end() && "type error");
+            assert(it != self->end() && "attribute error");
             return it->second;
           },
           [&](const value& self) -> value {
