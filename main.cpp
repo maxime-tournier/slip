@@ -120,28 +120,28 @@ int main(int argc, const char** argv) {
     return [value](std::ostream& out) { out << value; };
   };
   
-  // expression evaluator
-  std::function<printer_type(ast::expr)> evaluator;
+  // expression evaluate
+  std::function<printer_type(ast::expr)> evaluate;
   
   if(options.flag("compile", false)) {
     vm::state state(1000);
-    evaluator = [state](ast::expr e) mutable {
+    evaluate = [state](ast::expr e) mutable {
       const ir::expr c = ir::compile(e);
       return make_printer(vm::eval(&state, c));
     };
   } else {
     auto state = eval::gc::make_ref<eval::state>();
-    evaluator = [state](ast::expr e) {
+    evaluate = [state](ast::expr e) {
       return make_printer(eval::eval(state, e));
     };
   }
 
   // evaluation timing
   if(options.flag("time", false)) {
-    evaluator = [evaluator](ast::expr e) {
+    evaluate = [evaluate](ast::expr e) {
       double duration;
       auto p = tool::timer(&duration, [&] {
-          return evaluator(e);
+          return evaluate(e);
         });
       return [p, duration](std::ostream& out) {
         p(out);
@@ -152,9 +152,9 @@ int main(int argc, const char** argv) {
 
   // ast debug
   if(options.flag("debug-ast", false)) {
-    evaluator = [evaluator](ast::expr e) {
+    evaluate = [evaluate](ast::expr e) {
       std::cout << "ast: " << e << std::endl;
-      return evaluator(e);
+      return evaluate(e);
     };
   }
 
@@ -170,7 +170,7 @@ int main(int argc, const char** argv) {
           std::cout << self->name;
         }
         
-        const auto print = evaluator(e);
+        const auto print = evaluate(e);
         std::cout << " : " << p << std::flush;
         
         print(std::cout << " = ");
@@ -204,8 +204,8 @@ int main(int argc, const char** argv) {
   } else {
     const symbol repl = "repl";
     
-    // evaluator(ast::import(repl));
-    // evaluator(ast::use(ast::var(repl)));
+    evaluate(ast::import(repl));
+    evaluate(ast::use(ast::var(repl)));
     
     read_loop(reader);
   }

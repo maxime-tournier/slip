@@ -275,6 +275,10 @@ namespace type {
   }
 
 
+  struct signature_error : error {
+    using error::error;
+  };
+
   // get signature associated with constructor `self`
   static poly signature(const ref<state>& s, const cst& self) {
     // find associated signature
@@ -282,8 +286,8 @@ namespace type {
       const poly sig = s->sigs->at(self);
       return sig;
     } catch(std::out_of_range&) {
-      throw error("constructor " + tool::quote(self->name.get())
-                  + " has no associated signature");
+      throw signature_error("constructor " + tool::quote(self->name.get())
+                            + " has no associated signature");
     }
 
   }
@@ -291,21 +295,25 @@ namespace type {
   
   // try to open type `self` from signatures in `s`
   static mono open(const ref<state>& s, const mono& self) {
-    // obtain type constructor from argument type
-    const cst ctor = constructor(s, self);
+    try {
+      // obtain type constructor from argument type
+      const cst ctor = constructor(s, self);
     
-    // get signature
-    const poly sig = signature(s, ctor);
+      // get signature
+      const poly sig = signature(s, ctor);
     
-    const mono inner = s->fresh();
-    s->unify(self >>= inner, s->instantiate(sig));
+      const mono inner = s->fresh();
+      s->unify(self >>= inner, s->instantiate(sig));
     
-    if(s->debug) {
-      logger(std::clog) << "opened: " << s->generalize(self) << std::endl
-                        << "...as: " << s->generalize(inner) << std::endl;
+      if(s->debug) {
+        logger(std::clog) << "opened: " << s->generalize(self) << std::endl
+                          << "...as: " << s->generalize(inner) << std::endl;
+      }
+    
+      return inner;
+    } catch(signature_error& ) {
+      return self;
     }
-    
-    return inner;
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -808,7 +816,7 @@ namespace type {
       inner_ctor(foldr_rows(empty, attrs, [&](symbol name, mono reified, mono rhs) {
         return row(name, reconstruct(sub, reified)) |= rhs;
       }));
-    
+
     // infer kind from signature
     const kind::any k = infer_kind(s, sig);
 
@@ -819,7 +827,7 @@ namespace type {
     const mono outer = foldl_kind(mono(c), k, [&](mono lhs, kind::any k) {
       return lhs(s->fresh(k));
     });
-
+    
     // unify properly kinded variables to the right input variables
     foldr_args(s, outer, sig, [&](mono reified, mono rhs) {
       return rhs.match([&](app self) {

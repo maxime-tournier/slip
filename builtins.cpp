@@ -42,8 +42,8 @@ namespace type {
   
     // ctor
     const mono ctor = 
-      make_ref<type::constant>("ctor",
-                               (kind::term() >>= kind::term()) >>= kind::term());
+      make_ref<constant>("ctor",
+                         (kind::term() >>= kind::term()) >>= kind::term());
   
     {
       const mono c = self->fresh(kind::term() >>= kind::term());
@@ -60,10 +60,12 @@ namespace type {
     }
 
     // base types
+    self->def("string", ty(string));    
+    self->def("real", ty(real));    
     self->def("integer", ty(integer));
     self->def("boolean", ty(boolean));
     self->def("unit", ty(unit));
-  
+    
     // list
     const mono list = make_ref<constant>("list", kind::term() >>= kind::term());
     {
@@ -159,7 +161,22 @@ namespace eval {
 
       ;
 
+    value ctor = closure(+[](const unit&) { return unit(); });
+    value ctor2 = closure(+[](const unit&, const unit&) { return unit(); });    
+    
+    // ctors (will never be called)
+    self->def("->", ctor2);
+    self->def("type", ctor);
+    self->def("ctor", ctor);    
+    self->def("list", ctor);
 
+    self->def("string", unit());        
+    self->def("real", unit());    
+    self->def("integer", unit());
+    self->def("boolean", unit());
+    self->def("unit", unit());
+
+    
     // list
     self->def(kw::nil, eval::value::list());
   

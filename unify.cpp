@@ -207,8 +207,8 @@ namespace type {
 
     if(from.kind() != to.kind()) {
       std::stringstream ss;
-      ss << "cannot unify type: " << tool::show(self->generalize(from)) << std::endl
-         << "...with type:\t " << tool::show(self->generalize(to));
+      ss << "cannot unify: " << tool::show(self->generalize(from)) << std::endl
+         << "...with:\t " << tool::show(self->generalize(to));
         
       const unification_error e(ss.str());
       
@@ -251,8 +251,8 @@ namespace type {
   
     if(from != to) {
       std::stringstream ss;
-      logger(ss) << "cannot unify types " << tool::show(self->generalize(from))
-                 << " and " << tool::show(self->generalize(to));
+      logger(ss) << "cannot unify: " << tool::show(self->generalize(from))
+                 << " and: " << tool::show(self->generalize(to));
       
       const unification_error e(ss.str());
       if(log) *log << prefix() << "error: " << e.what() << std::endl;

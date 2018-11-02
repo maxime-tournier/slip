@@ -7,6 +7,7 @@
 #include "gc.hpp"
 
 #include "stack.hpp"
+// #include "repr.hpp"
 
 namespace eval {
 
@@ -394,6 +395,7 @@ namespace eval {
   }
   
   value eval(state::ref e, const ast::expr& self) {
+    // std::clog << repr(self) << std::endl;
     return self.visit(eval_visitor(), e);
   }
 
