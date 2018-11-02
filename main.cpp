@@ -19,6 +19,7 @@
 
 #include "ir.hpp"
 #include "vm.hpp"
+#include "infer.hpp"
 
 struct history {
   const std::string filename;
@@ -105,64 +106,33 @@ int main(int argc, const char** argv) {
     return 0;
   }
   
-  package main("main");
-  main.ts->debug = options.flag("debug-tc", false);
+  // type checker
+  auto ts = make_ref<type::state>();
+  ts->debug = options.flag("debug-tc", false);
 
-  const auto collect = [&] {
-    const bool debug = options.flag("debug-gc", false);
-
-    // mark main package
-    eval::mark(main.es, debug);
-
-    // mark imported packages
-    for(const package* const* it = &package::first; *it; it = &(*it)->next) {
-      eval::mark((*it)->es, debug);
-    }
-
-    // and sweep
-    eval::gc::sweep();
-  };
-
-  
-  vm::state s(1000);
-  {
-    s
-      .def("=", vm::builtin([](const integer& lhs, const integer& rhs) {
-            return lhs == rhs;
-          }))
-      .def("+", vm::builtin([](const integer& lhs, const integer& rhs) {
-            return lhs + rhs;
-          }))
-      .def("-", vm::builtin([](const integer& lhs, const integer& rhs) {
-            return lhs - rhs;
-          }))
-      .def("*", vm::builtin([](const integer& lhs, const integer& rhs) {
-            return lhs * rhs;
-          }))
-      ;
-    
-  }
-
-
+  // expression printer
   using printer_type = std::function<void(std::ostream&)>;
   static const auto make_printer = [](auto value) -> printer_type {
     return [value](std::ostream& out) { out << value; };
   };
-
+  
   // expression evaluator
   std::function<printer_type(ast::expr)> evaluator;
   
   if(options.flag("compile", false)) {
-    evaluator = [&](ast::expr e) {
+    vm::state state(1000);
+    evaluator = [state](ast::expr e) mutable {
       const ir::expr c = ir::compile(e);
-      return make_printer(vm::eval(&s, c));
+      return make_printer(vm::eval(&state, c));
     };
   } else {
-    evaluator = [&](ast::expr e) {
-      return make_printer(eval::eval(main.es, e));
+    auto state = eval::gc::make_ref<eval::state>();
+    evaluator = [state](ast::expr e) {
+      return make_printer(eval::eval(state, e));
     };
   }
 
+  // evaluation timing
   if(options.flag("time", false)) {
     evaluator = [evaluator](ast::expr e) {
       double duration;
@@ -176,28 +146,29 @@ int main(int argc, const char** argv) {
     };
   }
 
-  
-  static const auto reader =
-    [&](std::istream& in) {
+  // read loop
+  static const auto reader = [&](std::istream& in) {
     try {
       ast::expr::iter(in, [&](ast::expr e) {
-          if(options.flag("debug-ast", false)) {
-            std::cout << "ast: " << e << std::endl;
-          }
-          main.exec(e, [&](type::poly p) {
-              // TODO: cleanup substitution?
-              if(auto self = e.get<ast::var>()) {
-                std::cout << self->name;
-              }
+        if(options.flag("debug-ast", false)) {
+          std::cout << "ast: " << e << std::endl;
+        }
 
-              const auto print = evaluator(e);
-              std::cout << " : " << p << std::flush;
+        const type::mono t = type::infer(ts, e);
+        const type::poly p = ts->generalize(t);
+        // TODO: cleanup substitution?
+        
+        if(auto self = e.get<ast::var>()) {
+          std::cout << self->name;
+        }
+        
+        const auto print = evaluator(e);
+        std::cout << " : " << p << std::flush;
+        
+        print(std::cout << " = ");
+        std::cout << std::endl;
+      });
 
-              print(std::cout << " = ");
-              std::cout << std::endl;
-            });
-          collect();
-        });
       return true;
     } catch(sexpr::error& e) {
       std::cerr << "parse error: " << e.what() << std::endl;
@@ -223,7 +194,8 @@ int main(int argc, const char** argv) {
       return 1;
     }
   } else {
-    main.exec(main.resolve("repl"));
+
+    // TODO import/exec module 'repl'
     read_loop(reader);
   }
   
