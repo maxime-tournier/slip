@@ -50,12 +50,13 @@ namespace vm {
 
   
   struct frame {
-    const value* sp;
-    const value* captures;
+    const value* sp;            // frame start
+    const value* cp;            // capture pointer
     
-    frame(const value* sp, const value* captures):
+    frame(const value* sp,
+          const value* cp):
       sp(sp),
-      captures(captures) { }
+      cp(cp) { }
   };
   
 

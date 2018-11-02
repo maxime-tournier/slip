@@ -66,8 +66,8 @@ namespace vm {
   
   
   static void run(state* s, const ir::capture& self) {
-    assert(s->frames.back().captures);    
-    push(s, s->frames.back().captures[self.index]);
+    assert(s->frames.back().cp);    
+    push(s, s->frames.back().cp[self.index]);
   }
 
   
