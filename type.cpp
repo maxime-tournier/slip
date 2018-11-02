@@ -64,14 +64,6 @@ namespace type {
   const mono ty = make_constant("type", kind::term() >>= kind::term());
 
   
-  state& state::def(symbol name, mono t) {
-    if(!vars->locals.emplace(name, generalize(t)).second) {
-      throw error("redefined variable " + tool::quote(name.get()));
-    }
-  
-    return *this;
-  }
-  
 
   mono mono::operator()(mono arg) const {
     return make_ref<application>(*this, arg);
@@ -272,107 +264,6 @@ namespace type {
   
 
 
-  // polytype instantiation
-  struct instantiate_visitor {
-    using type = mono;
-  
-    using map_type = std::map<ref<variable>, ref<variable>>;
-    const map_type& map;
-  
-    mono operator()(const ref<constant>& self) const {
-      return self;
-    }
-
-    mono operator()(const ref<variable>& self) const {
-      auto it = map.find(self);
-      if(it != map.end()) {
-        return it->second;
-      } else {
-        return self;
-      }
-    }
-
-    mono operator()(const ref<application>& self) const {
-      return self->ctor.visit(*this)(self->arg.visit(*this));
-    }
-  
-  };
-
-
-  mono state::instantiate(const poly& self) const {
-    // associate quantified variables with fresh variables
-    instantiate_visitor::map_type map;
-    for(const ref<variable>& it : self.forall) {
-      // assert(it->level <= level);
-      map.emplace(it, make_ref<variable>( variable{level, it->kind} ));
-    }
-
-    // instantiate
-    return self.type.visit(instantiate_visitor{map});
-  }
-
-
-
-
-  // type state
-  state::state()
-    : level(0),
-      vars(make_ref<vars_type>()),
-      sigs(make_ref<sigs_type>()),
-      sub(make_ref<substitution>()) {
-
-  }
-
-
-  state::state(const ref<state>& parent)
-    : level(parent->level + 1),
-      vars(make_ref<vars_type>(parent->vars)),
-      sigs(parent->sigs),
-      sub(parent->sub),
-      debug(parent->debug)
-  {
-
-  }
-
-
-  ref<variable> state::fresh(kind::any k) const {
-    return make_variable(level, k);
-  }
-  
-
-
-  // generalize
-  struct generalize_visitor {
-    using type = void;
-  
-    const std::size_t level;
-  
-    template<class OutputIterator>
-    void operator()(const ref<constant>&, OutputIterator) const { }
-
-    template<class OutputIterator>
-    void operator()(const ref<variable>& self, OutputIterator out) const {
-      // generalize if variable is deeper than current level
-      if(self->level >= level) {
-        *out++ = self;
-      }
-    }
-
-    template<class OutputIterator>
-    void operator()(const ref<application>& self, OutputIterator out) const {
-      self->ctor.visit(*this, out);
-      self->arg.visit(*this, out);
-    }
-  
-  };
-
-
-  poly state::generalize(const mono& t) const {
-    poly::forall_type forall;
-    const mono s = sub->substitute(t);
-    s.visit(generalize_visitor{level}, std::inserter(forall, forall.begin()));
-    return poly{forall, s};
-  }
 
 
 
@@ -392,15 +283,6 @@ namespace type {
   
 
 
-
-  void state::unify(mono from, mono to, logger* outer) {
-    logger mine(std::clog);
-    logger* log = outer ? outer : &mine;
-    
-    const ref<substitution> tmp = scope(sub);
-    unify_terms(this, tmp.get(), from, to, debug ? log : nullptr);
-    tmp->merge();
-  }
 
 
   struct logger::pimpl_type {

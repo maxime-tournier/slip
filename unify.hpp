@@ -4,7 +4,9 @@
 #include "type.hpp"
 
 namespace type {
-
+  class substitution;
+  struct state;
+  
   void unify_terms(state* self, substitution* sub,
                    mono from, mono to, logger* log=nullptr);
   

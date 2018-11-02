@@ -2,6 +2,7 @@
 #include "maybe.hpp"
 
 #include "substitution.hpp"
+#include "infer.hpp"
 
 #include <sstream>
 
