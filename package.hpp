@@ -9,12 +9,10 @@
 struct package {
   const symbol name;
   const ref<type::state> ts;
-  eval::state::ref es;
-  
-  package& def(symbol name, type::mono t, eval::value v);
 
   package(symbol name);
 
+  // TODO named constructor instead?
   void exec(std::string filename);
   // void use(const package& other);
   
@@ -23,7 +21,6 @@ struct package {
   void exec(ast::expr expr, cont_type cont);
   
   type::poly sig() const;
-  eval::value dict() const;
 
   static package import(symbol name);
   static std::string resolve(symbol name);
@@ -34,6 +31,11 @@ struct package {
   // iterate imported packages
   const package* next = nullptr;
   static const package* first;
+
+  // evaluation model
+  eval::state::ref es;
+  package& def(symbol name, type::mono t, eval::value v);
+  eval::value dict() const;
 };
 
 #endif
