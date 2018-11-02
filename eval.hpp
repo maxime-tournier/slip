@@ -101,9 +101,8 @@ namespace eval {
   value apply(const value& func, const value* first, const value* last);
   value eval(state::ref e, const ast::expr& expr);
 
-  
   void mark(state::ref e, bool debug=false);
-  
+
 }
 
 

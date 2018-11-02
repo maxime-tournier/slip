@@ -315,8 +315,16 @@ namespace eval {
   
 
   static value eval(state::ref e, const ast::import& self) {
-    const package pkg = package::import(self.package);
-    e->def(self.package, pkg.dict());
+    const auto pkg = package::import<state::ref>(self.package, [&] {
+      auto es = gc::make_ref<state>();
+      package::iter(self.package, [&](ast::expr self) {
+        eval(es, self);
+      });
+      return es;
+    });
+    
+    e->def(self.package, make_ref<record>(pkg->locals));
+    
     return unit();
   }
 

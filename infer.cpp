@@ -599,18 +599,31 @@ namespace type {
   static mono infer(const ref<state>& s, const ast::import& self) {
     auto it = s->vars->locals.find(self.package);
     if(it != s->vars->locals.end()) {
-      // TODO delegate to def
+      // TODO delegate to def?
       throw error("variable " + tool::quote(self.package.get()) + " already defined");
     }
+
+    // load/build package type state
+    const auto pkg = package::import<ref<state>>(self.package, [&] {
+      auto ts = make_ref<state>();
+      package::iter(self.package, [&](ast::expr self) {
+        infer(ts, self);
+      });
+      return ts;
+    });
     
-    const package pkg = package::import(self.package);
-
+    // package signature
+    mono sig = empty;
+    for(const auto& it : pkg->vars->locals) {
+      sig = row(it.first, pkg->instantiate(it.second)) |= sig;
+    }
+    
     // make package content accessible
-    s->vars->locals.emplace(self.package, pkg.sig());
-
+    s->vars->locals.emplace(self.package, s->generalize(record(sig)));
+    
     // import module signatures
-    s->sigs->insert(pkg.ts->sigs->begin(), pkg.ts->sigs->end());
-
+    s->sigs->insert(pkg->sigs->begin(), pkg->sigs->end());
+    
     const mono a = s->fresh();
     return io(a)(unit);
   }

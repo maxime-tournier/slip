@@ -2,40 +2,30 @@
 #define SLAP_PACKAGE_HPP
 
 #include "symbol.hpp"
-#include "type.hpp"
-#include "eval.hpp"
+#include <map>
 
-// TODO rename? 
-struct package {
-  const symbol name;
-  const ref<type::state> ts;
+namespace ast {
+  struct expr;
+}
 
-  package(symbol name);
+namespace package {
 
-  // TODO named constructor instead?
-  void exec(std::string filename);
-  // void use(const package& other);
+  std::string resolve(symbol name);
+  std::vector<std::string>& path();
+
+  template<class Value>
+  const Value& import(symbol name, std::function<Value()> cont) {
+    static std::map<symbol, Value> cache;
+    auto it = cache.find(name);
+    if(it != cache.end()) return it->second;
+    
+    return cache.emplace(name, cont()).first->second;
+  }
+
   
-  // exec ast
-  using cont_type = std::function<void(type::poly)>;
-  void exec(ast::expr expr, cont_type cont);
-  
-  type::poly sig() const;
+  // convenience: iterate ast
+  void iter(symbol name, std::function<void(ast::expr)> func);
+}
 
-  static package import(symbol name);
-  static std::string resolve(symbol name);
-  
-  static std::vector<std::string> path;
-  static package builtins();
-
-  // iterate imported packages
-  const package* next = nullptr;
-  static const package* first;
-
-  // evaluation model
-  eval::state::ref es;
-  package& def(symbol name, type::mono t, eval::value v);
-  eval::value dict() const;
-};
 
 #endif
