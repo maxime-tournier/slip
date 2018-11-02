@@ -94,6 +94,7 @@ int main(int argc, const char** argv) {
     .flag("debug-ast", "debug abstract syntax tree")
     .flag("time", "time evaluations")
     .flag("verbose", "be verbose")
+    .flag("compile", "compile and evaluate intermediate representation")
     .flag("help", "show help")
     .argument<std::string>("filename", "file to run")
     ;
@@ -123,17 +124,8 @@ int main(int argc, const char** argv) {
     eval::gc::sweep();
   };
 
-  {
-    const type::mono a = main.ts->fresh();
-    main.def("collect", type::unit >>= type::io(a)(type::unit),
-             eval::closure(0, [&](const eval::value* ) -> eval::value {
-                 collect();
-                 return unit();
-               }));
-  }
-
+  
   vm::state s(1000);
-
   {
     s
       .def("=", vm::builtin([](const integer& lhs, const integer& rhs) {
@@ -150,12 +142,43 @@ int main(int argc, const char** argv) {
           }))
       ;
     
-    
-    
+  }
+
+
+  using printer_type = std::function<void(std::ostream&)>;
+  static const auto make_printer = [](auto value) -> printer_type {
+    return [value](std::ostream& out) { out << value; };
+  };
+
+  // expression evaluator
+  std::function<printer_type(ast::expr)> evaluator;
+  
+  if(options.flag("compile", false)) {
+    evaluator = [&](ast::expr e) {
+      const ir::expr c = ir::compile(e);
+      return make_printer(vm::eval(&s, c));
+    };
+  } else {
+    evaluator = [&](ast::expr e) {
+      return make_printer(eval::eval(main.es, e));
+    };
+  }
+
+  if(options.flag("time", false)) {
+    evaluator = [evaluator](ast::expr e) {
+      double duration;
+      auto p = tool::timer(&duration, [&] {
+          return evaluator(e);
+        });
+      return [p, duration](std::ostream& out) {
+        p(out);
+        out << "\t[time: " << duration << "s]";
+      };
+    };
   }
 
   
-  static const auto handler =
+  static const auto reader =
     [&](std::istream& in) {
     try {
       ast::expr::iter(in, [&](ast::expr e) {
@@ -168,31 +191,13 @@ int main(int argc, const char** argv) {
                 std::cout << self->name;
               }
 
-              double duration;
-              const eval::value v = tool::timer(&duration, [&] {
-                  return eval::eval(main.es, e);
-                });
-              
-              std::cout << " : " << p << std::flush
-                        << " = " << v << std::endl;
-              if(options.flag("time", false)) {
-                std::cout << "time: " << duration << std::endl;
-              }
+              const auto print = evaluator(e);
+              std::cout << " : " << p << std::flush;
+
+              print(std::cout << " = ");
+              std::cout << std::endl;
             });
           collect();
-
-          const ir::expr c = ir::compile(e);
-          std::clog << "compiled: " << repr(c) << std::endl;
-
-          double duration;          
-          const vm::value x = tool::timer(&duration, [&] {
-              return vm::eval(&s, c);
-            });
-          
-          std::clog << "vm: " << x << std::endl;
-          if(options.flag("time", false)) {
-            std::cout << "time: " << duration << std::endl;
-          }
         });
       return true;
     } catch(sexpr::error& e) {
@@ -213,14 +218,14 @@ int main(int argc, const char** argv) {
   
   if(auto filename = options.get<std::string>("filename")) {
     if(auto ifs = std::ifstream(filename->c_str())) {
-      return handler(ifs) ? 0 : 1;
+      return reader(ifs) ? 0 : 1;
     } else {
       std::cerr << "io error: " << "cannot open file " << *filename << std::endl;
       return 1;
     }
   } else {
     main.exec(main.resolve("repl"));
-    read_loop(handler);
+    read_loop(reader);
   }
   
   return 0;
