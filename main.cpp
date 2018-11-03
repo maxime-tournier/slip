@@ -93,7 +93,7 @@ int main(int argc, const char** argv) {
   const auto parser = argparse::parser()
     .flag("debug-gc", "debug garbage collector")
     .flag("debug-tc", "debug type checking")
-    .flag("debug-ast", "debug abstract syntax tree")
+    .flag("ast", "debug abstract syntax tree")
     .flag("time", "time evaluations")
     .flag("verbose", "be verbose")
     .flag("compile", "compile and evaluate intermediate representation")
@@ -151,7 +151,7 @@ int main(int argc, const char** argv) {
   }
 
   // ast debug
-  if(options.flag("debug-ast", false)) {
+  if(options.flag("ast", false)) {
     evaluate = [evaluate](ast::expr e) {
       std::cout << "ast: " << e << std::endl;
       return evaluate(e);

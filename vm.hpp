@@ -29,6 +29,9 @@ namespace vm {
 
   struct record {
     std::map<symbol, value> attrs;
+
+    record(std::map<symbol, value> attrs);
+    ~record();
   };
   
   struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin,

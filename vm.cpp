@@ -11,6 +11,16 @@ namespace vm {
     frames.emplace_back(stack.next(), nullptr);
   }
 
+  record::record(std::map<symbol, value> attrs):
+      attrs(attrs) {
+    std::clog << __func__ << " " << this << std::endl;
+  }
+  
+  record::~record() {
+    std::clog <<  __func__ << " " << this << std::endl;
+  }
+  
+  
   static void run(state* s, const ir::expr& self);  
   
   template<class T>
@@ -288,22 +298,36 @@ namespace vm {
     res->captures = std::move(captures);
   }
 
-
-
   static void run(state* s, const ir::import& self) {
     const state pkg = package::import<state>(self.package, [&] {    
       state s;
       package::iter(self.package, [&](ast::expr self) {
-        run(&s, self);
+        const ir::expr c = ir::compile(self);
+        run(&s, c);
       });
       return s;
     });
+
+    assert(s->frames.size() == 1 && "non-toplevel imports unimplemented");
+    s->def(self.package, gc::make_ref<record>(pkg.globals));
     
     push(s, unit());
   }
 
   static void run(state* s, const ref<ir::use>& self) {
-    std::clog << "warning: stub impl for use" << std::endl;
+    assert(s->frames.size() == 1 && "non-toplevel use unimplemented");    
+
+    // evalute use result
+    run(s, self->env);
+
+    value env = std::move(*top(s));
+    pop(s);
+    
+    // TODO compile local uses properly with type-system help
+    for(const auto& it: env.cast<gc::ref<record>>()->attrs) {
+      s->def(it.first, it.second);
+    }
+
     push(s, unit());
   }
   
@@ -348,23 +372,34 @@ namespace vm {
   ////////////////////////////////////////////////////////////////////////////////
   struct mark_visitor {
     template<class T>
-    void operator()(T& self) const { }
+    void operator()(T& self, bool debug) const { }
 
     template<class T>
-    void operator()(gc::ref<T>& self) const {
+    void operator()(gc::ref<T>& self, bool debug) const {
+      if(debug) std::clog << "  marking: " << self.get() << std::endl;              
       self.mark();
+    }
+
+    void operator()(gc::ref<record>& self, bool debug) const {
+      self.mark();
+      
+      for(auto& it : self->attrs) {
+        if(debug) std::clog << "  visiting: " << it.first << std::endl;        
+        it.second.visit(*this, debug);
+      }
     }
     
   };
   
-  static void mark(state* self) {
+  static void mark(state* self, bool debug) {
     for(auto& it : self->globals) {
-      it.second.visit(mark_visitor());
+      if(debug) std::clog << "visiting: " << it.first << std::endl;
+      it.second.visit(mark_visitor(), debug);
     }
   }
 
   void collect(state* self) {
-    mark(self);
+    mark(self, true);
     gc::sweep();
   }
   
