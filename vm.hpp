@@ -70,6 +70,10 @@ namespace vm {
   struct state {
     class stack<value> stack;
     std::vector<frame> frames;
+
+    state(const state&) = delete;
+    state(state&&) = default;
+    
     std::map<symbol, value> globals;
 
     state(std::size_t size=1000);

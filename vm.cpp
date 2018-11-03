@@ -13,11 +13,11 @@ namespace vm {
 
   record::record(std::map<symbol, value> attrs):
       attrs(attrs) {
-    std::clog << __func__ << " " << this << std::endl;
+    // std::clog << __func__ << " " << this << std::endl;
   }
   
   record::~record() {
-    std::clog <<  __func__ << " " << this << std::endl;
+    // std::clog <<  __func__ << " " << this << std::endl;
   }
   
   
@@ -299,7 +299,7 @@ namespace vm {
   }
 
   static void run(state* s, const ir::import& self) {
-    const state pkg = package::import<state>(self.package, [&] {    
+    const state& pkg = package::import<state>(self.package, [&] {    
       state s;
       package::iter(self.package, [&](ast::expr self) {
         const ir::expr c = ir::compile(self);
@@ -399,7 +399,7 @@ namespace vm {
   }
 
   void collect(state* self) {
-    mark(self, true);
+    mark(self, false);
     gc::sweep();
   }
   

@@ -124,10 +124,10 @@ int main(int argc, const char** argv) {
   std::function<printer_type(ast::expr)> evaluate;
   
   if(options.flag("compile", false)) {
-    vm::state state(1000);
-    evaluate = [state](ast::expr e) mutable {
+    auto state = make_ref<vm::state>();
+    evaluate = [state](ast::expr e) {
       const ir::expr c = ir::compile(e);
-      return make_printer(vm::eval(&state, c));
+      return make_printer(vm::eval(state.get(), c));
     };
   } else {
     auto state = eval::gc::make_ref<eval::state>();
@@ -204,8 +204,8 @@ int main(int argc, const char** argv) {
   } else {
     const symbol repl = "repl";
     
-    evaluate(ast::import(repl));
-    evaluate(ast::use(ast::var(repl)));
+    // evaluate(ast::import(repl));
+    // evaluate(ast::use(ast::var(repl)));
     
     read_loop(reader);
   }
