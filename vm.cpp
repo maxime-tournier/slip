@@ -1,5 +1,7 @@
 #include "vm.hpp"
+
 #include "sexpr.hpp"
+#include "package.hpp"
 
 namespace vm {
 
@@ -18,7 +20,6 @@ namespace vm {
   }
 
   static constexpr bool debug = false;
-
 
 
   static value* top(state* s) {
@@ -290,7 +291,14 @@ namespace vm {
 
 
   static void run(state* s, const ir::import& self) {
-    std::clog << "warning: stub impl for import" << std::endl;
+    const state pkg = package::import<state>(self.package, [&] {    
+      state s;
+      package::iter(self.package, [&](ast::expr self) {
+        run(&s, self);
+      });
+      return s;
+    });
+    
     push(s, unit());
   }
 
@@ -320,10 +328,20 @@ namespace vm {
   std::ostream& operator<<(std::ostream& out, const value& self) {
     self.match([&](const auto& self) { out << self; },
                [&](const unit& self) { out << "()"; },
-               [&](const ref<closure>& ) { out << "#<closure>"; },
+               [&](const gc::ref<closure>& ) { out << "#<closure>"; },
                [&](const builtin& ) { out << "#<builtin>"; },
                [&](const boolean& self) { out << (self ? "true" : "false"); },
-               [&](const ref<string>& self) { out << '"' << *self << '"';} );
+               [&](const gc::ref<string>& self) { out << '"' << *self << '"';},
+               [&](const gc::ref<record>& self) {
+                 out << "{";
+                 bool first=true;
+                 for(const auto& it: self->attrs) {
+                   if(first) first = false;
+                   else out << "; ";
+                   out << it.first << ": " << it.second;
+                 }
+                 out << "}";                 
+               });
     return out;
   }
 

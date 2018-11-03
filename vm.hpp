@@ -27,8 +27,12 @@ namespace vm {
     explicit builtin(Func func);
   };
 
-
-  struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin, gc::ref<closure>> {
+  struct record {
+    std::map<symbol, value> attrs;
+  };
+  
+  struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin,
+                         gc::ref<closure>, gc::ref<record>> {
     using value::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);
@@ -65,7 +69,7 @@ namespace vm {
     std::vector<frame> frames;
     std::map<symbol, value> globals;
 
-    state(std::size_t size);
+    state(std::size_t size=1000);
 
     state& def(symbol name, value global) {
       globals.emplace(name, global);

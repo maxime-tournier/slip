@@ -216,6 +216,33 @@ namespace eval {
 }
 
 
+namespace vm {
+  state builtins() {
+    state self(1000);
+
+    self
+      .def("+", builtin([](const integer& lhs, const integer& rhs) -> integer {
+        return lhs + rhs;
+      }))
+    
+      .def("*", builtin([](const integer& lhs, const integer& rhs) -> integer {
+        return lhs * rhs;
+      }))
+    
+      .def("-", builtin([](const integer& lhs, const integer& rhs) -> integer {
+        return lhs - rhs;
+      }))
+    
+      .def("=", builtin([](const integer& lhs, const integer& rhs) -> boolean {
+        return lhs == rhs;
+      }))
+      ;
+
+    return self;
+  }
+
+}
+
 namespace package {
   void builtins() {
     static const symbol name = "builtins";
@@ -223,6 +250,8 @@ namespace package {
     import<ref<type::state>>(name, type::builtins);
     
     import<eval::state::ref>(name, eval::builtins);
+
+    import<vm::state>(name, vm::builtins);
   }
 }
 
