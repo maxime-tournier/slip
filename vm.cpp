@@ -101,23 +101,20 @@ namespace vm {
   }
 
   
-  static void run(state* s, const ir::seq& self) {
-    push(s, unit());
-    
+  
+  static void run(state* s, const ir::block& self) {
     for(const ir::expr& e: self.items) {
-      pop(s, 1);
       run(s, e);
     }
   }
 
-  static void run(state* s, const ref<ir::sel>& self) {
-    run(s, self->value);
-
+  static void run(state* s, const ir::sel& self) {
     auto rec = pop(s).cast<gc::ref<record>>();
-    auto it = rec->attrs.find(self->attr);
+    auto it = rec->attrs.find(self.attr);
     assert(it != rec->attrs.end() && "record attribute error");
     push(s, it->second);
   }
+
   
   static void run(state* s, const ref<ir::scope>& self) {
     // push scope defs
@@ -331,11 +328,10 @@ namespace vm {
   }
 
   
-  static void run(state* s, const ref<ir::def>& self) {
+  static void run(state* s, const ir::def& self) {
     assert(s->frames.size() == 1 && "toplevel definition in local scope");
-    run(s, self->value);
-    s->def(self->name, pop(s));
 
+    s->def(self.name, pop(s));
     push(s, unit());
   }
 

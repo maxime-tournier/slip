@@ -161,7 +161,10 @@ namespace ir {
     },
       [&](const ast::sel& func) -> expr {
         assert(size(self.args) == 1);
-        return make_ref<sel>(func.id.name, compile(ctx, self.args->head));
+        vector<expr> items;
+        items.emplace_back(compile(ctx, self.args->head));
+        items.emplace_back(sel{func.id.name});
+        return block{items};
       });
   }
 
@@ -178,7 +181,10 @@ namespace ir {
     if(ctx->parent) {    
       throw std::runtime_error("unimplemented: non-toplevel import");
     } else {
-      return make_ref<def>(self.package, import{self.package});
+      vector<expr> items;
+      items.emplace_back(import{self.package});
+      items.emplace_back(def{self.package});
+      return block{items};
     }
   }
 
@@ -187,7 +193,10 @@ namespace ir {
     if(ctx->parent) {
       throw std::runtime_error("unimplemented: non-toplevel def");
     } else {
-      return make_ref<def>(self.id.name, compile(ctx, *self.value));
+      vector<expr> items;
+      items.emplace_back(compile(ctx, *self.value));
+      items.emplace_back(def{self.id.name});
+      return block{items};
     }
   }
 
@@ -231,8 +240,13 @@ namespace ir {
 
     sexpr operator()(const lit<unit>& self) const { return sexpr::list(); }
 
-    sexpr operator()(const seq& self) const {
-      return symbol("seq")
+    sexpr operator()(const drop& self) const {
+      return symbol("drop")
+        >>= sexpr::list();
+    }
+    
+    sexpr operator()(const block& self) const {
+      return symbol("block")
         >>= foldr(sexpr::list(), self.items, [&](sexpr::list rhs, ir::expr lhs) {
           return repr(lhs) >>= rhs;
         });
@@ -291,10 +305,9 @@ namespace ir {
           });
     }
 
-    sexpr operator()(const ref<def>& self) const {
+    sexpr operator()(const def& self) const {
       return symbol("def")
-        >>= self->name
-        >>= repr(self->value)
+        >>= self.name
         >>= sexpr::list();
     }
 
@@ -313,10 +326,9 @@ namespace ir {
         >>= sexpr::list();
     }
 
-    sexpr operator()(const ref<sel>& self) const {
+    sexpr operator()(const sel& self) const {
       return symbol("sel")
-        >>= self->attr
-        >>= repr(self->value)
+        >>= self.attr
         >>= sexpr::list();
     }
     

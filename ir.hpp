@@ -48,34 +48,41 @@ namespace ir {
 
 
   // global def
-  struct def;
+  struct def {
+    symbol name;
+  };
   
   template<class T>
   struct lit {
     const T value;
   };
-  
 
-  struct seq {
+
+  struct drop { };
+
+  struct block {
     vector<expr> items;
   };
 
-  struct sel;
+  // attribute selection
+  struct sel {
+    symbol attr;
+  };
 
   struct import {
     const symbol package;
   };
 
-  
+
   struct use;
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
                         ref<scope>, ref<closure>, ref<call>,
-                        seq,
+                        block, drop, 
                         ref<cond>,
                         import, ref<use>,
-                        ref<def>, ref<sel> > {
+                        def, sel> {
     using expr::variant::variant;
   };
   
@@ -127,29 +134,6 @@ namespace ir {
       test(test),
       conseq(conseq),
       alt(alt) { }
-  };
-
-  struct def {
-    symbol name;
-    expr value;
-
-    def(symbol name,
-        expr value)
-      : name(name),
-        value(value) {
-
-    }
-  };
-  
-  struct sel {
-    symbol attr;
-    expr value;
-
-    sel(symbol attr,
-        expr value):
-      attr(attr),
-      value(value) { }
-      
   };
 
   

@@ -209,8 +209,9 @@ int main(int argc, const char** argv) {
     }
   } else {
 
-    if(!handle_errors([&] {
+    if(false && !handle_errors([&] {
       const symbol repl = "repl";
+      
       ast::expr exprs[] = {ast::import(repl), ast::use(ast::var(repl))};
       for(ast::expr e: exprs) {
         type::infer(ts, e);
