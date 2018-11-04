@@ -149,14 +149,20 @@ namespace ir {
 
   
   static expr compile(state* ctx, ast::app self) {
-    const expr func = compile(ctx, *self.func);
-
-    vector<expr> args;
-    for(ast::expr arg : self.args) {
-      args.emplace_back(compile(ctx, arg));
-    };
-
-    return make_ref<call>(func, args);
+    return self.func->match([&](const ast::expr& func) -> expr {
+      const expr cfunc = compile(ctx, func);
+      
+      vector<expr> args;
+      for(ast::expr arg : self.args) {
+        args.emplace_back(compile(ctx, arg));
+      };
+      
+      return make_ref<call>(cfunc, args);
+    },
+      [&](const ast::sel& func) -> expr {
+        assert(size(self.args) == 1);
+        return make_ref<sel>(func.id.name, compile(ctx, self.args->head));
+      });
   }
 
 
@@ -292,9 +298,25 @@ namespace ir {
         >>= sexpr::list();
     }
 
+
+    sexpr operator()(const ref<use>& self) const {
+      return symbol("use")
+        >>= repr(self->env)
+        >>= sexpr::list();
+    }
+    
+
+    
     sexpr operator()(const import& self) const {
       return symbol("import")
         >>= self.package
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const ref<sel>& self) const {
+      return symbol("sel")
+        >>= self->attr
+        >>= repr(self->value)
         >>= sexpr::list();
     }
     

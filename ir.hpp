@@ -60,7 +60,8 @@ namespace ir {
     vector<expr> items;
   };
 
-  
+  struct sel;
+
   struct import {
     const symbol package;
   };
@@ -74,7 +75,7 @@ namespace ir {
                         seq,
                         ref<cond>,
                         import, ref<use>,
-                        ref<def>> {
+                        ref<def>, ref<sel> > {
     using expr::variant::variant;
   };
   
@@ -128,7 +129,7 @@ namespace ir {
       alt(alt) { }
   };
 
- struct def {
+  struct def {
     symbol name;
     expr value;
 
@@ -138,8 +139,19 @@ namespace ir {
         value(value) {
 
     }
- };
+  };
   
+  struct sel {
+    symbol attr;
+    expr value;
+
+    sel(symbol attr,
+        expr value):
+      attr(attr),
+      value(value) { }
+      
+  };
+
   
   // toplevel compilation
   expr compile(const ast::expr& self);

@@ -110,6 +110,14 @@ namespace vm {
     }
   }
 
+  static void run(state* s, const ref<ir::sel>& self) {
+    run(s, self->value);
+
+    auto rec = pop(s).cast<gc::ref<record>>();
+    auto it = rec->attrs.find(self->attr);
+    
+    push(s, it->second);
+  }
   
   static void run(state* s, const ref<ir::scope>& self) {
     // push scope defs
