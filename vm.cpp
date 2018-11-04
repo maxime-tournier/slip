@@ -101,13 +101,17 @@ namespace vm {
   }
 
   
-  
   static void run(state* s, const ir::block& self) {
     for(const ir::expr& e: self.items) {
       run(s, e);
     }
   }
 
+  static void run(state* s, const ir::drop& self) {
+    pop(s, self.count);
+  }
+
+  
   static void run(state* s, const ir::sel& self) {
     auto rec = pop(s).cast<gc::ref<record>>();
     auto it = rec->attrs.find(self.attr);
@@ -138,11 +142,10 @@ namespace vm {
 
   static void run(state* s, const ref<ir::cond>& self) {
     // evaluate test
-    run(s, self->test);
     const bool test = pop(s).cast<boolean>();
 
     if(test) {
-      run(s, self->conseq);
+      run(s, self->then);
     } else {
       run(s, self->alt);
     }
@@ -362,7 +365,7 @@ namespace vm {
   
 
   value eval(state* s, const ir::expr& self) {
-    std::clog << repr(self) << std::endl;
+    // std::clog << repr(self) << std::endl;
     run(s, self);
     value res = pop(s);
     collect(s);

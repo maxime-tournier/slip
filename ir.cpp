@@ -170,9 +170,11 @@ namespace ir {
 
 
   static expr compile(state* ctx, ast::cond self) {
-    return make_ref<cond>(compile(ctx, *self.test),
-                          compile(ctx, *self.conseq),
-                          compile(ctx, *self.alt));
+    vector<expr> items;
+    items.emplace_back(compile(ctx, *self.test));
+    items.emplace_back(make_ref<cond>(compile(ctx, *self.conseq),
+                                      compile(ctx, *self.alt)));
+    return block{items};
   }
   
 
@@ -291,9 +293,8 @@ namespace ir {
     }
 
     sexpr operator()(const ref<cond>& self) const {
-      return symbol("if")
-        >>= repr(self->test)
-        >>= repr(self->conseq)
+      return symbol("cond")
+        >>= repr(self->then)
         >>= repr(self->alt)
         >>= sexpr::list();
     }

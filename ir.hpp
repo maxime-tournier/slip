@@ -57,8 +57,7 @@ namespace ir {
     const T value;
   };
 
-
-  struct drop { };
+  struct drop { std::size_t count=1; };
 
   struct block {
     vector<expr> items;
@@ -73,7 +72,7 @@ namespace ir {
     const symbol package;
   };
 
-
+  // TODO this one needs help from the typechecker
   struct use;
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
@@ -126,13 +125,11 @@ namespace ir {
 
   
   struct cond {
-    const expr test;
-    const expr conseq;
+    const expr then;
     const expr alt;
     
-    cond(expr test, expr conseq, expr alt):
-      test(test),
-      conseq(conseq),
+    cond(expr then, expr alt):
+      then(then),
       alt(alt) { }
   };
 
