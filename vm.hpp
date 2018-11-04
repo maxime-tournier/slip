@@ -33,6 +33,7 @@ namespace vm {
     record(std::map<symbol, value> attrs);
     ~record();
   };
+
   
   struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin,
                          gc::ref<closure>, gc::ref<record>> {
@@ -49,7 +50,9 @@ namespace vm {
 
     std::vector<value> captures;
     
-    closure(std::size_t argc, const ir::expr& body, std::vector<value> captures={}):
+    closure(std::size_t argc,
+            const ir::expr& body,
+            std::vector<value> captures={}):
       argc(argc),
       body(body),
       captures(std::move(captures)){ }

@@ -22,6 +22,7 @@ namespace vm {
   
   
   static void run(state* s, const ir::expr& self);  
+
   
   template<class T>
   static value run(state* s, const T& ) {
@@ -29,18 +30,21 @@ namespace vm {
                              + tool::type_name(typeid(T)));
   }
 
+  
   static constexpr bool debug = false;
 
 
   static value* top(state* s) {
     return s->stack.next() - 1;
   }
+
   
   static void peek(state* s) {
     for(std::size_t i = 0; i < s->stack.size(); ++i) {
       std::clog << "\t" << i << ":\t" << *(s->stack.next() - (i + 1))<< std::endl;
     }
   }
+
   
   template<class ... Args>
   static value* push(state* s, Args&& ... args) {
@@ -48,8 +52,9 @@ namespace vm {
     if(debug) std::clog << "\tpush:\t" << *res << std::endl;
     return res;
   }
+
   
-  static void pop(state* s, std::size_t n=1) {
+  static void pop(state* s, std::size_t n) {
     for(std::size_t i=0; i < n; ++i) {
       if(debug) std::clog << "\tpop:\t" << *(top(s) - i) << std::endl;
       (top(s) - i)->~value();
@@ -58,6 +63,13 @@ namespace vm {
     s->stack.deallocate(s->stack.next() - n, n);
   }
 
+  
+  static value pop(state* s) {
+    value res = std::move(*top(s));
+    pop(s, 1);
+    return res;
+  }
+  
   
   template<class T>
   static void run(state* s, const ir::lit<T>& self) {
@@ -93,11 +105,12 @@ namespace vm {
     push(s, unit());
     
     for(const ir::expr& e: self.items) {
-      pop(s);
+      pop(s, 1);
       run(s, e);
     }
   }
 
+  
   static void run(state* s, const ref<ir::scope>& self) {
     // push scope defs
     for(const ir::expr& def : self->defs) {
@@ -121,8 +134,7 @@ namespace vm {
   static void run(state* s, const ref<ir::cond>& self) {
     // evaluate test
     run(s, self->test);
-    const bool test = top(s)->cast<boolean>();
-    pop(s);
+    const bool test = pop(s).cast<boolean>();
 
     if(test) {
       run(s, self->conseq);
@@ -202,8 +214,7 @@ namespace vm {
     run(s, self->body);
 
     // pop result
-    value result = std::move(*top(s));
-    pop(s);
+    value result = pop(s);
 
     // sanity check
     assert(s->stack.next() - s->frames.back().sp == argc);
@@ -308,20 +319,26 @@ namespace vm {
       return s;
     });
 
-    assert(s->frames.size() == 1 && "non-toplevel imports unimplemented");
-    s->def(self.package, gc::make_ref<record>(pkg.globals));
-    
+    push(s, gc::make_ref<record>(pkg.globals));
+  }
+
+  
+  static void run(state* s, const ref<ir::def>& self) {
+    assert(s->frames.size() == 1 && "toplevel definition in local scope");
+    run(s, self->value);
+    s->def(self->name, pop(s));
+
     push(s, unit());
   }
 
+  
   static void run(state* s, const ref<ir::use>& self) {
     assert(s->frames.size() == 1 && "non-toplevel use unimplemented");    
 
     // evalute use result
     run(s, self->env);
 
-    value env = std::move(*top(s));
-    pop(s);
+    value env = pop(s);
     
     // TODO compile local uses properly with type-system help
     for(const auto& it: env.cast<gc::ref<record>>()->attrs) {
@@ -341,9 +358,9 @@ namespace vm {
   
 
   value eval(state* s, const ir::expr& self) {
+    std::clog << repr(self) << std::endl;
     run(s, self);
-    value res = std::move(*top(s));
-    pop(s);
+    value res = pop(s);
     collect(s);
     return res;
   }

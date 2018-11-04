@@ -30,7 +30,6 @@ namespace ir {
     // currently defined value, if any
     const symbol* self = nullptr;
     
-    
     struct scope {
       state* owner;
       locals_type locals;
@@ -79,7 +78,8 @@ namespace ir {
   
   template<class T>
   static expr compile(state* ctx, const T& self) {
-    throw std::runtime_error("compile not implemented for: " + tool::type_name(typeid(T)));
+    throw std::runtime_error("compile not implemented for: "
+                             + tool::type_name(typeid(T)));
   };
 
 
@@ -168,11 +168,32 @@ namespace ir {
   
 
   static expr compile(state* ctx, ast::import self) {
-    return import{self.package};
+    // TODO differentiate between topleve/local imports
+    if(ctx->parent) {    
+      throw std::runtime_error("unimplemented: non-toplevel import");
+    } else {
+      return make_ref<def>(self.package, import{self.package});
+    }
   }
 
+
+  static expr compile(state* ctx, ast::def self) {
+    if(ctx->parent) {
+      throw std::runtime_error("unimplemented: non-toplevel def");
+    } else {
+      return make_ref<def>(self.id.name, compile(ctx, *self.value));
+    }
+  }
+
+
+  
   static expr compile(state* ctx, ast::use self) {
-    return make_ref<use>(compile(ctx, *self.env));
+    if(ctx->parent) {
+      throw std::runtime_error("unimplemented: non-toplevel use");
+      // TODO get help from the type system?
+    } else {
+      return make_ref<use>(compile(ctx, *self.env));
+    }
   }
 
   
@@ -223,9 +244,10 @@ namespace ir {
     sexpr operator()(const ref<closure>& self) const {
       return symbol("closure")
         >>= integer(self->argc)
-        >>= foldr(sexpr::list(), self->captures, [&](sexpr::list tail, ir::expr head) {
-            return repr(head) >>= tail;
-          })
+        >>= foldr(sexpr::list(), self->captures,
+                  [&](sexpr::list tail, ir::expr head) {
+                    return repr(head) >>= tail;
+                  })
         >>= repr(self->body)
         >>= sexpr::list();
     }
@@ -261,6 +283,19 @@ namespace ir {
         >>= foldr(sexpr::list(), self->args, [](sexpr::list tail, ir::expr head) {
             return repr(head) >>= tail;
           });
+    }
+
+    sexpr operator()(const ref<def>& self) const {
+      return symbol("def")
+        >>= self->name
+        >>= repr(self->value)
+        >>= sexpr::list();
+    }
+
+    sexpr operator()(const import& self) const {
+      return symbol("import")
+        >>= self.package
+        >>= sexpr::list();
     }
     
   };

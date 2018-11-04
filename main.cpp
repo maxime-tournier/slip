@@ -204,8 +204,8 @@ int main(int argc, const char** argv) {
   } else {
     const symbol repl = "repl";
     
-    // evaluate(ast::import(repl));
-    // evaluate(ast::use(ast::var(repl)));
+    evaluate(ast::import(repl));
+    evaluate(ast::use(ast::var(repl)));
     
     read_loop(reader);
   }
