@@ -2,29 +2,29 @@
 
 (import list)
 
-;; basic ops
-(def + builtins.+)
-(def - builtins.-)
-(def * builtins.*)
-(def = builtins.=)
+;; ;; basic ops
+;; (def + builtins.+)
+;; (def - builtins.-)
+;; (def * builtins.*)
+;; (def = builtins.=)
 
-;; types
-(def type builtins.type)
-(def ctor builtins.ctor)
+;; ;; types
+;; (def type builtins.type)
+;; (def ctor builtins.ctor)
 
-(def -> builtins.->)
+;; (def -> builtins.->)
 
-(def integer builtins.integer)
-(def boolean builtins.boolean)
-(def unit builtins.unit)
+;; (def integer builtins.integer)
+;; (def boolean builtins.boolean)
+;; (def unit builtins.unit)
 
-;; state
-(def ref builtins.ref)
-(def get builtins.get)
-(def set builtins.set)
+;; ;; state
+;; (def ref builtins.ref)
+;; (def get builtins.get)
+;; (def set builtins.set)
 
-(def pure builtins.pure)
+;; (def pure builtins.pure)
 
 
-;; strings
-(def print builtins.print)
+;; ;; strings
+;; (def print builtins.print)

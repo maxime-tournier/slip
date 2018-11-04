@@ -36,6 +36,7 @@ namespace vm {
 
   
   struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin,
+                         list<value>,
                          gc::ref<closure>, gc::ref<record>> {
     using value::variant::variant;
 

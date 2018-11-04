@@ -158,25 +158,10 @@ int main(int argc, const char** argv) {
     };
   }
 
-  // read loop
-  static const auto reader = [&](std::istream& in) {
+  
+  const auto handle_errors = [&](auto func) {
     try {
-      ast::expr::iter(in, [&](ast::expr e) {
-        const type::mono t = type::infer(ts, e);
-        const type::poly p = ts->generalize(t);
-        // TODO: cleanup substitution?
-        
-        if(auto self = e.get<ast::var>()) {
-          std::cout << self->name;
-        }
-        
-        const auto print = evaluate(e);
-        std::cout << " : " << p << std::flush;
-        
-        print(std::cout << " = ");
-        std::cout << std::endl;
-      });
-
+      func();
       return true;
     } catch(sexpr::error& e) {
       std::cerr << "parse error: " << e.what() << std::endl;
@@ -192,6 +177,27 @@ int main(int argc, const char** argv) {
     }
     return false;
   };
+  
+  // read loop
+  static const auto reader = [&](std::istream& in) {
+    return handle_errors([&] {
+      ast::expr::iter(in, [&](ast::expr e) {
+        const type::mono t = type::infer(ts, e);
+        const type::poly p = ts->generalize(t);
+        // TODO: cleanup substitution?
+        
+        if(auto self = e.get<ast::var>()) {
+          std::cout << self->name;
+        }
+        
+        const auto print = evaluate(e);
+        std::cout << " : " << p << std::flush;
+        
+        print(std::cout << " = ");
+        std::cout << std::endl;
+      });
+    });
+  };
 
   
   if(auto filename = options.get<std::string>("filename")) {
@@ -202,10 +208,17 @@ int main(int argc, const char** argv) {
       return 1;
     }
   } else {
-    const symbol repl = "repl";
-    
-    evaluate(ast::import(repl));
-    evaluate(ast::use(ast::var(repl)));
+
+    if(!handle_errors([&] {
+      const symbol repl = "repl";
+      ast::expr exprs[] = {ast::import(repl), ast::use(ast::var(repl))};
+      for(ast::expr e: exprs) {
+        type::infer(ts, e);
+        evaluate(e);
+      }
+    })) {
+      return 1;
+    }
     
     read_loop(reader);
   }

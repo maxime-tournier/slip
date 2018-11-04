@@ -115,7 +115,7 @@ namespace vm {
 
     auto rec = pop(s).cast<gc::ref<record>>();
     auto it = rec->attrs.find(self->attr);
-    
+    assert(it != rec->attrs.end() && "record attribute error");
     push(s, it->second);
   }
   

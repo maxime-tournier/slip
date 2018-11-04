@@ -2,10 +2,9 @@
 (import builtins)
 (import func)
 
-(def list builtins.list)
 (def cons builtins.cons)
 (def nil builtins.nil)
-
+(def list builtins.list)
 
 ;; folds
 (def (foldr f init (list self))

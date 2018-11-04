@@ -220,6 +220,9 @@ namespace vm {
   state builtins() {
     state self(1000);
 
+    value ctor = builtin(1, [](const value* args) -> value { return unit(); });
+    value ctor2 = builtin(2, [](const value* args) -> value { return unit(); });    
+    
     self
       .def("+", builtin([](const integer& lhs, const integer& rhs) -> integer {
         return lhs + rhs;
@@ -236,8 +239,19 @@ namespace vm {
       .def("=", builtin([](const integer& lhs, const integer& rhs) -> boolean {
         return lhs == rhs;
       }))
-      ;
+      
+      .def("cons", builtin(2, [](const value* args) -> value {
+        return args[0] >>= args[1].cast<list<value>>();
+      }))
 
+      .def("nil", list<value>())
+      .def("list", ctor)
+      
+      ;
+    
+        
+        
+    
     return self;
   }
 
