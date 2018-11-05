@@ -240,12 +240,12 @@ namespace vm {
         return lhs == rhs;
       }))
       
-      .def("cons", builtin(2, [](const value* args) -> value {
-        return args[0] >>= args[1].cast<list<value>>();
-      }))
+      // .def("cons", builtin(2, [](const value* args) -> value {
+      //   return args[0] >>= args[1].cast<list<value>>();
+      // }))
 
-      .def("nil", list<value>())
-      .def("list", ctor)
+      // .def("nil", list<value>())
+      // .def("list", ctor)
       
       ;
     

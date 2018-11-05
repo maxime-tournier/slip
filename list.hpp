@@ -9,49 +9,50 @@
 template<class T> struct cons;
 template<class T> using list = ref<cons<T>>;
 
-
 template<class T>
 struct cons {
   T head;
-  list<T> tail;
-
-  cons(const T& head, const list<T>& tail) : head(head), tail(tail) { }
   
-  friend list<T> operator>>=(const T& head, const list<T>& tail) {
-    return std::make_shared<cons>(head, tail);
+  using list = ref<cons>;
+  list tail;
+
+  cons(const T& head, const list& tail) : head(head), tail(tail) { }
+  
+  friend list operator>>=(const T& head, const list& tail) {
+    return make_ref<cons>(head, tail);
   }
 
   template<class Init, class Func>
-  friend Init foldl(const Init& init, const list<T>& self, const Func& func) {
+  friend Init foldl(const Init& init, const list& self, const Func& func) {
     if(!self) return init;
     return foldl(func(init, self->head), self->tail, func);
   }
 
   template<class Init, class Func>
-  friend Init foldr(const Init& init, const list<T>& self, const Func& func) {
+  friend Init foldr(const Init& init, const list& self, const Func& func) {
     if(!self) return init;
     return func(self->head, foldr(init, self->tail, func));
   }
 
-  friend list<T> reverse(const list<T>& self, const list<T>& acc = nullptr) {
+  friend list reverse(const list& self, const list& acc = nullptr) {
     if(!self) return acc;
     return reverse(self->tail, self->head >>= acc);
   }
 
-  friend list<T> concat(const list<T>& lhs, const list<T>& rhs) {
+  friend list concat(const list& lhs, const list& rhs) {
     if(!lhs) return rhs;
     return lhs->head >>= concat(lhs->tail, rhs);
   }
 
   
   template<class Func>
-  friend list<typename std::result_of<Func(T)>::type> map(const list<T>& self,
-                                                          Func func) {
+  friend ::list<typename std::result_of<Func(T)>::type> map(const list& self,
+                                                            Func func) {
     if(!self) return {};
     return func(self->head) >>= map(self->tail, func);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const list<T>& self) {
+  friend std::ostream& operator<<(std::ostream& out, const list& self) {
     out << '(';
     foldl(true, self, [&](bool first, const T& it) {
         if(!first) out << ' ';
@@ -74,10 +75,10 @@ struct cons {
     reference operator*() const { return ptr->head; }
   };
 
-  friend iterator begin(const list<T>& self) { return {self.get()}; }
-  friend iterator end(const list<T>& self) { return {nullptr}; }  
+  friend iterator begin(const list& self) { return {self.get()}; }
+  friend iterator end(const list& self) { return {nullptr}; }  
 
-  friend std::size_t size(const list<T>& self) {
+  friend std::size_t size(const list& self) {
     return foldr(0, self, [](const T&, std::size_t s) { return s + 1; });
   }
   

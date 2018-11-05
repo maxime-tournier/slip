@@ -60,7 +60,11 @@ public:
     T* operator->() const { return get();}
 
     inline void mark() { ptr->set_mark(true); }
-    inline bool marked() const { return ptr->get_mark(); }      
+    inline bool marked() const { return ptr->get_mark(); }
+
+    friend std::ostream& operator<<(std::ostream& out, const ref& self) {
+      return out << self.get();
+    }
   };
 
 

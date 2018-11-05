@@ -33,6 +33,7 @@ executable('slip',
            'ir.cpp',
            'vm.cpp',
            'opt.cpp',
+           'base.cpp',
            dependencies: [readline],
            cpp_args : cpp_args)
 

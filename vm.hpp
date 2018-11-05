@@ -5,6 +5,7 @@
 #include "stack.hpp"
 
 #include "ir.hpp"
+#include "nan.hpp"
 
 namespace vm {
 
@@ -35,9 +36,10 @@ namespace vm {
   };
 
   
-  struct value : variant<unit, boolean, integer, real, gc::ref<string>, builtin,
-                         list<value>,
-                         gc::ref<closure>, gc::ref<record>> {
+  struct value : nan::variant<unit, boolean, integer, gc::ref<string>, builtin,
+                             // list<value>,
+                             // gc::ref<value>,
+                             gc::ref<closure>, gc::ref<record>> {
     using value::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);

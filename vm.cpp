@@ -13,7 +13,7 @@ namespace vm {
 
   record::record(std::map<symbol, value> attrs):
       attrs(attrs) {
-    // std::clog << __func__ << " " << this << std::endl;
+    std::clog << __func__ << " " << this << std::endl;
   }
   
   record::~record() {
@@ -234,13 +234,13 @@ namespace vm {
   static value call(state* s, const value* args, std::size_t argc) {
     const value& self = args[-1];
     
-    switch(self.type()) {
-    case value::index_of<builtin>::value:
-      return apply(s, self.cast<builtin>(), args, argc);
-    case value::index_of<gc::ref<closure>>::value:
-      return apply(s, self.cast<gc::ref<closure>>(), args, argc);
-    default: break;
-    }
+    // switch(self.type()) {
+    // case value::index_of<builtin>::value:
+    //   return apply(s, self.cast<builtin>(), args, argc);
+    // case value::index_of<gc::ref<closure>>::value:
+    //   return apply(s, self.cast<gc::ref<closure>>(), args, argc);
+    // default: break;
+    // }
     
     // delegate call based on actual function type
     return self.match([&](const auto& self) {
@@ -282,7 +282,7 @@ namespace vm {
     }
     
     // TODO move values from the stack into vector
-    std::vector<value> captures = {first, first + self->captures.size()};
+    std::vector<value> captures(first, first + self->captures.size());
 
     // pop captures
     pop(s, self->captures.size());
@@ -370,15 +370,15 @@ namespace vm {
   ////////////////////////////////////////////////////////////////////////////////
   struct mark_visitor {
     template<class T>
-    void operator()(T& self, bool debug) const { }
+    void operator()(T self, bool debug) const { }
 
     template<class T>
-    void operator()(gc::ref<T>& self, bool debug) const {
+    void operator()(gc::ref<T> self, bool debug) const {
       if(debug) std::clog << "  marking: " << self.get() << std::endl;              
       self.mark();
     }
 
-    void operator()(gc::ref<record>& self, bool debug) const {
+    void operator()(gc::ref<record> self, bool debug) const {
       self.mark();
       
       for(auto& it : self->attrs) {

@@ -4,7 +4,9 @@
 #include <iosfwd>
 
 // base types
-struct unit { };
+struct unit {
+  friend std::ostream& operator<<(std::ostream& out, unit);
+};
 
 using boolean = bool;
 using integer = long;
