@@ -22,8 +22,7 @@ namespace ir {
   struct expr;
 
   struct closure;
-  struct cond;
-  struct scope;
+  struct branch;
   struct call;
 
   
@@ -89,7 +88,7 @@ namespace ir {
                         call,
                         ref<closure>,
                         block, exit, drop, 
-                        ref<cond>,
+                        ref<branch>,
                         import, ref<use>,
                         def, sel> {
     using expr::variant::variant;
@@ -107,17 +106,17 @@ namespace ir {
   struct closure {
     const std::size_t argc;
     const vector<expr> captures;
-    const expr body;
+    const block body;
 
-    closure(std::size_t argc, vector<expr> captures, expr body);
+    closure(std::size_t argc, vector<expr> captures, block body);
   };
 
   
-  struct cond {
+  struct branch {
     const expr then;
     const expr alt;
     
-    cond(expr then, expr alt):
+    branch(expr then, expr alt):
       then(then),
       alt(alt) { }
   };

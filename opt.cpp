@@ -12,19 +12,6 @@ namespace ir {
       return func(self);
     }
 
-    template<class Func>
-    expr operator()(const ref<closure>& self, const Func& func) const {
-
-      vector<expr> captures; captures.reserve(self->captures.size());
-      for(const expr& c: self->captures) {
-        captures.emplace_back(c.visit(*this, func));
-      }
-
-      expr body = self->body.visit(*this, func);
-
-      return func(make_ref<closure>(self->argc, std::move(captures), body));
-    }
-
     template<class Func>    
     expr operator()(const block& self, const Func& func) const {
       vector<expr> items; items.reserve(self.items.size());
@@ -36,12 +23,36 @@ namespace ir {
       return func(block{std::move(items)});
     }
 
+
+    template<class Func>
+    expr operator()(const ref<closure>& self, const Func& func) const {
+
+      vector<expr> captures; captures.reserve(self->captures.size());
+      for(const expr& c: self->captures) {
+        captures.emplace_back(c.visit(*this, func));
+      }
+
+      expr body = operator()(self->body, func);
+      
+      vector<expr> items = body.match([&](const expr& self) {
+          return vector<expr>(1, self);
+        },
+        [&](const block& self) {
+          return self.items;
+        });
+      
+      return func(make_ref<closure>(self->argc, std::move(captures),
+                                    block{std::move(items)}));
+    }
+
+    
+
     template<class Func>    
-    expr operator()(const ref<cond>& self, const Func& func) const {
+    expr operator()(const ref<branch>& self, const Func& func) const {
       expr then = self->then.visit(*this, func);
       expr alt = self->alt.visit(*this, func);      
 
-      return func(make_ref<cond>(std::move(then), std::move(alt)));
+      return func(make_ref<branch>(std::move(then), std::move(alt)));
     }
   };
   

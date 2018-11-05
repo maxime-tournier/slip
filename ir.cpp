@@ -9,7 +9,7 @@
 
 namespace ir {
 
-  closure::closure(std::size_t argc, vector<expr> captures, expr body)
+  closure::closure(std::size_t argc, vector<expr> captures, block body)
     : argc(argc),
       captures(captures),
       body(body) { }
@@ -130,7 +130,7 @@ namespace ir {
     }
 
     // compile function body
-    const expr body = compile(&sub, *self.body);
+    expr body = compile(&sub, *self.body);
 
     // order captures by index
     std::vector<std::pair<symbol, capture>> ordered = {sub.captures.begin(),
@@ -145,8 +145,12 @@ namespace ir {
     for(auto cap : ordered) {
       captures.emplace_back(ctx->find(cap.first));
     }
+
+    // body block
+    vector<expr> items;
+    items.emplace_back(body);
     
-    return make_ref<closure>(size(self.args), captures, body);
+    return make_ref<closure>(size(self.args), captures, block{std::move(items)});
   }
 
   
@@ -184,7 +188,7 @@ namespace ir {
   static expr compile(state* ctx, ast::cond self) {
     vector<expr> items;
     items.emplace_back(compile(ctx, *self.test));
-    items.emplace_back(make_ref<cond>(compile(ctx, *self.conseq),
+    items.emplace_back(make_ref<branch>(compile(ctx, *self.conseq),
                                       compile(ctx, *self.alt)));
     return block{items};
   }
@@ -301,8 +305,8 @@ namespace ir {
         >>= sexpr::list();
     }
 
-    sexpr operator()(const ref<cond>& self) const {
-      return symbol("cond")
+    sexpr operator()(const ref<branch>& self) const {
+      return symbol("branch")
         >>= repr(self->then)
         >>= repr(self->alt)
         >>= sexpr::list();

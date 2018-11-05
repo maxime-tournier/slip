@@ -127,7 +127,7 @@ namespace vm {
   }
   
 
-  static void run(state* s, const ref<ir::cond>& self) {
+  static void run(state* s, const ref<ir::branch>& self) {
     // evaluate test
     const bool test = pop(s).cast<boolean>();
 
