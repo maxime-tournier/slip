@@ -72,16 +72,16 @@ namespace vm {
   template<class ... Args>
   static value* push(state* s, Args&& ... args) {
     value* res = new (s->stack.allocate(1)) value(std::forward<Args>(args)...);
-    if(debug) std::clog << "\tpush:\t" << *res << std::endl;
+    // if(debug) std::clog << "\tpush:\t" << *res << std::endl;
     return res;
   }
 
   
   static void pop(state* s, std::size_t n) {
-    for(std::size_t i=0; i < n; ++i) {
-      if(debug) std::clog << "\tpop:\t" << *(top(s) - i) << std::endl;
-      (top(s) - i)->~value();
-    }
+    // for(std::size_t i=0; i < n; ++i) {
+    //   if(debug) std::clog << "\tpop:\t" << *(top(s) - i) << std::endl;
+    //   (top(s) - i)->~value();
+    // }
     
     s->stack.deallocate(s->stack.next() - n, n);
   }
