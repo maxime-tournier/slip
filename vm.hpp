@@ -106,7 +106,7 @@ namespace vm {
   static builtin from_lambda(Func func, Ret (*)(const Args&...)) {
     static Func instance(func);
     return builtin(sizeof...(Args), [](const value* args) -> value {
-        const std::tuple<const Args&...> unpack = { (args++)->cast<Args>()... };
+        const std::tuple<const Args...> unpack = { (args++)->cast<Args>()... };
         return tool::apply(instance, unpack, std::index_sequence_for<Args...>());
       });
   }

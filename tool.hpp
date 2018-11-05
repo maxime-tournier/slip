@@ -14,7 +14,7 @@ namespace tool {
   std::string type_name(const std::type_info& self);
 
   template<class Func, class ... Args, std::size_t ... I>
-  static auto apply(const Func& func, const std::tuple<const Args&...>& args,
+  static auto apply(const Func& func, const std::tuple<Args...>& args,
                     std::index_sequence<I...>) {
     return func(std::get<I>(args)...);
   }
