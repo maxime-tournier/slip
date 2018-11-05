@@ -35,8 +35,8 @@ namespace vm {
   }
 
   record::record(std::map<symbol, value> attrs):
-      attrs(attrs) {
-    std::clog << __func__ << " " << this << std::endl;
+    attrs(attrs) {
+    // std::clog << __func__ << " " << this << std::endl;
   }
   
   record::~record() {
