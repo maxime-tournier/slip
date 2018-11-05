@@ -150,21 +150,31 @@ namespace ir {
   
   static expr compile(state* ctx, ast::app self) {
     return self.func->match([&](const ast::expr& func) -> expr {
-      const expr cfunc = compile(ctx, func);
+        vector<expr> items;
+
+        // push func
+        items.emplace_back(compile(ctx, func));
+
+        // push args
+        std::size_t argc = 0;
+        for(ast::expr arg : self.args) {
+          items.emplace_back(compile(ctx, arg));
+          ++argc;
+        };
+
+        // call
+        items.emplace_back(call{argc});
+
+        return block{std::move(items)};
+      },
       
-      vector<expr> args;
-      for(ast::expr arg : self.args) {
-        args.emplace_back(compile(ctx, arg));
-      };
-      
-      return make_ref<call>(cfunc, args);
-    },
       [&](const ast::sel& func) -> expr {
         assert(size(self.args) == 1);
         vector<expr> items;
         items.emplace_back(compile(ctx, self.args->head));
         items.emplace_back(sel{func.id.name});
-        return block{items};
+
+        return block{std::move(items)};
       });
   }
 
@@ -299,11 +309,10 @@ namespace ir {
         >>= sexpr::list();
     }
 
-    sexpr operator()(const ref<call>& self) const {
-      return repr(self->func)
-        >>= foldr(sexpr::list(), self->args, [](sexpr::list tail, ir::expr head) {
-            return repr(head) >>= tail;
-          });
+    sexpr operator()(const call& self) const {
+      return symbol("call")
+        >>= integer(self.argc)
+        >>= sexpr::list();
     }
 
     sexpr operator()(const def& self) const {

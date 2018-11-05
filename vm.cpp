@@ -171,21 +171,25 @@ namespace vm {
       captures.emplace_back(self);
       
       // closure call
-      vector<ir::expr> args; args.reserve(argc + expected);
+      vector<ir::expr> items; items.reserve(1 + argc + expected);
 
-      // argc first args come from capture
+      // push closure
+      items.emplace_back(ir::capture(argc));
+      
+      // push argc leading args from closure
       for(std::size_t i = 0; i < argc; ++i) {
-        args.emplace_back(ir::capture(i));
+        items.emplace_back(ir::capture(i));
+      }
+      
+      // push remaining args come from stack
+      for(std::size_t i = 0, n = expected - argc; i < n; ++i) {
+        items.emplace_back(ir::local(i));
       }
 
-      // remaining args come from stack
-      for(std::size_t i = 0, n = expected - argc; i < n; ++i) {
-        args.emplace_back(ir::local(i));
-      }
+      // push saturated call
+      items.emplace_back(ir::call{argc + expected});
       
-      const ir::expr body = make_ref<ir::call>(ir::capture(argc), std::move(args));
-      
-      return gc::make_ref<closure>(expected - argc, body, std::move(captures));
+      return gc::make_ref<closure>(expected - argc, ir::block{std::move(items)}, std::move(captures));
     } else {
       // over-saturated: call expected arguments then call remaining args
       // regularly
@@ -258,36 +262,19 @@ namespace vm {
   }
 
 
-  static void run(state* s, const ref<ir::call>& self) {
-    // static std::size_t depth = 0;
-    // std::clog << std::string(depth++, '.') << "call: " << ir::repr(self) << std::endl;
-    // peek(s);
+  static void run(state* s, const ir::call& self) {
+    // arguments pointer
+    const value* args = s->stack.next() - self.argc;
     
-    // evaluate/push function
-    // std::clog << std::string(depth, '.') << "func" << std::endl;
-    run(s, self->func);
-
-    // evaluate/push args
-    const value* args = s->stack.next();
-    
-    const std::size_t argc = self->args.size();
-    for(const auto& arg: self->args) {
-      // std::clog << std::string(depth, '.') << "arg" << std::endl;
-      run(s, arg);
-    }
-
     // call function: call must cleanup the stack leaving exactly the function
     // and its arguments in place
-    value result = call(s, args, argc);
+    value result = call(s, args, self.argc);
     
     // pop arguments
-    pop(s, argc);
+    pop(s, self.argc);
 
     // push function result
     *top(s) = std::move(result);
-
-    // std::clog << std::string(--depth, '.') << "result: " << result << std::endl;
-    // peek(s);
   }
 
 

@@ -72,12 +72,17 @@ namespace ir {
     const symbol package;
   };
 
+  struct call {
+    std::size_t argc;
+  };
+  
   // TODO this one needs help from the typechecker
   struct use;
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
-                        ref<scope>, ref<closure>, ref<call>,
+                        call,
+                        ref<scope>, ref<closure>,
                         block, drop, 
                         ref<cond>,
                         import, ref<use>,
@@ -85,16 +90,6 @@ namespace ir {
     using expr::variant::variant;
   };
   
-
-  struct call {
-    const expr func;
-    const vector<expr> args;
-
-    call(expr func, vector<expr> args):
-      func(func),
-      args(std::move(args)) { }
-  };
-
 
   
   struct use {
