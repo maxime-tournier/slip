@@ -63,6 +63,11 @@ namespace ir {
     vector<expr> items;
   };
 
+  // scope exit: pop result, pop locals and push result back
+  struct exit {
+    std::size_t locals;
+  };
+  
   // attribute selection
   struct sel {
     symbol attr;
@@ -82,8 +87,8 @@ namespace ir {
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
                         call,
-                        ref<scope>, ref<closure>,
-                        block, drop, 
+                        ref<closure>,
+                        block, exit, drop, 
                         ref<cond>,
                         import, ref<use>,
                         def, sel> {
@@ -99,17 +104,6 @@ namespace ir {
   };
   
 
-  // 
-  struct scope {
-    const vector<expr> defs;
-    const expr value;
-    
-    scope(vector<expr> defs, expr value):
-      defs(std::move(defs)),
-      value(value) { }
-  };
-
-  
   struct closure {
     const std::size_t argc;
     const vector<expr> captures;

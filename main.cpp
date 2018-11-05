@@ -18,6 +18,8 @@
 #include "argparse.hpp"
 
 #include "ir.hpp"
+#include "opt.hpp"
+
 #include "vm.hpp"
 #include "infer.hpp"
 #include "builtins.hpp"
@@ -127,7 +129,11 @@ int main(int argc, const char** argv) {
     auto state = make_ref<vm::state>();
     evaluate = [state](ast::expr e) {
       const ir::expr c = ir::compile(e);
-      return make_printer(vm::eval(state.get(), c));
+      std::clog << "compiled: " << repr(c) << std::endl;
+      
+      const ir::expr o = ir::opt(c);
+      std::clog << "optimized: " << repr(o) << std::endl;
+      return make_printer(vm::eval(state.get(), o));
     };
   } else {
     auto state = eval::gc::make_ref<eval::state>();

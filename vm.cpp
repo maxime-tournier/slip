@@ -120,25 +120,12 @@ namespace vm {
   }
 
   
-  static void run(state* s, const ref<ir::scope>& self) {
-    // push scope defs
-    for(const ir::expr& def : self->defs) {
-      run(s, def);
-    }
-    
-    // push scope value
-    run(s, self->value);
-
-    // fetch result
-    value result = std::move(*top(s));
-    
-    // pop scope size
-    pop(s, self->defs.size());
-    
-    // put back result
-    *top(s) = std::move(result);
+  static void run(state* s, const ir::exit& self) {
+    value result = pop(s);
+    pop(s, self.locals);
+    push(s, std::move(result));
   }
-
+  
 
   static void run(state* s, const ref<ir::cond>& self) {
     // evaluate test
