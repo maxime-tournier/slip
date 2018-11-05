@@ -18,11 +18,6 @@ namespace type {
     return make_ref<constant>(constant{name, k});
   };
 
-  
-  static const auto make_variable = [](std::size_t level, kind::any k=kind::term()) {
-    return make_ref<variable>(variable{level, k});
-  };
-
   // constants
   const mono unit = make_constant("unit");
   const mono boolean = make_constant("boolean");

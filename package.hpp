@@ -2,7 +2,10 @@
 #define SLAP_PACKAGE_HPP
 
 #include "symbol.hpp"
+
 #include <map>
+#include <vector>
+#include <functional>
 
 namespace ast {
   struct expr;
