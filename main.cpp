@@ -129,10 +129,10 @@ int main(int argc, const char** argv) {
     auto state = make_ref<vm::state>();
     evaluate = [state](ast::expr e) {
       const ir::expr c = ir::compile(e);
-      std::clog << "compiled: " << repr(c) << std::endl;
+      // std::clog << "compiled: " << repr(c) << std::endl;
       
       const ir::expr o = ir::opt(c);
-      std::clog << "optimized: " << repr(o) << std::endl;
+      // std::clog << "optimized: " << repr(o) << std::endl;
       return make_printer(vm::eval(state.get(), o));
     };
   } else {
