@@ -386,6 +386,9 @@ namespace vm {
                    out << it.first << ": " << it.second;
                  }
                  out << "}";                 
+               },
+               [&](const gc::ref<sum>& self) {
+                 out << "<" << self->tag << ": " << self->data << ">";
                });
     return out;
   }

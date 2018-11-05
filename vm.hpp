@@ -35,6 +35,7 @@ namespace vm {
     explicit builtin(Func func);
   };
 
+  
   struct record {
     std::map<symbol, value> attrs;
 
@@ -42,11 +43,15 @@ namespace vm {
     ~record();
   };
 
+
+  struct sum;
+
   
   struct value : nan::variant<unit, boolean, integer, gc::ref<string>, builtin,
                              // list<value>,
                              // gc::ref<value>,
-                             gc::ref<closure>, gc::ref<record>> {
+                              gc::ref<closure>,
+                              gc::ref<record>, gc::ref<sum>> {
     using value::variant::variant;
 
     friend std::ostream& operator<<(std::ostream& out, const value& self);
@@ -66,6 +71,12 @@ namespace vm {
       argc(argc),
       body(std::move(body)),
       captures(std::move(captures)){ }
+  };
+
+  
+  struct sum {
+    symbol tag;
+    value data;
   };
 
   
