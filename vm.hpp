@@ -15,14 +15,21 @@ namespace vm {
   struct value;
   struct closure;
 
-  struct builtin {
-    std::size_t argc;
+  class builtin {
     using func_type = value (*)(const value* args);
-    func_type func;
-
-    builtin(std::size_t argc, func_type func):
-      argc(argc),
-      func(func) { }
+    
+    union {
+      func_type func;      
+      std::size_t bits;
+    } storage;
+    
+    static constexpr std::size_t argc_mask = 0x0f;
+  public:
+    
+    func_type func() const;
+    std::size_t argc() const;    
+    
+    builtin(std::size_t argc, func_type func);
 
     template<class Func>
     explicit builtin(Func func);

@@ -5,6 +5,29 @@
 
 namespace vm {
 
+  builtin::builtin(std::size_t argc, func_type func) {
+    assert(argc < argc_mask);
+
+    storage.func = func;
+    // std::clog << "builtin: " << std::bitset<64>(storage.bits) << std::endl;
+    storage.bits |= argc;
+  }
+
+
+  builtin::func_type builtin::func() const {
+    auto res = storage;
+    res.bits &= ~argc_mask;
+    // std::clog << "func: " << std::bitset<64>(res.bits) << std::endl;
+    return res.func;
+  }
+
+  std::size_t builtin::argc() const {
+    std::size_t res = storage.bits & argc_mask;
+    // std::clog << "argc: " << res << std::endl;
+    return res;
+  }
+
+  
   state::state(std::size_t size):
     stack(size) {
     frames.reserve(size);    
@@ -192,11 +215,11 @@ namespace vm {
   // builtin call
   static value apply(state* s, const builtin& self,
                      const value* args, std::size_t argc) {
-    if(self.argc != argc) {
-      return unsaturated(s, self, self.argc, args, argc);
+    if(self.argc() != argc) {
+      return unsaturated(s, self, self.argc(), args, argc);
     }
     
-    return self.func(args);
+    return self.func()(args);
   }
 
   // closure call
