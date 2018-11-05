@@ -37,9 +37,10 @@ namespace vm {
 
   
   struct record {
-    std::map<symbol, value> attrs;
+    using attrs_type = std::map<symbol, value>;
+    attrs_type attrs;
 
-    record(std::map<symbol, value> attrs);
+    record(attrs_type attrs);
     ~record();
   };
 

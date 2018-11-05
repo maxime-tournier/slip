@@ -229,6 +229,19 @@ namespace ir {
     }
   }
 
+
+  static expr compile(state* ctx, ast::record self) {
+    vector<expr> items;
+    vector<symbol> attrs;
+
+    for(const ast::record::attr& attr: self.attrs) {
+      attrs.emplace_back(attr.id.name);
+      items.emplace_back(compile(ctx, attr.value));
+    }
+    
+    items.emplace_back(record{std::move(attrs)});
+    return block{std::move(items)};
+  }
   
   ////////////////////////////////////////////////////////////////////////////////  
   static expr compile(state* ctx, ast::expr self) {
@@ -343,6 +356,13 @@ namespace ir {
       return symbol("sel")
         >>= self.attr
         >>= sexpr::list();
+    }
+
+    sexpr operator()(const record& self) const {
+      return symbol("record")
+        >>= foldr(sexpr::list(), self.attrs, [&](sexpr::list rhs, symbol lhs) {
+          return lhs >>= rhs;
+        });
     }
     
   };

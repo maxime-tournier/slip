@@ -50,6 +50,7 @@ namespace ir {
   struct def {
     symbol name;
   };
+
   
   template<class T>
   struct lit {
@@ -82,6 +83,12 @@ namespace ir {
   
   // TODO this one needs help from the typechecker
   struct use;
+
+  
+  struct record {
+    vector<symbol> attrs;
+  };
+
   
   struct expr : variant<lit<unit>, lit<boolean>, lit<integer>, lit<real>, lit<string>,
                         local, capture, global,
@@ -90,7 +97,8 @@ namespace ir {
                         block, exit, drop, 
                         ref<branch>,
                         import, ref<use>,
-                        def, sel> {
+                        def,
+                        sel, record> {
     using expr::variant::variant;
   };
   

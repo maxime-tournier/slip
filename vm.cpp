@@ -351,7 +351,20 @@ namespace vm {
 
     push(s, unit());
   }
-  
+
+
+  static void run(state* s, const ir::record& self) {
+    record::attrs_type attrs;
+    
+    for(auto it = self.attrs.rbegin(), end = self.attrs.rend(); it != end; ++it) {
+      attrs.emplace(*it, pop(s));
+    }
+
+    push(s, gc::make_ref<record>(std::move(attrs)));
+  }
+
+
+  // main dispatch
   static void run(state* s, const ir::expr& self) {
     self.match([&](const auto& self) {
       run(s, self);
@@ -365,6 +378,10 @@ namespace vm {
     // std::clog << repr(self) << std::endl;
     run(s, self);
     value res = pop(s);
+
+    // hack: prevent last value from being collected
+    s->globals.emplace("__last__", res).first->second = res;
+    
     collect(s);
     return res;
   }
