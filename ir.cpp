@@ -181,6 +181,19 @@ namespace ir {
         items.emplace_back(sel{func.id.name});
 
         return block{std::move(items)};
+      },
+      [&](const ast::match& func) -> expr {
+        std::map<symbol, expr> cases;
+        for(ast::match::handler h: func.cases) {
+          const state::scope backup(ctx);
+
+          // reserve stack for matched variable
+          ctx->def(h.arg.name());
+          
+          expr c = compile(ctx, h.value);
+          cases.emplace(h.id.name, c);
+        }
+        return make_ref<match>(std::move(cases), compile(ctx, func.fallback));
       });
   }
 
@@ -242,6 +255,12 @@ namespace ir {
     items.emplace_back(record{std::move(attrs)});
     return block{std::move(items)};
   }
+
+  
+  static expr compile(state* ctx, ast::match self) {
+    throw std::runtime_error("unimplemented: naked match");
+  }
+  
   
   ////////////////////////////////////////////////////////////////////////////////  
   static expr compile(state* ctx, ast::expr self) {
@@ -363,6 +382,17 @@ namespace ir {
         >>= foldr(sexpr::list(), self.attrs, [&](sexpr::list rhs, symbol lhs) {
           return lhs >>= rhs;
         });
+    }
+
+
+    sexpr operator()(const ref<match>& self) const {
+      auto tail = sexpr::list();
+
+      for(const auto& it: self->cases) {
+        tail = (it.first >>= repr(it.second) >>= sexpr::list()) >>= tail;
+      }
+      
+      return symbol("match") >>= tail;
     }
     
   };

@@ -23,6 +23,7 @@ namespace ir {
 
   struct closure;
   struct branch;
+  struct match;
   struct call;
 
   
@@ -95,7 +96,7 @@ namespace ir {
                         call,
                         ref<closure>,
                         block, exit, drop, 
-                        ref<branch>,
+                        ref<branch>, ref<match>,
                         import, ref<use>,
                         def,
                         sel, record> {
@@ -127,6 +128,17 @@ namespace ir {
     branch(expr then, expr alt):
       then(then),
       alt(alt) { }
+  };
+
+  
+  struct match {
+    using cases_type = std::map<symbol, expr>;
+    const cases_type cases;
+    const expr fallback;
+
+    match(cases_type cases, expr fallback):
+      cases(std::move(cases)),
+      fallback(fallback) { }
   };
 
   

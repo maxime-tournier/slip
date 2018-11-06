@@ -10,6 +10,7 @@
 # syntax
 
 - report line numbers in syntax errors
+- remove sum injection, use only modules instead
 
 # types
 
@@ -19,6 +20,12 @@
 
 - string types
 - files 
+
+# vm
+
+- using?! needs type system support => type-driven compilation
+- flatten blocks in memory somehow
+
 
 # packages
 

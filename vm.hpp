@@ -47,7 +47,6 @@ namespace vm {
 
   struct sum;
 
-  
   struct value : nan::variant<unit, boolean, integer, gc::ref<string>, builtin,
                              // list<value>,
                              // gc::ref<value>,

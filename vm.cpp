@@ -142,6 +142,31 @@ namespace vm {
     push(s, it->second);
   }
 
+
+  static void run(state* s, const ref<ir::match>& self) {
+    // precondition: matched value is pushed and is a sum value
+
+    const symbol tag = top(s)->cast<gc::ref<sum>>()->tag;
+    auto it = self->cases.find(tag);
+
+    if(it == self->cases.end()) {
+      run(s, self->fallback);
+    } else {
+      run(s, it->second);
+    }
+
+    // TODO optimize?
+    
+    // pop match result
+    value result = pop(s);
+
+    // pop matched value
+    pop(s, 1);
+
+    // push back result
+    push(s, std::move(result));
+  }
+  
   
   static void run(state* s, const ir::exit& self) {
     value result = pop(s);
